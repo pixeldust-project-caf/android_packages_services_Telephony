@@ -101,9 +101,10 @@
     <protected-broadcast android:name= "android.telephony.action.SUBSCRIPTION_SPECIFIC_CARRIER_IDENTITY_CHANGED" />
     <protected-broadcast android:name= "android.telephony.action.NETWORK_COUNTRY_CHANGED" />
     <protected-broadcast android:name= "android.telephony.action.PRIMARY_SUBSCRIPTION_LIST_CHANGED" />
-
     <!-- For Vendor Debugging in Telephony -->
     <protected-broadcast android:name="android.telephony.action.ANOMALY_REPORTED" />
+    <protected-broadcast android:name= "org.codeaurora.VOIP_VOPS_SSAC_STATUS" />
+    <protected-broadcast android:name= "org.codeaurora.intent.action.SUBSCRIPTION_INFO_RECORD_ADDED" />
 
     <protected-broadcast android:name= "codeaurora.intent.action.ACTION_LTE_CONFIGURE" />
     <protected-broadcast android:name= "codeaurora.intent.action.ACTION_MANAGED_ROAMING_IND" />
