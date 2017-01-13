@@ -1168,6 +1168,15 @@ public class TelecomAccountRegistry {
         }
     }
 
+    private  IExtTelephony getIExtTelephony() {
+        try {
+            IExtTelephony ex = IExtTelephony.Stub.asInterface(ServiceManager.getService("extphone"));
+            return ex;
+        } catch (NoClassDefFoundError ex) {
+            return null;
+        }
+    }
+
     private void setupAccounts() {
         // Go through SIM-based phones and register ourselves -- registering an existing account
         // will cause the existing entry to be replaced.
@@ -1186,6 +1195,7 @@ public class TelecomAccountRegistry {
                     // states we are interested in from what
                     // IExtTelephony.getCurrentUiccCardProvisioningStatus()can return
                     final int PROVISIONED = 1;
+                    final int INVALID_STATE = -1;
                     final int CARD_NOT_PRESENT = -2;
                     boolean isInEcm = false;
 
@@ -1198,18 +1208,20 @@ public class TelecomAccountRegistry {
                         boolean isAccountAdded = false;
 
                         if (mTelephonyManager.getPhoneCount() > 1) {
-                            IExtTelephony mExtTelephony = IExtTelephony.Stub
-                                    .asInterface(ServiceManager.getService("extphone"));
-                            try {
-                                //get current provision state of the SIM.
-                                provisionStatus =
-                                        mExtTelephony.getCurrentUiccCardProvisioningStatus(slotId);
-                            } catch (RemoteException ex) {
-                                Log.w(this, "Failed to get status , slotId: "+ slotId +" Exception: "
-                                        + ex);
-                            } catch (NullPointerException ex) {
-                                Log.w(this, "Failed to get status , slotId: "+ slotId +" Exception: "
-                                        + ex);
+                            if (getIExtTelephony() != null) {
+                                try {
+                                    //get current provision state of the SIM.
+                                    provisionStatus =
+                                            getIExtTelephony().getCurrentUiccCardProvisioningStatus(slotId);
+                                } catch (RemoteException ex) {
+                                    provisionStatus = INVALID_STATE;
+                                    Log.w(this, "Failed to get status , slotId: "+ slotId +" Exception: "
+                                            + ex);
+                                } catch (NullPointerException ex) {
+                                    provisionStatus = INVALID_STATE;
+                                    Log.w(this, "Failed to get status , slotId: "+ slotId +" Exception: "
+                                            + ex);
+                                }
                             }
                         }
 
