@@ -226,6 +226,9 @@
 
     <uses-permission android:name="com.qti.permission.BIND_QTI_IMS_SERVICE" />
 
+    <!-- Needed for some qti-telephony-common jars  -->
+    <uses-permission android:name="android.permission.OVERRIDE_WIFI_CONFIG" />
+
     <application android:name="PhoneApp"
             android:persistent="true"
             android:label="@string/phoneAppLabel"
