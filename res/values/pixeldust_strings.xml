@@ -16,6 +16,17 @@
 
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
 
+    <!-- In-call screen: call failure reason (call modified to call with modified data) -->
+    <string name="callFailed_dialToDialVideo">DIAL request modified to Video DIAL.</string>
+    <!-- In-call screen: call failure reason (call modified to call with modified data) -->
+    <string name="callFailed_dialVideoToSs">Video DIAL request modified to SS request.</string>
+    <!-- In-call screen: call failure reason (call modified to call with modified data) -->
+    <string name="callFailed_dialVideoToUssd">Video DIAL request modified to USSD request.</string>
+    <!-- In-call screen: call failure reason (call modified to call with modified data) -->
+    <string name="callFailed_dialVideoToDial">Video DIAL request modified to DIAL.</string>
+    <!-- In-call screen: call failure reason (call modified to call with modified data) -->
+    <string name="callFailed_dialVideoToDialVideo">Video DIAL request modified to Video DIAL with different number.</string>
+
     <string-array name="preferred_network_mode_choices_new" translatable="false">
         <item>LTE/TDSCDMA/CDMA/EVDO/GSM/WCDMA </item>
         <item>TDSCDMA/CDMA/EVDO/GSM/WCDMA </item>
