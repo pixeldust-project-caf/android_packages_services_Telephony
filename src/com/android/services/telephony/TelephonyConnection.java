@@ -732,6 +732,11 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     private boolean mShowPreciseFailedCause;
 
     /**
+     * Indicates whether this device supports muting via AudioManager.
+     */
+    private final boolean mSendMicMuteToAudioManager;
+
+    /**
      * Listeners to our TelephonyConnection specific callbacks
      */
     private final Set<TelephonyConnectionListener> mTelephonyListeners = Collections.newSetFromMap(
@@ -744,6 +749,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         if (originalConnection != null) {
             setOriginalConnection(originalConnection);
         }
+        Phone phone = getPhone();
+        mSendMicMuteToAudioManager = phone == null || phone.getContext().getResources().getBoolean(
+                R.bool.send_mic_mute_to_AudioManager);
     }
 
     /**
@@ -758,6 +766,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         // TODO: update TTY mode.
         if (getPhone() != null) {
             getPhone().setEchoSuppressionEnabled();
+            if (!mSendMicMuteToAudioManager) {
+                getPhone().setMute(audioState.isMuted());
+            }
         }
     }
 
