@@ -742,38 +742,38 @@ public class DisconnectCauseUtil {
                 resourceId = R.string.callFailed_maximum_reached;
             // Supplementary for Clear Code
             case android.telephony.DisconnectCause.BUSY:
-                resourceId = R.string.callFailed_userBusy;
+                resourceId = R.string.clh_callFailed_user_busy_txt;
                 break;
 
             case android.telephony.DisconnectCause.NO_CIRCUIT_AVAIL:
-                resourceId = R.string.callFailed_no_circuit_avail;
+                resourceId = R.string.clh_callFailed_no_circuit_available_txt;
                 break;
 
             case android.telephony.DisconnectCause.TEMPORARY_FAILURE:
-                resourceId = R.string.callFailed_tempopary_failure;
+                resourceId = R.string.clh_callFailed_temporary_failure_txt;
                 break;
 
             case android.telephony.DisconnectCause.SWITCHING_EQUIPMENT_CONGESTION:
-                resourceId = R.string.callFailed_switching_equipment_congestion;
+                resourceId = R.string.clh_callFailed_switching_equipment_congestion_txt;
                 break;
 
             case android.telephony.DisconnectCause.REQUESTED_CIRCUIT_OR_CHANNEL_NOT_AVAILABLE:
-                resourceId = R.string.callFailed_requested_circuit_or_channel_not_available;
+                resourceId = R.string.clh_callFailed_requested_circuit_txt;
                 break;
 
             case android.telephony.DisconnectCause.QOS_UNAVAILABLE:
-                resourceId = R.string.callFailed_QOS_unavailable;
+                resourceId = R.string.clh_callFailed_quality_of_service_unavailable_txt;
                 break;
 
             case android.telephony.DisconnectCause.BEARER_CAPABILITY_UNAVAILABLE:
-                resourceId = R.string.callFailed_bearer_capability_unavailable;
+                resourceId = R.string.clh_callFailed_bearer_capability_not_presently_available_txt;
                 break;
 
             case android.telephony.DisconnectCause.LIMIT_EXCEEDED:
                 resourceId = R.string.callFailed_limitExceeded;
 
             case android.telephony.DisconnectCause.INVALID_NUMBER:
-                resourceId = R.string.callFailed_invalid_number_format;
+                resourceId = R.string.clh_callFailed_invalid_number_format_txt;
                 break;
 
             case android.telephony.DisconnectCause.UNOBTAINABLE_NUMBER:
@@ -781,159 +781,159 @@ public class DisconnectCauseUtil {
                 break;
 
             case android.telephony.DisconnectCause.NO_ROUTE_TO_DESTINATION:
-                resourceId = R.string.callFailed_no_route_to_destination;
+                resourceId = R.string.clh_callFailed_no_route_to_destination_txt;
                 break;
 
             case android.telephony.DisconnectCause.CALL_FAIL_NO_USER_RESPONDING:
-                resourceId = R.string.callFailed_no_user_responding;
+                resourceId = R.string.clh_callFailed_no_user_responding_txt;
                 break;
 
             case android.telephony.DisconnectCause.CALL_FAIL_NO_ANSWER_FROM_USER:
-                resourceId = R.string.callFailed_no_answer_from_user;
+                resourceId = R.string.clh_callFailed_user_alerting_txt;
                 break;
 
             case android.telephony.DisconnectCause.CALL_FAIL_DESTINATION_OUT_OF_ORDER:
-                resourceId = R.string.callFailed_destination_out_of_order;
+                resourceId = R.string.clh_callFailed_destination_out_of_order_txt;
                 break;
 
             case android.telephony.DisconnectCause.BEARER_CAPABILITY_NOT_AUTHORIZED:
-                resourceId = R.string.callFailed_bearer_capability_not_authorized;
+                resourceId = R.string.clh_callFailed_bearer_capability_not_authorized_txt;
                 break;
 
             case android.telephony.DisconnectCause.CHANNEL_UNACCEPTABLE:
-                resourceId = R.string.callFailed_channel_unacceptable;
+                resourceId = R.string.clh_callFailed_channel_unacceptable_txt;
                 break;
 
             case android.telephony.DisconnectCause.OPERATOR_DETERMINED_BARRING:
-                resourceId = R.string.callFailed_operator_determined_barring;
+                resourceId = R.string.clh_callFailed_operator_determined_barring_txt;
                 break;
 
             case android.telephony.DisconnectCause.CALL_REJECTED:
-                resourceId = R.string.callFailed_call_rejected;
+                resourceId = R.string.clh_callFailed_call_rejected_txt;
                 break;
 
             case android.telephony.DisconnectCause.NUMBER_CHANGED:
-                resourceId = R.string.callFailed_number_changed;
+                resourceId = R.string.clh_callFailed_number_changed_txt;
                 break;
 
             case android.telephony.DisconnectCause.PREEMPTION:
-                resourceId = R.string.callFailed_preemption;
+                resourceId = R.string.clh_callFailed_pre_emption_txt;
                 break;
 
             case android.telephony.DisconnectCause.FACILITY_REJECTED:
-                resourceId = R.string.callFailed_facility_rejected;
+                resourceId = R.string.clh_callFailed_facility_rejected_txt;
                 break;
 
             case android.telephony.DisconnectCause.RESP_TO_STATUS_ENQUIRY:
-                resourceId = R.string.callFailed_resp_to_status_enquiry;
+                resourceId = R.string.clh_callFailed_response_to_STATUS_ENQUIRY_txt;
                 break;
 
             case android.telephony.DisconnectCause.NORMAL_UNSPECIFIED:
-                resourceId = R.string.callFailed_normal_unspecified;
+                resourceId = R.string.clh_callFailed_normal_unspecified_txt;
                 break;
 
             case android.telephony.DisconnectCause.NETWORK_OUT_OF_ORDER:
-                resourceId = R.string.callFailed_network_out_of_order;
+                resourceId = R.string.clh_callFailed_network_out_of_order_txt;
                 break;
 
             case android.telephony.DisconnectCause.ACCESS_INFORMATION_DISCARDED:
-                resourceId = R.string.callFailed_access_information_discarded;
+                resourceId = R.string.clh_callFailed_access_information_discarded_txt;
                 break;
 
             case android.telephony.DisconnectCause.RESOURCES_UNAVAILABLE_OR_UNSPECIFIED:
-                resourceId = R.string.callFailed_resources_unavailable_or_unspecified;
+                resourceId = R.string.clh_callFailed_resources_unavailable_unspecified_txt;
                 break;
 
             case android.telephony.DisconnectCause.REQUESTED_FACILITY_NOT_SUBSCRIBED:
-                resourceId = R.string.callFailed_requested_facility_not_subscribed;
+                resourceId = R.string.clh_callFailed_requested_facility_not_subscribed_txt;
                 break;
 
             case android.telephony.DisconnectCause.INCOMING_CALLS_BARRED_WITHIN_CUG:
-                resourceId = R.string.callFailed_incoming_calls_barred_within_CUG;
+                resourceId = R.string.clh_callFailed_incoming_calls_barred_within_the_CUG_txt;
                 break;
 
             case android.telephony.DisconnectCause.SERVICE_OPTION_NOT_AVAILABLE:
-                resourceId = R.string.callFailed_service_option_not_available;
+                resourceId = R.string.clh_callFailed_service_or_option_not_available_unspecified_txt;
                 break;
 
             case android.telephony.DisconnectCause.BEARER_SERVICE_NOT_IMPLEMENTED:
-                resourceId = R.string.callFailed_bearer_service_not_implemented;
+                resourceId = R.string.clh_callFailed_bearer_service_not_implemented_txt;
                 break;
 
             case android.telephony.DisconnectCause.REQUESTED_FACILITY_NOT_IMPLEMENTED:
-                resourceId = R.string.callFailed_requested_facility_not_implemented;
+                resourceId = R.string.clh_callFailed_requested_facility_not_implemented_txt;
                 break;
 
             case android.telephony.DisconnectCause.ONLY_DIGITAL_INFORMATION_BEARER_AVAILABLE:
-                resourceId = R.string.callFailed_only_digital_information_bearer_available;
+                resourceId = R.string.clh_callFailed_only_restricted_digital_information_bearer_capability_is_available_txt;
                 break;
 
             case android.telephony.DisconnectCause.SERVICE_OR_OPTION_NOT_IMPLEMENTED:
-                resourceId = R.string.callFailed_service_or_option_not_implemented;
+                resourceId = R.string.clh_callFailed_service_or_option_not_implemented_unspecified_txt;
                 break;
 
             case android.telephony.DisconnectCause.INVALID_TRANSACTION_IDENTIFIER:
-                resourceId = R.string.callFailed_invalid_transaction_identifier;
+                resourceId = R.string.clh_callFailed_invalid_transaction_identifier_value_txt;
                 break;
 
             case android.telephony.DisconnectCause.USER_NOT_MEMBER_OF_CUG:
-                resourceId = R.string.callFailed_user_not_member_of_CUG;
+                resourceId = R.string.clh_callFailed_user_not_member_of_CUG_txt;
                 break;
 
             case android.telephony.DisconnectCause.INCOMPATIBLE_DESTINATION:
-                resourceId = R.string.callFailed_incompatible_destination;
+                resourceId = R.string.clh_callFailed_incompatible_destination_txt;
                 break;
 
             case android.telephony.DisconnectCause.INVALID_TRANSIT_NW_SELECTION:
-                resourceId = R.string.callFailed_invalid_transit_NW_selection;
+                resourceId = R.string.clh_callFailed_invalid_transit_network_selection_txt;
                 break;
 
             case android.telephony.DisconnectCause.SEMANTICALLY_INCORRECT_MESSAGE:
-                resourceId = R.string.callFailed_semantically_incorrect_message;
+                resourceId = R.string.clh_callFailed_semantically_incorrect_message_txt;
                 break;
 
             case android.telephony.DisconnectCause.INVALID_MANDATORY_INFORMATION:
-                resourceId = R.string.callFailed_invalid_mandatory_information;
+                resourceId = R.string.clh_callFailed_invalid_mandatory_information_txt;
                 break;
 
             case android.telephony.DisconnectCause.MESSAGE_TYPE_NON_IMPLEMENTED:
-                resourceId = R.string.callFailed_message_type_non_implemented;
+                resourceId = R.string.clh_callFailed_message_type_non_existent_or_not_implemented_txt;
                 break;
 
             case android.telephony.DisconnectCause.MESSAGE_TYPE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE:
-                resourceId = R.string.callFailed_message_type_not_compatible_with_protocol_state;
+                resourceId = R.string.clh_callFailed_message_type_not_compatible_with_protocol_state_txt;
                 break;
 
             case android.telephony.DisconnectCause.INFORMATION_ELEMENT_NON_EXISTENT:
-                resourceId = R.string.callFailed_information_element_non_existent;
+                resourceId = R.string.clh_callFailed_information_element_non_existent_or_not_implemented_txt;
                 break;
 
             case android.telephony.DisconnectCause.CONDITIONAL_IE_ERROR:
-                resourceId = R.string.callFailed_conditional_IE_error;
+                resourceId = R.string.clh_callFailed_conditional_IE_error_txt;
                 break;
 
             case android.telephony.DisconnectCause.MESSAGE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE:
-                resourceId = R.string.callFailed_message_not_compatible_with_protocol_state;
+                resourceId = R.string.clh_callFailed_message_not_compatible_with_protocol_state_txt;
                 break;
 
             case android.telephony.DisconnectCause.RECOVERY_ON_TIMER_EXPIRED:
-                resourceId = R.string.callFailed_recovery_on_timer_expired;
+                resourceId = R.string.clh_callFailed_recovery_on_timer_expiry_txt;
                 break;
 
             case android.telephony.DisconnectCause.PROTOCOL_ERROR_UNSPECIFIED:
-                resourceId = R.string.callFailed_protocol_error_unspecified;
+                resourceId = R.string.clh_callFailed_protocol_Error_unspecified_txt;
                 break;
 
             case android.telephony.DisconnectCause.INTERWORKING_UNSPECIFIED:
-                resourceId = R.string.callFailed_interworking_unspecified;
+                resourceId = R.string.clh_callFailed_interworking_unspecified_txt;
                 break;
 
             case android.telephony.DisconnectCause.NORMAL:
-                resourceId = R.string.callFailed_normal;
+                resourceId = R.string.clh_callFailed_normal_call_clearing_txt;
                 break;
 
             case android.telephony.DisconnectCause.NON_SELECTED_USER_CLEARING:
-                resourceId = R.string.callFailed_non_selected_user_clearing;
+                resourceId = R.string.clh_callFailed_non_selected_user_clearing_txt;
                 break;
 
             case android.telephony.DisconnectCause.OUTGOING_CANCELED:
