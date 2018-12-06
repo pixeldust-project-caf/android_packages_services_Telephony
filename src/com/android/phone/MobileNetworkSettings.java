@@ -32,6 +32,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
@@ -757,7 +758,7 @@ public class MobileNetworkSettings extends Activity  {
             mMobileDataPref = (MobileDataPreference) findPreference(BUTTON_MOBILE_DATA_ENABLE_KEY);
             mDataUsagePref = (DataUsagePreference) findPreference(BUTTON_DATA_USAGE_KEY);
 
-            try {
+            /*try {
                 Context con = activity.createPackageContext("com.android.systemui", 0);
                 int id = con.getResources().getIdentifier("config_show4GForLTE",
                         "bool", "com.android.systemui");
@@ -765,7 +766,9 @@ public class MobileNetworkSettings extends Activity  {
             } catch (PackageManager.NameNotFoundException e) {
                 Log.e(LOG_TAG, "NameNotFoundException for show4GFotLTE");
                 mShow4GForLTE = false;
-            }
+            }*/
+            mShow4GForLTE = Settings.System.getIntForUser(activity.getContentResolver(),
+                                Settings.System.SHOW_FOURG, 0, UserHandle.USER_CURRENT) == 1;
 
             //get UI object references
             PreferenceScreen prefSet = getPreferenceScreen();
