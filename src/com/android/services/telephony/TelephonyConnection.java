@@ -2222,8 +2222,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             setStatusHints(new StatusHints(
                     context.getString(labelId) + displaySubId,
                     Icon.createWithResource(
-                            context.getResources(),
-                            R.drawable.ic_signal_wifi_4_bar_24dp),
+                            context, R.drawable.ic_signal_wifi_4_bar_24dp),
                     null /* extras */));
         } else {
             setStatusHints(null);
