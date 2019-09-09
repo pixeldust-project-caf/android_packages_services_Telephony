@@ -1246,10 +1246,7 @@ public class TelephonyConnectionService extends ConnectionService {
     private Phone getPhoneForAccount(PhoneAccountHandle accountHandle, boolean isEmergency) {
         Phone chosenPhone = null;
         if (isEmergency) {
-            int phoneId = PhoneUtils.getPhoneIdForECall();
-            if (phoneId != -1) {
-                return PhoneFactory.getPhone(phoneId);
-            }
+            return PhoneFactory.getPhone(PhoneUtils.getPhoneIdForECall());
         }
         int subId = PhoneUtils.getSubIdForPhoneAccountHandle(accountHandle);
         if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
