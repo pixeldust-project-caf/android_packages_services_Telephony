@@ -107,6 +107,9 @@
     <!-- For Vendor Debugging in Telephony -->
     <protected-broadcast android:name="android.telephony.action.ANOMALY_REPORTED" />
 
+    <!-- Codeaurora -->
+    <protected-broadcast android:name="org.codeaurora.intent.action.ACTION_RADIO_CAPABILITY_UPDATED" />
+
     <!-- Allows granting runtime permissions to telephony related components. -->
     <uses-permission android:name="android.permission.GRANT_RUNTIME_PERMISSIONS_TO_TELEPHONY_DEFAULTS" />
 
