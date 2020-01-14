@@ -262,7 +262,7 @@
            parent="@android:style/TextAppearance.Material.Widget.ActionBar.Title">
         <item name="android:textColor">@color/dialer_primary_text_color</item>
         <item name="android:textSize">@dimen/dialer_head1_font_size</item>
-        <item name="android:fontFamily">sans-serif-regular</item>
+        <item name="android:fontFamily">@*android:string/config_bodyFontFamily</item>
     </style>
 
     <!-- Action bar overflow menu icon. -->
