@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"<xliff:g id="PHONENUMBER">{0}</xliff:g>కి ఫార్వార్డ్ చేస్తోంది"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"ఆఫ్‌లో ఉంది"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"మీ ఫోన్‌ను చేరుకోవడం సాధ్యపడనప్పుడు కాల్ ఫార్వర్డింగ్‌ను నిలిపివేయడానికి మీ క్యారియర్ మద్దతు ఇవ్వదు."</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"కాల్ ఫార్వర్డింగ్‌ను మీ క్యారియర్ సపోర్ట్ చేయదు."</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"కాల్ వెయిటింగ్‌ను ఆన్ చేయాలా?"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"మీరు కాల్‌లో ఉండగా, ఇన్‌కమింగ్ కాల్‌ల గురించి మీకు తెలియజేయబడుతుంది"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"ఆన్ చేయి"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"రద్దు చేయి"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"IMSలో CDMA కాల్ వెయిటింగ్ ఆన్‌లో ఉంది"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"IMSలో CDMA కాల్ వెయిటింగ్ ఆఫ్‌లో ఉంది"</string>
     <string name="updating_title" msgid="6130548922615719689">"కాల్ సెట్టింగ్‌లు"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"కాల్ సెట్టింగ్‌లను నిర్వాహక వినియోగదారు మాత్రమే మార్చగలరు."</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"సెట్టింగ్‌లు (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>

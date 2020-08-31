@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"Desviando a <xliff:g id="PHONENUMBER">{0}</xliff:g>"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"Desactivado"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"Tu operador no permite inhabilitar el desvío de llamadas si no se puede establecer la llamada."</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"Tu operador no admite el desvío de llamadas."</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"¿Quieres activar la llamada en espera?"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"Se te notificarán las llamadas entrantes mientras estés en una llamada"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"Activar"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"Cancelar"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"Llamada en espera de CDMA en IMS activada"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"Llamada en espera de CDMA en IMS desactivada"</string>
     <string name="updating_title" msgid="6130548922615719689">"Ajustes de llamadas"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"El administrador es el único usuario que puede cambiar los ajustes de llamada."</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"Ajustes (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>

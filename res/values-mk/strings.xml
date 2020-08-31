@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"Проследување на <xliff:g id="PHONENUMBER">{0}</xliff:g>"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"Исклучено"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"Вашиот оператор не поддржува оневозможување проследување повик кога вашиот телефон е недостапен."</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"Вашиот оператор не поддржува проследување повик."</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"Да се вклучи повик на чекање?"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"Во текот на повик ќе добиете известување за дојдовни повици"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"Вклучи"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"Откажи"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"Повикот на чекање CDMA под IMS е вклучен"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"Повикот на чекање CDMA под IMS е исклучен"</string>
     <string name="updating_title" msgid="6130548922615719689">"Поставки за повици"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"Поставките за повик може да ги измени само администраторскиот корисник."</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"Поставки (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>

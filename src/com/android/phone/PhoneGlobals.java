@@ -283,7 +283,7 @@ public class PhoneGlobals extends ContextWrapper {
                             mPUKEntryProgressDialog.dismiss();
                             mPUKEntryProgressDialog = null;
                         }
-                        Log.i(LOG_TAG, "Dismissing depersonal panel");
+                        Log.i(LOG_TAG, "Dismissing depersonal panel" + (bag.mIccStatus));
                         IccNetworkDepersonalizationPanel.dialogDismiss(bag.mPhoneId);
                     }
                     break;

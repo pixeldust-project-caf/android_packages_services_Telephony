@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"Stuur aan na <xliff:g id="PHONENUMBER">{0}</xliff:g>"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"Af"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"Jou diensverskaffer ondersteun nie die deaktivering van oproepaanstuur wanneer jou foon onbereikbaar is nie."</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"Jou diensverskaffer ondersteun nie oproepaanstuur nie."</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"Skakel Oproep Wat Wag aan?"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"Jy sal tydens \'n oproep in kennis gestel word van inkomende oproepe"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"Skakel aan"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"Kanselleer"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"CDMA-Oproep Wat Wag onder IMS is Aan"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"CDMA-Oproep Wat Wag onder IMS is Af"</string>
     <string name="updating_title" msgid="6130548922615719689">"Belinstellings"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"Oproepinstellings kan net deur die administrateur verander word."</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"Instellings (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>

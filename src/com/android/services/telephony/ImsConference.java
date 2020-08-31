@@ -917,6 +917,16 @@ public class ImsConference extends TelephonyConferenceBase implements Holdable {
 
             mConferenceHostAddress = new Uri[hostAddresses.size()];
             mConferenceHostAddress = hostAddresses.toArray(mConferenceHostAddress);
+            Log.i(this, "setConferenceHost: temp log hosts are "
+                    + Arrays.stream(mConferenceHostAddress)
+                    .map(Uri::toString)
+                    .collect(Collectors.joining(", ")));
+
+            Log.i(this, "setConferenceHost: hosts are "
+                    + Arrays.stream(mConferenceHostAddress)
+                    .map(Uri::getSchemeSpecificPart)
+                    .map(ssp -> Rlog.pii(LOG_TAG, ssp))
+                    .collect(Collectors.joining(", ")));
 
             Log.i(this, "setConferenceHost: hosts are "
                     + Arrays.stream(mConferenceHostAddress)
@@ -1414,9 +1424,12 @@ public class ImsConference extends TelephonyConferenceBase implements Holdable {
             }
 
             if (mConferenceHost.getPhone().getPhoneType() == PhoneConstants.PHONE_TYPE_GSM) {
-                Log.i(this,"handleOriginalConnectionChange : SRVCC to GSM");
                 GsmConnection c = new GsmConnection(originalConnection, getTelecomCallId(),
                         mConferenceHost.getCallDirection());
+                Log.i(this, "handleOriginalConnectionChange : SRVCC to GSM."
+                        + " Created new GsmConnection with objId=" + System.identityHashCode(c)
+                        + " and originalConnection objId="
+                        + System.identityHashCode(originalConnection));
                 // This is a newly created conference connection as a result of SRVCC
                 c.setConferenceSupported(true);
                 c.setTelephonyConnectionProperties(
