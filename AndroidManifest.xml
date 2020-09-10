@@ -367,6 +367,7 @@
         </activity>
 
         <activity android:name="CallForwardType"
+                android:exported="true"
                 android:label="@string/call_forward_option"
                 android:configChanges="orientation|screenSize|keyboardHidden"
                 android:theme="@style/DialerSettingsLight">
@@ -562,6 +563,7 @@
         </activity>
 
         <activity android:name="LimitedServiceActivity"
+            android:exported="true"
             android:autoRemoveFromRecents="true"
             android:launchMode="singleTask"
             android:taskAffinity=""
