@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"S\'està desviant a <xliff:g id="PHONENUMBER">{0}</xliff:g>"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"Desactivat"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"El teu operador de telefonia mòbil no permet desactivar la desviació de trucades quan el telèfon estigui il·localitzable."</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"El teu operador no admet la desviació de trucades."</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"Vols activar l\'opció de trucada en espera?"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"Durant una trucada, rebràs una notificació si tens cap trucada entrant"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"Activa"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"Cancel·la"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"L\'opció de trucada en espera de CDMA a IMS està activada"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"L\'opció de trucada en espera de CDMA a IMS està desactivada"</string>
     <string name="updating_title" msgid="6130548922615719689">"Configuració de trucada"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"Només l\'administrador pot canviar la configuració de trucades."</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"Configuració (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>

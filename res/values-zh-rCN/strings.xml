@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"转接到 <xliff:g id="PHONENUMBER">{0}</xliff:g>"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"关闭"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"您的运营商不支持在手机无法接通时停用来电转接功能。"</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"您的运营商不支持来电转接功能。"</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"要启用来电等待吗？"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"如果您在通话期间接到来电，则会收到通知"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"开启"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"取消"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"基于 IMS 的 CDMA 来电等待功能已开启"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"基于 IMS 的 CDMA 来电等待功能已关闭"</string>
     <string name="updating_title" msgid="6130548922615719689">"通话设置"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"只有管理员用户才能更改通话设置。"</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"设置（<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>）"</string>

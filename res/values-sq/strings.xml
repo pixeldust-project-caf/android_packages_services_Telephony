@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"Transferim te <xliff:g id="PHONENUMBER">{0}</xliff:g>"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"Çaktivizuar"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"Operatori yt nuk mbështet çaktivizimin e transferimit të telefonatës kur telefoni është i paarritshëm."</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"Operatori celular nuk e mbështet transferimin e telefonatave."</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"Do të aktivizosh telefonatat në pritje?"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"Gjatë një telefonate, do të njoftohesh për telefonatat hyrëse"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"Aktivizo"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"Anulo"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"Telefonatat në pritje CDMA në sistemin IMS janë aktive"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"Telefonatat në pritje CDMA në sistemin IMS janë joaktive"</string>
     <string name="updating_title" msgid="6130548922615719689">"Cilësimet e telefonatës"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"Cilësimet e telefonatës mund të ndryshohen vetëm nga administratori."</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"Cilësimet (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>
