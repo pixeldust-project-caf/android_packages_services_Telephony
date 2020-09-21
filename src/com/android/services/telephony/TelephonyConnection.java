@@ -126,6 +126,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     private static final int MSG_REJECT = 21;
     private static final int MSG_CONNECTION_REMOVED = 22;
 
+    private static final String JAPAN_COUNTRY_CODE_WITH_PLUS_SIGN = "+81";
+    private static final String JAPAN_ISO_COUNTRY_CODE = "JP";
+
     private List<Uri> mParticipants;
     private boolean mIsAdhocConferenceCall;
 
@@ -162,9 +165,11 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                             mOriginalConnection.getAddress() != null &&
                             mOriginalConnection.getAddress().equals(connection.getAddress())) ||
                             connection.getState() == mOriginalConnection.getStateBeforeHandover())) {
-                            Log.d(TelephonyConnection.this,
-                                    "SettingOriginalConnection " + mOriginalConnection.toString()
-                                            + " with " + connection.toString());
+                            Log.d(TelephonyConnection.this, "Setting original connection after"
+                                    + " handover or redial, current original connection="
+                                    + mOriginalConnection.toString()
+                                    + ", new original connection="
+                                    + connection.toString());
                             boolean isShowToast = false;
                             Phone phone = getPhone();
                             if (phone != null) {
@@ -188,7 +193,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                         }
                     } else {
                         Log.w(TelephonyConnection.this,
-                                what + ": mOriginalConnection==null - invalid state (not cleaned up)");
+                                what + ": mOriginalConnection==null --"
+                                        + " invalid state (not cleaned up)");
                     }
                     break;
                 case MSG_RINGBACK_TONE:
@@ -1357,6 +1363,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             if (isShowingOriginalDialString()
                     && mOriginalConnection.getOrigDialString() != null) {
                 address = getAddressFromNumber(mOriginalConnection.getOrigDialString());
+            } else if (isNeededToFormatIncomingNumberForJp()) {
+                address = getAddressFromNumber(
+                        formatIncomingNumberForJp(mOriginalConnection.getAddress()));
             } else {
                 address = getAddressFromNumber(mOriginalConnection.getAddress());
             }
@@ -2478,9 +2487,14 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                 (mOriginalConnectionCapabilities & Capability.SUPPORTS_VT_REMOTE_BIDIRECTIONAL)
                         == Capability.SUPPORTS_VT_REMOTE_BIDIRECTIONAL);
 
+        PersistableBundle pb = getCarrierConfig();
+        boolean vtTtySupported = false;
+        if(pb != null) {
+            vtTtySupported = pb.getBoolean(CarrierConfigManager.KEY_CARRIER_VT_TTY_SUPPORT_BOOL);
+        }
         boolean isLocalVideoSupported = (mOriginalConnectionCapabilities
                 & Capability.SUPPORTS_VT_LOCAL_BIDIRECTIONAL)
-                == Capability.SUPPORTS_VT_LOCAL_BIDIRECTIONAL && !mIsTtyEnabled;
+                == Capability.SUPPORTS_VT_LOCAL_BIDIRECTIONAL && (vtTtySupported || !mIsTtyEnabled);
         capabilities = changeBitmask(capabilities, CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL,
                 isLocalVideoSupported);
 
@@ -2828,8 +2842,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         PhoneAccountHandle phoneAccountHandle = isIms ? PhoneUtils
                 .makePstnPhoneAccountHandle(phone.getDefaultPhone())
                 : PhoneUtils.makePstnPhoneAccountHandle(phone);
-        TelecomAccountRegistry telecomAccountRegistry = TelecomAccountRegistry
-                .getInstance(getPhone().getContext());
+        TelecomAccountRegistry telecomAccountRegistry = getTelecomAccountRegistry(
+                getPhone().getContext());
         boolean isConferencingSupported = telecomAccountRegistry
                 .isMergeCallSupported(phoneAccountHandle);
         boolean isImsConferencingSupported = telecomAccountRegistry
@@ -2838,6 +2852,19 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                 .isVideoConferencingSupported(phoneAccountHandle);
         boolean isMergeOfWifiCallsAllowedWhenVoWifiOff = telecomAccountRegistry
                 .isMergeOfWifiCallsAllowedWhenVoWifiOff(phoneAccountHandle);
+        ImsCall imsCall = isImsConnection()
+                ? ((ImsPhoneConnection) getOriginalConnection()).getImsCall()
+                : null;
+        CarrierConfigManager configManager = (CarrierConfigManager) phone.getContext()
+                .getSystemService(Context.CARRIER_CONFIG_SERVICE);
+        boolean downGradedVideoCall = false;
+        if (configManager != null) {
+            PersistableBundle config = configManager.getConfigForSubId(phone.getSubId());
+            if (config != null) {
+                downGradedVideoCall = config.getBoolean(
+                        CarrierConfigManager.KEY_TREAT_DOWNGRADED_VIDEO_CALLS_AS_VIDEO_CALLS_BOOL);
+            }
+        }
 
         Log.v(this, "refreshConferenceSupported : isConfSupp=%b, isImsConfSupp=%b, " +
                 "isVidConfSupp=%b, isMergeOfWifiAllowed=%b, " +
@@ -2858,6 +2885,12 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         } else if (isVideoCall && !mIsCarrierVideoConferencingSupported) {
             isConferenceSupported = false;
             Log.d(this, "refreshConferenceSupported = false; video conf not supported.");
+        } else if ((imsCall != null) && (imsCall.wasVideoCall() && downGradedVideoCall)
+                && !mIsCarrierVideoConferencingSupported) {
+            isConferenceSupported = false;
+            Log.d(this,
+                    "refreshConferenceSupported = false;"
+                            + " video conf not supported for downgraded audio call.");
         } else if (!isMergeOfWifiCallsAllowedWhenVoWifiOff && isWifi() && !isVoWifiEnabled) {
             isConferenceSupported = false;
             Log.d(this,
@@ -3308,5 +3341,34 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         for (TelephonyConnectionListener listener : mTelephonyListeners) {
             listener.onStatusHintsChanged(this, statusHints);
         }
+    }
+
+    /**
+     * Whether the incoming call number should be formatted to national number for Japan.
+     * @return {@code true} should be convert to the national format, {@code false} otherwise.
+     */
+    private boolean isNeededToFormatIncomingNumberForJp() {
+        if (mOriginalConnection.isIncoming()
+                && !TextUtils.isEmpty(mOriginalConnection.getAddress())
+                && mOriginalConnection.getAddress().startsWith(JAPAN_COUNTRY_CODE_WITH_PLUS_SIGN)) {
+            PersistableBundle b = getCarrierConfig();
+            return b != null && b.getBoolean(
+                    CarrierConfigManager.KEY_FORMAT_INCOMING_NUMBER_TO_NATIONAL_FOR_JP_BOOL);
+        }
+        return false;
+    }
+
+    /**
+     * Format the incoming call number to national number for Japan.
+     * @param number
+     * @return the formatted phone number (e.g, "+819012345678" -> "09012345678")
+     */
+    private String formatIncomingNumberForJp(String number) {
+        return PhoneNumberUtils.stripSeparators(
+                PhoneNumberUtils.formatNumber(number, JAPAN_ISO_COUNTRY_CODE));
+    }
+
+    public TelecomAccountRegistry getTelecomAccountRegistry(Context context) {
+        return TelecomAccountRegistry.getInstance(context);
     }
 }

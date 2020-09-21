@@ -233,7 +233,27 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
         }
         // Ignore this event if the user clicked the cancel button, or if the dialog is dismissed
         // without any button being pressed (back button press or click event outside the dialog).
-        if (this.mButtonClicked != DialogInterface.BUTTON_NEGATIVE) {
+        if (isUnknownStatus() && this.mButtonClicked != DialogInterface.BUTTON_NEGATIVE) {
+            int action = (mButtonClicked == DialogInterface.BUTTON_POSITIVE) ?
+                CommandsInterface.CF_ACTION_REGISTRATION :
+                CommandsInterface.CF_ACTION_DISABLE;
+            final String number = (action == CommandsInterface.CF_ACTION_DISABLE) ?
+                    "" : getPhoneNumber();
+
+            Log.d(LOG_TAG, "reason=" + reason + ", action=" + action + ", number=" + number);
+
+            // Display no forwarding number while we're waiting for confirmation.
+            setSummaryOff("");
+
+            mPhone.setCallForwardingOption(action,
+                    reason,
+                    number,
+                    mServiceClass,
+                    0,
+                    mHandler.obtainMessage(MyHandler.MESSAGE_SET_CF,
+                        action,
+                        MyHandler.MESSAGE_SET_CF));
+        } else if (this.mButtonClicked != DialogInterface.BUTTON_NEGATIVE) {
             int action = (isToggled() || (mButtonClicked == DialogInterface.BUTTON_POSITIVE)) ?
                     CommandsInterface.CF_ACTION_REGISTRATION :
                     CommandsInterface.CF_ACTION_DISABLE;
@@ -370,6 +390,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
             mEndHour = 0;
             mEndMinute = 0;
         }
+        setUnknownStatus(callForwardInfo.status == CommandsInterface.SS_STATUS_UNKNOWN);
         setToggled(callForwardInfo.status == 1);
         boolean displayVoicemailNumber = false;
         if (TextUtils.isEmpty(callForwardInfo.number)) {
@@ -629,6 +650,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
             AsyncResult ar = (AsyncResult) msg.obj;
 
             callForwardInfo = null;
+            boolean summaryOff = false;
             if (ar.exception != null) {
                 Log.d(LOG_TAG, "handleGetCFResponse: ar.exception=" + ar.exception);
                 if (ar.exception instanceof CommandException) {
@@ -662,6 +684,8 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                             CallForwardInfo info = cfInfoArray[i];
                             handleCallForwardResult(info);
 
+                            summaryOff = (info.status == CommandsInterface.SS_STATUS_UNKNOWN);
+
                             if (ar.userObj instanceof Throwable) {
                                 Log.d(LOG_TAG, "Skipped duplicated error dialog");
                                 continue;
@@ -669,8 +693,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
 
                             // Show an alert if we got a success response but
                             // with unexpected values.
-                            // Currently only handle the fail-to-disable case
-                            // since we haven't observed fail-to-enable.
+                            // Handle the fail-to-disable case.
                             if (msg.arg2 == MESSAGE_SET_CF &&
                                     msg.arg1 == CommandsInterface.CF_ACTION_DISABLE &&
                                     info.status == 1) {
@@ -694,7 +717,21 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                                 }
                                 AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
                                 builder.setNeutralButton(R.string.close_dialog, null);
-                                builder.setTitle(getContext().getText(R.string.error_updating_title));
+                                builder.setTitle(getContext()
+                                        .getText(R.string.error_updating_title));
+                                builder.setMessage(s);
+                                builder.setCancelable(true);
+                                builder.create().show();
+                            } else if (msg.arg2 == MESSAGE_SET_CF &&
+                                    msg.arg1 == CommandsInterface.CF_ACTION_REGISTRATION &&
+                                    info.status == 0) {
+                                // Handle the fail-to-enable case.
+                                CharSequence s = getContext()
+                                    .getText(R.string.registration_cf_forbidden);
+                                AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                                builder.setNeutralButton(R.string.close_dialog, null);
+                                builder.setTitle(getContext()
+                                        .getText(R.string.error_updating_title));
                                 builder.setMessage(s);
                                 builder.setCancelable(true);
                                 builder.create().show();
@@ -707,7 +744,15 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
             // Now whether or not we got a new number, reset our enabled
             // summary text since it may have been replaced by an empty
             // placeholder.
-            updateSummaryText();
+            // for CDMA, doesn't display summary.
+            if (summaryOff) {
+                setSummaryOff("");
+            } else {
+                // Now whether or not we got a new number, reset our enabled
+                // summary text since it may have been replaced by an empty
+                // placeholder.
+                updateSummaryText();
+            }
         }
 
         private void handleSetCFResponse(Message msg) {
@@ -716,6 +761,16 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                 Log.d(LOG_TAG, "handleSetCFResponse: ar.exception=" + ar.exception);
                 // setEnabled(false);
             }
+
+            if (ar.result != null) {
+                int arr = (int)ar.result;
+                if (arr == CommandsInterface.SS_STATUS_UNKNOWN) {
+                    Log.d(LOG_TAG, "handleSetCFResponse: no need to re get in CDMA");
+                    mTcpListener.onFinished(CallForwardEditPreference.this, false);
+                    return;
+                }
+            }
+
             Log.d(LOG_TAG, "handleSetCFResponse: re get");
             if (!mCallForwardByUssd) {
                 mPhone.getCallForwardingOption(reason, mServiceClass,

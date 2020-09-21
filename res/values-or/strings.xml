@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"<xliff:g id="PHONENUMBER">{0}</xliff:g>କୁ ଫରୱାର୍ଡ କରାଯାଉଛି"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"ବନ୍ଦ ଅଛି"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"ଆପଣଙ୍କର ଫୋନ୍ ଅପହଞ୍ଚ ଦୂରତାରେ ଥିବାବେଳେ ଆପଣଙ୍କର କେରିଅର୍ କଲ୍ ଫର୍‌ୱାର୍ଡିଙ୍ଗକୁ ଅକ୍ଷମ କରିବାରେ ସପୋର୍ଟ କରିବେ ନାହିଁ।"</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"ଆପଣଙ୍କ ମୋବାଇଲ କମ୍ପାନୀ କଲ୍‌ ଫର୍‌ୱାର୍ଡିଂ ସୁବିଧାର ସମର୍ଥନ କରେ ନାହିଁ।"</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"\'କଲ୍ ୱେଟିଂ\' ସୁବିଧା ଚାଲୁ କରିବେ?"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"କଲ୍ ସମୟରେ, ଇନକମିଂ କଲଗୁଡ଼ିକ ବିଷୟରେ ଆପଣଙ୍କୁ ସୂଚିତ କରାଯିବ"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"ଚାଲୁ କରନ୍ତୁ"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"ବାତିଲ୍ କରନ୍ତୁ"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"IMSରେ CDMA \'କଲ୍ ୱେଟିଂ\' ସୁବିଧା ଚାଲୁ ଅଛି"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"IMSରେ CDMA \'କଲ୍ ୱେଟିଂ\' ସୁବିଧା ବନ୍ଦ ଅଛି"</string>
     <string name="updating_title" msgid="6130548922615719689">"କଲ୍‌ ସେଟିଂସ୍"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"କଲ୍ ସେଟିଙ୍ଗକୁ କେବଳ ଆଡମିନ୍ ୟୁଜର୍‌ ବଦଳାଇପାରିବେ।"</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"ସେଟିଙ୍ଗ (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>

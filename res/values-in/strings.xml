@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"Meneruskan ke <xliff:g id="PHONENUMBER">{0}</xliff:g>"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"Nonaktif"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"Operator Anda tidak mendukung penonaktifan penerusan panggilan ketika ponsel tidak dapat dijangkau."</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"Operator Anda tidak mendukung penerusan panggilan."</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"Aktifkan nada tunggu?"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"Selama melakukan panggilan, Anda akan menerima notifikasi jika ada panggilan masuk"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"Aktifkan"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"Batal"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"Nada tunggu CDMA dalam IMS aktif"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"Nada tunggu CDMA dalam IMS nonaktif"</string>
     <string name="updating_title" msgid="6130548922615719689">"Setelan panggilan"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"Setelan panggilan telepon hanya dapat diubah oleh pengguna admin."</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"Setelan (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>
@@ -185,7 +192,7 @@
     <string name="choose_network_title" msgid="5335832663422653082">"Pilih jaringan"</string>
     <string name="network_disconnected" msgid="8844141106841160825">"Terputus"</string>
     <string name="network_connected" msgid="2760235679963580224">"Terhubung"</string>
-    <string name="network_connecting" msgid="160901383582774987">"Menghubungkan..."</string>
+    <string name="network_connecting" msgid="160901383582774987">"Menyambungkan..."</string>
     <string name="network_could_not_connect" msgid="6547460848093727998">"Tidak dapat tersambung"</string>
   <string-array name="preferred_network_mode_choices">
     <item msgid="4531933377509551889">"GSM/WCDMA lebih disukai"</item>

@@ -17,10 +17,13 @@
 package com.android.services.telephony;
 
 import android.annotation.NonNull;
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
@@ -46,6 +49,7 @@ import android.telephony.TelephonyManager;
 import android.telephony.emergency.EmergencyNumber;
 import android.text.TextUtils;
 import android.util.Pair;
+import android.view.WindowManager;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.Call;
@@ -66,6 +70,7 @@ import com.android.phone.MMIDialogActivity;
 import com.android.phone.PhoneUtils;
 import com.android.phone.PhoneGlobals;
 import com.android.phone.R;
+import com.android.phone.settings.SuppServicesUiUtil;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -1176,9 +1181,18 @@ public class TelephonyConnectionService extends ConnectionService {
         final boolean isTtyModeEnabled = mDeviceState.isTtyModeEnabled(this);
         if (VideoProfile.isVideo(request.getVideoState()) && isTtyModeEnabled
                 && !isEmergencyNumber) {
-            return Connection.createFailedConnection(mDisconnectCauseFactory.toTelecomDisconnectCause(
-                    android.telephony.DisconnectCause.VIDEO_CALL_NOT_ALLOWED_WHILE_TTY_ENABLED,
-                    null, phone.getPhoneId()));
+            boolean vtTtySupported = false;
+            CarrierConfigManager cfgManager = (CarrierConfigManager)
+                    phone.getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
+            if (cfgManager != null) {
+                vtTtySupported = cfgManager.getConfigForSubId(phone.getSubId())
+                        .getBoolean(CarrierConfigManager.KEY_CARRIER_VT_TTY_SUPPORT_BOOL);
+            }
+            if (!vtTtySupported) {
+                return Connection.createFailedConnection(mDisconnectCauseFactory.
+                        toTelecomDisconnectCause(android.telephony.DisconnectCause.
+                        VIDEO_CALL_NOT_ALLOWED_WHILE_TTY_ENABLED,null, phone.getPhoneId()));
+            }
         }
 
         // Check for additional limits on CDMA phones.
@@ -1606,10 +1620,17 @@ public class TelephonyConnectionService extends ConnectionService {
         if (phone == null || TextUtils.isEmpty(number) || !phone.getServiceState().getRoaming()) {
             return false;
         }
+        boolean allowPrefixIms = true;
         String[] blockPrefixes = null;
         CarrierConfigManager cfgManager = (CarrierConfigManager)
                 phone.getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
         if (cfgManager != null) {
+            allowPrefixIms = cfgManager.getConfigForSubId(phone.getSubId()).getBoolean(
+                    CarrierConfigManager.KEY_SUPPORT_IMS_CALL_FORWARDING_WHILE_ROAMING_BOOL,
+                    true);
+            if (allowPrefixIms && useImsForAudioOnlyCall(phone)) {
+                return false;
+            }
             blockPrefixes = cfgManager.getConfigForSubId(phone.getSubId()).getStringArray(
                     CarrierConfigManager.KEY_CALL_FORWARDING_BLOCKS_WHILE_ROAMING_STRING_ARRAY);
         }
@@ -1622,6 +1643,14 @@ public class TelephonyConnectionService extends ConnectionService {
             }
         }
         return false;
+    }
+
+    private boolean useImsForAudioOnlyCall(Phone phone) {
+        Phone imsPhone = phone.getImsPhone();
+
+        return imsPhone != null
+                && (imsPhone.isVolteEnabled() || imsPhone.isWifiCallingEnabled())
+                && (imsPhone.getServiceState().getState() == ServiceState.STATE_IN_SERVICE);
     }
 
     private boolean isRadioOn() {
@@ -1726,6 +1755,12 @@ public class TelephonyConnectionService extends ConnectionService {
                 ? connection.getAddress().getSchemeSpecificPart()
                 : "";
 
+        if (showDataDialog(phone, number)) {
+            connection.setDisconnected(DisconnectCauseUtil.toTelecomDisconnectCause(
+                        android.telephony.DisconnectCause.DIALED_MMI, "UT is not available"));
+            return;
+        }
+
         updatePhoneAccount(connection, phone);
 
         com.android.internal.telephony.Connection originalConnection = null;
@@ -1786,7 +1821,8 @@ public class TelephonyConnectionService extends ConnectionService {
         if (originalConnection == null) {
             int telephonyDisconnectCause = android.telephony.DisconnectCause.OUTGOING_FAILURE;
             // On GSM phones, null connection means that we dialed an MMI code
-            if (phone.getPhoneType() == PhoneConstants.PHONE_TYPE_GSM) {
+            if (phone.getPhoneType() == PhoneConstants.PHONE_TYPE_GSM ||
+                phone.isUtEnabled()) {
                 Log.d(this, "dialed MMI code");
                 int subId = phone.getSubId();
                 Log.d(this, "subId: "+subId);
@@ -2473,6 +2509,78 @@ public class TelephonyConnectionService extends ConnectionService {
             connection.setDisconnected(cause);
             connection.destroy();
         }
+    }
+
+    private boolean showDataDialog(Phone phone, String number) {
+        boolean ret = false;
+        final Context context = getApplicationContext();
+        String suppKey = MmiCodeUtil.getSuppServiceKey(number);
+        if (suppKey != null) {
+            boolean clirOverUtPrecautions = false;
+            boolean cfOverUtPrecautions = false;
+            boolean cbOverUtPrecautions = false;
+            boolean cwOverUtPrecautions = false;
+
+            CarrierConfigManager cfgManager = (CarrierConfigManager)
+                phone.getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
+            if (cfgManager != null) {
+                clirOverUtPrecautions = cfgManager.getConfigForSubId(phone.getSubId())
+                    .getBoolean(CarrierConfigManager.KEY_CALLER_ID_OVER_UT_WARNING_BOOL);
+                cfOverUtPrecautions = cfgManager.getConfigForSubId(phone.getSubId())
+                    .getBoolean(CarrierConfigManager.KEY_CALL_FORWARDING_OVER_UT_WARNING_BOOL);
+                cbOverUtPrecautions = cfgManager.getConfigForSubId(phone.getSubId())
+                    .getBoolean(CarrierConfigManager.KEY_CALL_BARRING_OVER_UT_WARNING_BOOL);
+                cwOverUtPrecautions = cfgManager.getConfigForSubId(phone.getSubId())
+                    .getBoolean(CarrierConfigManager.KEY_CALL_WAITING_OVER_UT_WARNING_BOOL);
+            }
+
+            boolean isSsOverUtPrecautions = SuppServicesUiUtil
+                .isSsOverUtPrecautions(context, phone);
+            if (isSsOverUtPrecautions) {
+                boolean showDialog = false;
+                if (suppKey == MmiCodeUtil.BUTTON_CLIR_KEY && clirOverUtPrecautions) {
+                    showDialog = true;
+                } else if (suppKey == MmiCodeUtil.CALL_FORWARDING_KEY && cfOverUtPrecautions) {
+                    showDialog = true;
+                } else if (suppKey == MmiCodeUtil.CALL_BARRING_KEY && cbOverUtPrecautions) {
+                    showDialog = true;
+                } else if (suppKey == MmiCodeUtil.BUTTON_CW_KEY && cwOverUtPrecautions) {
+                    showDialog = true;
+                }
+
+                if (showDialog) {
+                    Log.d(this, "Creating UT Data enable dialog");
+                    String message = SuppServicesUiUtil.makeMessage(context, suppKey, phone);
+                    AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                    DialogInterface.OnClickListener networkSettingsClickListener =
+                            new Dialog.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    Intent intent = new Intent(Intent.ACTION_MAIN);
+                                    ComponentName mobileNetworkSettingsComponent
+                                        = new ComponentName(
+                                                context.getString(
+                                                    R.string.mobile_network_settings_package),
+                                                context.getString(
+                                                    R.string.mobile_network_settings_class));
+                                    intent.setComponent(mobileNetworkSettingsComponent);
+                                    context.startActivity(intent);
+                                }
+                            };
+                    Dialog dialog = builder.setMessage(message)
+                        .setNeutralButton(context.getResources().getString(
+                                R.string.settings_label),
+                                networkSettingsClickListener)
+                        .setPositiveButton(context.getResources().getString(
+                                R.string.supp_service_over_ut_precautions_dialog_dismiss), null)
+                        .create();
+                    dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+                    dialog.show();
+                    ret = true;
+                }
+            }
+        }
+        return ret;
     }
 
     /**

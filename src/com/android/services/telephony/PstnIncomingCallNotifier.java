@@ -216,6 +216,9 @@ final class PstnIncomingCallNotifier {
             Call call = connection.getCall();
             if (call != null && call.getState().isAlive()) {
                 addNewUnknownCall(connection);
+            } else {
+                Log.i(this, "Skipping new unknown connection because its call is null or dead."
+                        + " connection=" + connection);
             }
         }
     }

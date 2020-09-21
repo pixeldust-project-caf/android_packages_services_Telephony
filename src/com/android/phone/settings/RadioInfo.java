@@ -38,8 +38,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.PersistableBundle;
 import android.os.SystemProperties;
 import android.provider.Settings;
+import android.telephony.AccessNetworkConstants;
 import android.telephony.CarrierConfigManager;
 import android.telephony.CellIdentityCdma;
 import android.telephony.CellIdentityGsm;
@@ -55,6 +57,8 @@ import android.telephony.CellSignalStrengthCdma;
 import android.telephony.CellSignalStrengthGsm;
 import android.telephony.CellSignalStrengthLte;
 import android.telephony.CellSignalStrengthWcdma;
+import android.telephony.DataSpecificRegistrationInfo;
+import android.telephony.NetworkRegistrationInfo;
 import android.telephony.PhoneStateListener;
 import android.telephony.PhysicalChannelConfig;
 import android.telephony.PreciseCallState;
@@ -239,6 +243,11 @@ public class RadioInfo extends AppCompatActivity {
     private TextView mDnsCheckState;
     private TextView mDownlinkKbps;
     private TextView mUplinkKbps;
+    private TextView mEndcAvailable;
+    private TextView mDcnrRestricted;
+    private TextView mNrAvailable;
+    private TextView mNrState;
+    private TextView mNrFrequency;
     private EditText mSmsc;
     private Switch mRadioPowerOnSwitch;
     private Button mCellInfoRefreshRateButton;
@@ -356,6 +365,7 @@ public class RadioInfo extends AppCompatActivity {
             updateRadioPowerState();
             updateNetworkType();
             updateImsProvisionedState();
+            updateNrStats(serviceState);
         }
 
     }
@@ -465,12 +475,12 @@ public class RadioInfo extends AppCompatActivity {
 
         mQueuedWork = new ThreadPoolExecutor(1, 1, RUNNABLE_TIMEOUT_MS, TimeUnit.MICROSECONDS,
                 new LinkedBlockingDeque<Runnable>());
-        mTelephonyManager = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
         mConnectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         mPhone = PhoneFactory.getDefaultPhone();
+        mTelephonyManager = ((TelephonyManager) getSystemService(TELEPHONY_SERVICE))
+                .createForSubscriptionId(mPhone.getSubId());
 
-        mImsManager = ImsManager.getInstance(getApplicationContext(),
-                SubscriptionManager.getDefaultVoicePhoneId());
+        mImsManager = ImsManager.getInstance(getApplicationContext(), mPhone.getPhoneId());
 
         sPhoneIndexLabels = getPhoneIndexLabels(mTelephonyManager);
 
@@ -500,8 +510,27 @@ public class RadioInfo extends AppCompatActivity {
         mPingHostnameV4 = (TextView) findViewById(R.id.pingHostnameV4);
         mPingHostnameV6 = (TextView) findViewById(R.id.pingHostnameV6);
         mHttpClientTest = (TextView) findViewById(R.id.httpClientTest);
-
+        mEndcAvailable = (TextView) findViewById(R.id.endc_available);
+        mDcnrRestricted = (TextView) findViewById(R.id.dcnr_restricted);
+        mNrAvailable = (TextView) findViewById(R.id.nr_available);
+        mNrState = (TextView) findViewById(R.id.nr_state);
+        mNrFrequency = (TextView) findViewById(R.id.nr_frequency);
         mPhyChanConfig = (TextView) findViewById(R.id.phy_chan_config);
+
+        // hide 5G stats on devices that don't support 5G
+        if ((mTelephonyManager.getSupportedRadioAccessFamily()
+                & TelephonyManager.NETWORK_TYPE_BITMASK_NR) == 0) {
+            ((TextView) findViewById(R.id.endc_available_label)).setVisibility(View.GONE);
+            mEndcAvailable.setVisibility(View.GONE);
+            ((TextView) findViewById(R.id.dcnr_restricted_label)).setVisibility(View.GONE);
+            mDcnrRestricted.setVisibility(View.GONE);
+            ((TextView) findViewById(R.id.nr_available_label)).setVisibility(View.GONE);
+            mNrAvailable.setVisibility(View.GONE);
+            ((TextView) findViewById(R.id.nr_state_label)).setVisibility(View.GONE);
+            mNrState.setVisibility(View.GONE);
+            ((TextView) findViewById(R.id.nr_frequency_label)).setVisibility(View.GONE);
+            mNrFrequency.setVisibility(View.GONE);
+        }
 
         mPreferredNetworkType = (Spinner) findViewById(R.id.preferredNetworkType);
         ArrayAdapter<String> mPreferredNetworkTypeAdapter = new ArrayAdapter<String>(this,
@@ -624,6 +653,7 @@ public class RadioInfo extends AppCompatActivity {
         updateProperties();
         updateDnsCheckState();
         updateNetworkType();
+        updateNrStats(null);
 
         updateLocation(mCellLocationResult);
         updateCellInfo(mCellInfoResult);
@@ -1131,6 +1161,32 @@ public class RadioInfo extends AppCompatActivity {
         }
     }
 
+    private void updateNrStats(ServiceState serviceState) {
+        if ((mTelephonyManager.getSupportedRadioAccessFamily()
+                & TelephonyManager.NETWORK_TYPE_BITMASK_NR) == 0) {
+            return;
+        }
+
+        ServiceState ss = serviceState;
+        if (ss == null && mPhone != null) {
+            ss = mPhone.getServiceState();
+        }
+        if (ss != null) {
+            NetworkRegistrationInfo nri = ss.getNetworkRegistrationInfo(
+                    NetworkRegistrationInfo.DOMAIN_PS, AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+            if (nri != null) {
+                DataSpecificRegistrationInfo dsri = nri.getDataSpecificInfo();
+                if (dsri != null) {
+                    mEndcAvailable.setText(dsri.isEnDcAvailable ? "True" : "False");
+                    mDcnrRestricted.setText(dsri.isDcNrRestricted ? "True" : "False");
+                    mNrAvailable.setText(dsri.isNrAvailable ? "True" : "False");
+                }
+            }
+            mNrState.setText(NetworkRegistrationInfo.nrStateToString(ss.getNrState()));
+            mNrFrequency.setText(ServiceState.frequencyRangeToString(ss.getNrFrequencyRange()));
+        }
+    }
+
     private void updateProperties() {
         String s;
         Resources r = getResources();
@@ -1465,9 +1521,9 @@ public class RadioInfo extends AppCompatActivity {
     };
 
     private boolean isImsVolteProvisioned() {
-        if (mPhone != null && mImsManager != null) {
-            return mImsManager.isVolteEnabledByPlatform(mPhone.getContext())
-                && mImsManager.isVolteProvisionedOnDevice(mPhone.getContext());
+        if (mImsManager != null) {
+            return mImsManager.isVolteEnabledByPlatform()
+                && mImsManager.isVolteProvisionedOnDevice();
         }
         return false;
     }
@@ -1480,9 +1536,9 @@ public class RadioInfo extends AppCompatActivity {
     };
 
     private boolean isImsVtProvisioned() {
-        if (mPhone != null && mImsManager != null) {
-            return mImsManager.isVtEnabledByPlatform(mPhone.getContext())
-                && mImsManager.isVtProvisionedOnDevice(mPhone.getContext());
+        if (mImsManager != null) {
+            return mImsManager.isVtEnabledByPlatform()
+                && mImsManager.isVtProvisionedOnDevice();
         }
         return false;
     }
@@ -1495,9 +1551,9 @@ public class RadioInfo extends AppCompatActivity {
     };
 
     private boolean isImsWfcProvisioned() {
-        if (mPhone != null && mImsManager != null) {
-            return mImsManager.isWfcEnabledByPlatform(mPhone.getContext())
-                && mImsManager.isWfcProvisionedOnDevice(mPhone.getContext());
+        if (mImsManager != null) {
+            return mImsManager.isWfcEnabledByPlatform()
+                && mImsManager.isWfcProvisionedOnDevice();
         }
         return false;
     }
@@ -1539,13 +1595,14 @@ public class RadioInfo extends AppCompatActivity {
         return provisioned;
     }
 
-    private static boolean isEabEnabledByPlatform(Context context) {
-        if (context != null) {
+    private boolean isEabEnabledByPlatform() {
+        if (mPhone != null) {
             CarrierConfigManager configManager = (CarrierConfigManager)
-                    context.getSystemService(Context.CARRIER_CONFIG_SERVICE);
-            if (configManager != null && configManager.getConfig().getBoolean(
-                        CarrierConfigManager.KEY_USE_RCS_PRESENCE_BOOL)) {
-                return true;
+                    mPhone.getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
+            PersistableBundle b = configManager.getConfigForSubId(mPhone.getSubId());
+            if (b != null) {
+                return b.getBoolean(CarrierConfigManager.KEY_USE_RCS_PRESENCE_BOOL,
+                        false);
             }
         }
         return false;
@@ -1562,25 +1619,25 @@ public class RadioInfo extends AppCompatActivity {
         mImsVolteProvisionedSwitch.setChecked(isImsVolteProvisioned());
         mImsVolteProvisionedSwitch.setOnCheckedChangeListener(mImsVolteCheckedChangeListener);
         mImsVolteProvisionedSwitch.setEnabled(!IS_USER_BUILD
-                && mImsManager.isVolteEnabledByPlatform(mPhone.getContext()));
+                && mImsManager.isVolteEnabledByPlatform());
 
         mImsVtProvisionedSwitch.setOnCheckedChangeListener(null);
         mImsVtProvisionedSwitch.setChecked(isImsVtProvisioned());
         mImsVtProvisionedSwitch.setOnCheckedChangeListener(mImsVtCheckedChangeListener);
         mImsVtProvisionedSwitch.setEnabled(!IS_USER_BUILD
-                && mImsManager.isVtEnabledByPlatform(mPhone.getContext()));
+                && mImsManager.isVtEnabledByPlatform());
 
         mImsWfcProvisionedSwitch.setOnCheckedChangeListener(null);
         mImsWfcProvisionedSwitch.setChecked(isImsWfcProvisioned());
         mImsWfcProvisionedSwitch.setOnCheckedChangeListener(mImsWfcCheckedChangeListener);
         mImsWfcProvisionedSwitch.setEnabled(!IS_USER_BUILD
-                && mImsManager.isWfcEnabledByPlatform(mPhone.getContext()));
+                && mImsManager.isWfcEnabledByPlatform());
 
         mEabProvisionedSwitch.setOnCheckedChangeListener(null);
         mEabProvisionedSwitch.setChecked(isEabProvisioned());
         mEabProvisionedSwitch.setOnCheckedChangeListener(mEabCheckedChangeListener);
         mEabProvisionedSwitch.setEnabled(!IS_USER_BUILD
-                && isEabEnabledByPlatform(mPhone.getContext()));
+                && isEabEnabledByPlatform());
     }
 
     OnClickListener mDnsCheckButtonHandler = new OnClickListener() {

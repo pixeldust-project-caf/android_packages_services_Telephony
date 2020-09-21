@@ -123,6 +123,13 @@
     <string name="sum_cfnrc_enabled" msgid="1799069234006073477">"โอนสายไปที่ <xliff:g id="PHONENUMBER">{0}</xliff:g>"</string>
     <string name="sum_cfnrc_disabled" msgid="739289696796917683">"ปิด"</string>
     <string name="disable_cfnrc_forbidden" msgid="775348748084726890">"ผู้ให้บริการของคุณไม่สนับสนุนการปิดใช้งานการโอนสายเมื่อติดต่อไม่ได้"</string>
+    <string name="registration_cf_forbidden" msgid="4386482610771190420">"ผู้ให้บริการของคุณไม่รองรับการโอนสาย"</string>
+    <string name="cdma_call_waiting" msgid="4565070960879673216">"เปิดใช้สายเรียกซ้อนไหม"</string>
+    <string name="enable_cdma_call_waiting_setting" msgid="5906811747921744307">"ระบบจะแจ้งเตือนหากมีสายเรียกเข้าซ้อนระหว่างการโทร"</string>
+    <string name="enable_cdma_cw" msgid="811047045863422232">"เปิด"</string>
+    <string name="disable_cdma_cw" msgid="7119290446496301734">"ยกเลิก"</string>
+    <string name="cdma_call_waiting_in_ims_on" msgid="6390979414188659218">"เปิดใช้สายเรียกซ้อนระบบ CDMA ภายใต้ IMS"</string>
+    <string name="cdma_call_waiting_in_ims_off" msgid="1099246114368636334">"ปิดใช้สายเรียกซ้อนระบบ CDMA ภายใต้ IMS"</string>
     <string name="updating_title" msgid="6130548922615719689">"การตั้งค่าการโทร"</string>
     <string name="call_settings_admin_user_only" msgid="7238947387649986286">"ผู้ใช้ระดับผู้ดูแลระบบเท่านั้นที่สามารถเปลี่ยนแปลงการตั้งค่าการโทรได้"</string>
     <string name="call_settings_with_label" msgid="8460230435361579511">"การตั้งค่า (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>

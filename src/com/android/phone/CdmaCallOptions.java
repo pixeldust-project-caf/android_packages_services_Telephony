@@ -29,7 +29,6 @@ import android.os.AsyncResult;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.preference.Preference;
-import android.preference.PreferenceActivity;
 import android.preference.PreferenceScreen;
 import android.provider.Settings;
 import android.telecom.PhoneAccountHandle;
@@ -58,6 +57,8 @@ public class CdmaCallOptions extends TimeConsumingPreferenceActivity
 
     public static final int CALL_WAITING = 7;
     private static final String BUTTON_VP_KEY = "button_voice_privacy_key";
+    private static final String CALL_FORWARDING_KEY = "call_forwarding_key";
+    private static final String CALL_WAITING_KEY = "call_waiting_key";
     private CdmaVoicePrivacySwitchPreference mButtonVoicePrivacy;
     public static final String CALL_FORWARD_INTENT = "org.codeaurora.settings.CDMA_CALL_FORWARDING";
     public static final String CALL_WAITING_INTENT = "org.codeaurora.settings.CDMA_CALL_WAITING";
@@ -314,6 +315,13 @@ public class CdmaCallOptions extends TimeConsumingPreferenceActivity
                         });
             }
         }
+
+        Preference callForwardingPref = getPreferenceScreen().findPreference(CALL_FORWARDING_KEY);
+        callForwardingPref.setIntent(subInfoHelper.getIntent(CdmaCallForwardOptions.class));
+
+        CdmaCallWaitingPreference callWaitingPref = (CdmaCallWaitingPreference)getPreferenceScreen()
+                                                     .findPreference(CALL_WAITING_KEY);
+        callWaitingPref.init(this, subInfoHelper.getPhone());
     }
 
     @Override
@@ -367,5 +375,4 @@ public class CdmaCallOptions extends TimeConsumingPreferenceActivity
         }
         return false;
     }
-
 }
