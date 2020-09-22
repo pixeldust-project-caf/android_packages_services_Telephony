@@ -77,7 +77,7 @@ public class IccNetworkDepersonalizationPanel extends IccPanel {
     private static IccNetworkDepersonalizationPanel [] sNdpPanel =
             new IccNetworkDepersonalizationPanel[
                     TelephonyManager.getDefault().getSupportedModemCount()];
-    private SubscriptionInfo sir;
+    private SubscriptionInfo mSir;
 
     //UI elements
     private EditText     mPinEntry;
@@ -212,9 +212,8 @@ public class IccNetworkDepersonalizationPanel extends IccPanel {
         super(context);
         mPhone = PhoneGlobals.getPhone();
         mPersoSubtype = PersoSubState.PERSOSUBSTATE_SIM_NETWORK.ordinal();
-        sir = SubscriptionManager.from(context)
+        mSir = SubscriptionManager.from(context)
                 .getActiveSubscriptionInfoForSimSlotIndex(mPhone.getPhoneId());
-
     }
 
     //constructor
@@ -223,7 +222,7 @@ public class IccNetworkDepersonalizationPanel extends IccPanel {
         super(context);
         mPhone = phone == null ? PhoneGlobals.getPhone() : phone;
         mPersoSubtype = subtype;
-        sir = SubscriptionManager.from(context)
+        mSir = SubscriptionManager.from(context)
                 .getActiveSubscriptionInfoForSimSlotIndex(mPhone.getPhoneId());
     }
 
@@ -343,8 +342,19 @@ public class IccNetworkDepersonalizationPanel extends IccPanel {
             log ("Unsupported Perso Subtype :" + mPersoSubState.name());
             return;
         }
+        if(mSir != null) {
+            CharSequence displayName = mSir.getDisplayName();
+            log("Operator displayName is: " + displayName + "phoneId: " + mPhone.getPhoneId());
 
-       CharSequence displayName = sir.getDisplayName();
+            if(displayName != null && displayName != "") {
+                // Displaying Operator displayName  on UI
+                String phoneIdText = getContext().getString(R.string.label_phoneid)
+                        + ": " + displayName;
+                mPhoneIdText.setText(phoneIdText);
+            }
+        }
+
+       CharSequence displayName = mSir.getDisplayName();
        log("Operator displayName is: " + displayName + "phoneId: " + mPhone.getPhoneId());
 
         // Displaying Operator displayName  on UI

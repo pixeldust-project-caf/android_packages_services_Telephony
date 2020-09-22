@@ -50,6 +50,7 @@
     <string name="voice_number_setting_primary_user_only" msgid="3394706575741912843">"Cilësimet e postës zanore mund të modifikohen vetëm nga \"Përdoruesi kryesor\""</string>
     <string name="puk_unlocked" msgid="4627340655215746511">"Karta jote SIM u zhbllokua. Telefoni yt po shkyçet..."</string>
     <string name="label_ndp" msgid="7617392683877410341">"PIN-i i shkyçjes së rrjetit të kartës SIM"</string>
+    <string name="label_phoneid" msgid="8775611434123577808">"Karta SIM e kyçur për operatorin"</string>
     <string name="sim_ndp_unlock_text" msgid="7737338355451978338">"Shkyçe"</string>
     <string name="sim_ndp_dismiss_text" msgid="89667342248929777">"Injoro"</string>
     <string name="requesting_unlock" msgid="930512210309437741">"Po kërkon shkyçjen e rrjetit…"</string>
@@ -874,7 +875,6 @@
     <string name="radio_info_dds" msgid="1122593144425697126">"ID-ja dytësore e kartës SIM të parazgjedhur të të dhënave:"</string>
     <string name="radio_info_dl_kbps" msgid="2382922659525318726">"Gjerësia e bandës DL (kbps):"</string>
     <string name="radio_info_ul_kbps" msgid="2102225400904799036">"Gjerësia e bandës UL (kbps):"</string>
-    <string name="radio_info_signal_location_label" msgid="6188435197086550049">"Informacionet e vendndodhjes të rrjetit celular (e vjetruar):"</string>
     <string name="radio_info_phy_chan_config" msgid="1277949603275436081">"Konfigurimi i kanalit fizik LTE:"</string>
     <string name="radio_info_cell_info_refresh_rate" msgid="670511448975997340">"Shpejtësia e rifreskimit të informacioneve të rrjetit celular"</string>
     <string name="radio_info_cellinfo_label" msgid="8199062974670377659">"Të gjitha informacionet e matjes së rrjetit celular:"</string>
@@ -905,6 +905,11 @@
     <string name="radio_info_smsc_refresh_label" msgid="8409923721451604560">"Rifresko"</string>
     <string name="radio_info_toggle_dns_check_label" msgid="1394078554927787350">"Ndrysho kontrollin e DNS-së"</string>
     <string name="oem_radio_info_label" msgid="2914167475119997456">"Informacion/cilësime specifike për OEM"</string>
+    <string name="radio_info_endc_available" msgid="4410653375290113436">"Ofrohet EN-DC:"</string>
+    <string name="radio_info_dcnr_restricted" msgid="2469125498066960807">"DCNR me kufizime:"</string>
+    <string name="radio_info_nr_available" msgid="1321318331361249997">"Ofrohet NR:"</string>
+    <string name="radio_info_nr_state" msgid="1337571996788535356">"Gjendja e NR-së:"</string>
+    <string name="radio_info_nr_frequency" msgid="1201156032796584128">"Frekuenca e NR-së:"</string>
     <string name="band_mode_title" msgid="7988822920724576842">"Cakto modalitetin e brezit të radios"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"Po ngarkon listën e brezave…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"Cakto"</string>
