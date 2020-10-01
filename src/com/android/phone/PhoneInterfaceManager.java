@@ -104,6 +104,8 @@ import android.telephony.ims.RegistrationManager;
 import android.telephony.ims.aidl.IImsCapabilityCallback;
 import android.telephony.ims.aidl.IImsConfig;
 import android.telephony.ims.aidl.IImsConfigCallback;
+import android.telephony.ims.aidl.IImsMmTelFeature;
+import android.telephony.ims.aidl.IImsRcsFeature;
 import android.telephony.ims.aidl.IImsRegistration;
 import android.telephony.ims.aidl.IImsRegistrationCallback;
 import android.telephony.ims.feature.ImsFeature;
@@ -875,14 +877,17 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         if (ar.exception != null) {
                             loge("EVENT_GET_CALL_FORWARDING_DONE: Exception: " + ar.exception);
                         }
-                        int errorCode = CallForwardingInfo.ERROR_UNKNOWN;
+                        int errorCode = TelephonyManager
+                                .CallForwardingInfoCallback.RESULT_ERROR_UNKNOWN;
                         if (ar.exception instanceof CommandException) {
                             CommandException.Error error =
                                     ((CommandException) (ar.exception)).getCommandError();
                             if (error == CommandException.Error.FDN_CHECK_FAILURE) {
-                                errorCode = CallForwardingInfo.ERROR_FDN_CHECK_FAILURE;
+                                errorCode = TelephonyManager
+                                        .CallForwardingInfoCallback.RESULT_ERROR_FDN_CHECK_FAILURE;
                             } else if (error == CommandException.Error.REQUEST_NOT_SUPPORTED) {
-                                errorCode = CallForwardingInfo.ERROR_NOT_SUPPORTED;
+                                errorCode = TelephonyManager
+                                        .CallForwardingInfoCallback.RESULT_ERROR_NOT_SUPPORTED;
                             }
                         }
                         callback.onError(errorCode);
@@ -915,19 +920,22 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                                     request.argument).second;
                     if (ar.exception != null) {
                         loge("setCallForwarding exception: " + ar.exception);
-                        int errorCode = CallForwardingInfo.ERROR_UNKNOWN;
+                        int errorCode = TelephonyManager.CallForwardingInfoCallback
+                                .RESULT_ERROR_UNKNOWN;
                         if (ar.exception instanceof CommandException) {
                             CommandException.Error error =
                                     ((CommandException) (ar.exception)).getCommandError();
                             if (error == CommandException.Error.FDN_CHECK_FAILURE) {
-                                errorCode = CallForwardingInfo.ERROR_FDN_CHECK_FAILURE;
+                                errorCode = TelephonyManager.CallForwardingInfoCallback
+                                        .RESULT_ERROR_FDN_CHECK_FAILURE;
                             } else if (error == CommandException.Error.REQUEST_NOT_SUPPORTED) {
-                                errorCode = CallForwardingInfo.ERROR_NOT_SUPPORTED;
+                                errorCode = TelephonyManager.CallForwardingInfoCallback
+                                        .RESULT_ERROR_NOT_SUPPORTED;
                             }
                         }
                         callback.accept(errorCode);
                     } else {
-                        callback.accept(CallForwardingInfo.SUCCESS);
+                        callback.accept(TelephonyManager.CallForwardingInfoCallback.RESULT_SUCCESS);
                     }
                     break;
                 }
@@ -5049,40 +5057,58 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     /**
-     * Registers for updates to the MmTelFeature connection through the IImsServiceFeatureCallback
-     * callback.
+     * Returns the {@link IImsMmTelFeature} that corresponds to the given slot Id for the MMTel
+     * feature or {@link null} if the service is not available. If the feature is available, the
+     * {@link IImsServiceFeatureCallback} callback is registered as a listener for feature updates.
      */
-    @Override
-    public void registerMmTelFeatureCallback(int slotId, IImsServiceFeatureCallback callback,
-            boolean oneShot) {
+    public IImsMmTelFeature getMmTelFeatureAndListen(int slotId,
+            IImsServiceFeatureCallback callback) {
         enforceModifyPermission();
 
         final long identity = Binder.clearCallingIdentity();
         try {
             if (mImsResolver == null) {
-                throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
-                        "Device does not support IMS");
+                // may happen if the device does not support IMS.
+                return null;
             }
-            if (oneShot) {
-                mImsResolver.callBackIfExists(slotId, ImsFeature.FEATURE_MMTEL, callback);
-            } else {
-                mImsResolver.listenForFeature(slotId, ImsFeature.FEATURE_MMTEL, callback);
-            }
+            return mImsResolver.getMmTelFeatureAndListen(slotId, callback);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
     }
+
+    /**
+     * Returns the {@link IImsRcsFeature} that corresponds to the given slot Id for the RCS
+     * feature during emergency calling or {@link null} if the service is not available. If the
+     * feature is available, the {@link IImsServiceFeatureCallback} callback is registered as a
+     * listener for feature updates.
+     */
+    public IImsRcsFeature getRcsFeatureAndListen(int slotId, IImsServiceFeatureCallback callback) {
+        enforceModifyPermission();
+
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            if (mImsResolver == null) {
+                // may happen if the device does not support IMS.
+                return null;
+            }
+            return mImsResolver.getRcsFeatureAndListen(slotId, callback);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
     /**
      * Unregister a previously registered IImsServiceFeatureCallback associated with an ImsFeature.
      */
-    @Override
-    public void unregisterImsFeatureCallback(IImsServiceFeatureCallback callback) {
+    public void unregisterImsFeatureCallback(int slotId, int featureType,
+            IImsServiceFeatureCallback callback) {
         enforceModifyPermission();
 
         final long identity = Binder.clearCallingIdentity();
         try {
             if (mImsResolver == null) return;
-            mImsResolver.unregisterImsFeatureCallback(callback);
+            mImsResolver.unregisterImsFeatureCallback(slotId, featureType, callback);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -5378,7 +5404,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             Phone phone = getPhone(subId);
             if (phone == null) {
                 try {
-                    callback.onError(CallForwardingInfo.ERROR_UNKNOWN);
+                    callback.onError(
+                            TelephonyManager.CallForwardingInfoCallback.RESULT_ERROR_UNKNOWN);
                 } catch (RemoteException e) {
                     // ignore
                 }
@@ -5429,7 +5456,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             Phone phone = getPhone(subId);
             if (phone == null) {
                 try {
-                    callback.accept(CallForwardingInfo.ERROR_UNKNOWN);
+                    callback.accept(
+                            TelephonyManager.CallForwardingInfoCallback.RESULT_ERROR_UNKNOWN);
                 } catch (RemoteException e) {
                     // ignore
                 }
