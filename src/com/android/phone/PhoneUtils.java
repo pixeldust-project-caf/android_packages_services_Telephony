@@ -925,7 +925,13 @@ public class PhoneUtils {
             // Select the phone id based on modemUuid
             // if modemUuid is 0 for any phone instance, primary stack is mapped
             // to it so return the phone id as the primary stack phone id.
-            if (Integer.parseInt(modemUuId) == PRIMARY_STACK_MODEM_ID) {
+            int modemUuIdValue = PRIMARY_STACK_MODEM_ID;
+            try {
+                modemUuIdValue = Integer.parseInt(modemUuId);
+            } catch (NumberFormatException e) {
+                Log.w(LOG_TAG, "modemUuId is not an integer: " + modemUuId);
+            }
+            if (modemUuIdValue == PRIMARY_STACK_MODEM_ID) {
                 primayStackPhoneId = phone.getPhoneId();
                 Log.d(LOG_TAG, "Primay Stack phone id: " + primayStackPhoneId + " selected");
                 break;
