@@ -115,6 +115,13 @@ public class TelecomAccountRegistry {
      */
     private static final int LISTENER_STATE_REGISTERED = 3;
 
+    /**
+     * Copy-pasted from android.telecom.PhoneAccount -- hidden constant which is unfortunately being
+     * used by some 1P apps, so we're keeping it here until we can remove it.
+     */
+    private static final String EXTRA_SUPPORTS_VIDEO_CALLING_FALLBACK =
+            "android.telecom.extra.SUPPORTS_VIDEO_CALLING_FALLBACK";
+
     // Flag which decides whether SIM should power down due to APM,
     private static final String APM_SIM_NOT_PWDN_PROPERTY = "persist.vendor.radio.apm_sim_not_pwdn";
 
@@ -137,7 +144,7 @@ public class TelecomAccountRegistry {
         private ImsMmTelManager.CapabilityCallback mMmtelCapabilityCallback;
         private RegistrationManager.RegistrationCallback mImsRegistrationCallback;
         private ImsMmTelManager mMmTelManager;
-        private final boolean mIsDummy;
+        private final boolean mIsTestAccount;
         private boolean mIsVideoCapable;
         private boolean mIsVideoPresenceSupported;
         private boolean mIsVideoPauseSupported;
@@ -150,12 +157,12 @@ public class TelecomAccountRegistry {
         private boolean mIsShowPreciseFailedCause;
         private final FeatureConnector<ImsManager> mImsManagerConnector;
 
-        AccountEntry(Phone phone, boolean isEmergency, boolean isDummy) {
+        AccountEntry(Phone phone, boolean isEmergency, boolean isTest) {
             mPhone = phone;
             mIsEmergency = isEmergency;
-            mIsDummy = isDummy;
+            mIsTestAccount = isTest;
             mIsAdhocConfCapable = mPhone.isImsRegistered();
-            mAccount = registerPstnPhoneAccount(isEmergency, isDummy);
+            mAccount = registerPstnPhoneAccount(isEmergency, isTest);
             Log.i(this, "Registered phoneAccount: %s with handle: %s",
                     mAccount, mAccount.getAccountHandle());
             mIncomingCallNotifier = new PstnIncomingCallNotifier((Phone) mPhone);
@@ -177,8 +184,8 @@ public class TelecomAccountRegistry {
                         }
                     }, "TelecomAccountRegistry");
 
-            if (mIsDummy || isEmergency) {
-                // For dummy and emergency entries, there is no sub ID that can be assigned, so do
+            if (mIsTestAccount || isEmergency) {
+                // For test and emergency entries, there is no sub ID that can be assigned, so do
                 // not register for capabilities callbacks.
                 return;
             }
@@ -284,7 +291,7 @@ public class TelecomAccountRegistry {
          * Trigger re-registration of this account.
          */
         public void reRegisterPstnPhoneAccount() {
-            PhoneAccount newAccount = buildPstnPhoneAccount(mIsEmergency, mIsDummy);
+            PhoneAccount newAccount = buildPstnPhoneAccount(mIsEmergency, mIsTestAccount);
             if (!newAccount.equals(mAccount)) {
                 Log.i(this, "reRegisterPstnPhoneAccount: subId: " + getSubId()
                         + " - re-register due to account change.");
@@ -295,8 +302,8 @@ public class TelecomAccountRegistry {
             }
         }
 
-        private PhoneAccount registerPstnPhoneAccount(boolean isEmergency, boolean isDummyAccount) {
-            PhoneAccount account = buildPstnPhoneAccount(mIsEmergency, mIsDummy);
+        private PhoneAccount registerPstnPhoneAccount(boolean isEmergency, boolean isTestAccount) {
+            PhoneAccount account = buildPstnPhoneAccount(mIsEmergency, mIsTestAccount);
             // Register with Telecom and put into the account entry.
             mTelecomManager.registerPhoneAccount(account);
             return account;
@@ -305,13 +312,13 @@ public class TelecomAccountRegistry {
         /**
          * Registers the specified account with Telecom as a PhoneAccountHandle.
          */
-        private PhoneAccount buildPstnPhoneAccount(boolean isEmergency, boolean isDummyAccount) {
-            String dummyPrefix = isDummyAccount ? "Dummy " : "";
+        private PhoneAccount buildPstnPhoneAccount(boolean isEmergency, boolean isTestAccount) {
+            String testPrefix = isTestAccount ? "Test " : "";
 
             // Build the Phone account handle.
             PhoneAccountHandle phoneAccountHandle =
                     PhoneUtils.makePstnPhoneAccountHandleWithPrefix(
-                            mPhone, dummyPrefix, isEmergency);
+                            mPhone, testPrefix, isEmergency);
 
             // Populate the phone account data.
             int subId = mPhone.getSubId();
@@ -371,8 +378,8 @@ public class TelecomAccountRegistry {
 
                 // The label is user-visible so let's use the display name that the user may
                 // have set in Settings->Sim cards.
-                label = dummyPrefix + subDisplayName;
-                description = dummyPrefix + mContext.getResources().getString(
+                label = testPrefix + subDisplayName;
+                description = testPrefix + mContext.getResources().getString(
                                 R.string.sim_description_default, slotIdString);
             }
 
@@ -453,7 +460,7 @@ public class TelecomAccountRegistry {
                 mIsRttCapable = false;
             }
 
-            extras.putBoolean(PhoneAccount.EXTRA_SUPPORTS_VIDEO_CALLING_FALLBACK,
+            extras.putBoolean(EXTRA_SUPPORTS_VIDEO_CALLING_FALLBACK,
                     mContext.getResources()
                             .getBoolean(R.bool.config_support_video_calling_fallback));
 
@@ -804,7 +811,7 @@ public class TelecomAccountRegistry {
                     // time we get here, the original phone account could have been torn down.
                     return;
                 }
-                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsDummy);
+                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
             }
         }
 
@@ -823,7 +830,7 @@ public class TelecomAccountRegistry {
                     Log.i(this, "updateAdhocConfCapability - changed, new value: "
                             + isAdhocConfCapable);
                     mIsAdhocConfCapable = isAdhocConfCapable;
-                    mAccount = registerPstnPhoneAccount(mIsEmergency, mIsDummy);
+                    mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
                 }
             }
         }
@@ -842,7 +849,7 @@ public class TelecomAccountRegistry {
                 if (mIsVideoPresenceSupported != isVideoPresenceSupported) {
                     Log.i(this, "updateVideoPresenceCapability for subId=" + mPhone.getSubId()
                             + ", new value= " + isVideoPresenceSupported);
-                    mAccount = registerPstnPhoneAccount(mIsEmergency, mIsDummy);
+                    mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
                 }
             }
         }
@@ -851,7 +858,7 @@ public class TelecomAccountRegistry {
             boolean isRttEnabled = isRttCurrentlySupported();
             if (isRttEnabled != mIsRttCapable) {
                 Log.i(this, "updateRttCapability - changed, new value: " + isRttEnabled);
-                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsDummy);
+                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
             }
         }
 
@@ -860,7 +867,7 @@ public class TelecomAccountRegistry {
                     activeDataSubId);
             if (isEmergencyPreferred != mIsEmergencyPreferred) {
                 Log.i(this, "updateDefaultDataSubId - changed, new value: " + isEmergencyPreferred);
-                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsDummy);
+                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
             }
         }
 
@@ -1542,7 +1549,7 @@ public class TelecomAccountRegistry {
                                     && (phoneInEcm != null)
                                     && phoneInEcm.getPhoneId() == phone.getPhoneId()) {
                                 mAccounts.add(new AccountEntry(phoneInEcm, true /* emergency */,
-                                        false /* isDummy */));
+                                        false /* isTest */));
                                 isAccountAdded = true;
                             }
                             continue;
@@ -1562,7 +1569,7 @@ public class TelecomAccountRegistry {
                             activeCount++;
                             activeSubscriptionId = subscriptionId;
                             mAccounts.add(new AccountEntry(phone, false /* emergency */,
-                                    false /* isDummy */));
+                                    false /* isTest */));
                             isAccountAdded = true;
                         }
                         // Speacial case where one sub sim locked other sub reporting emergency service
@@ -1576,7 +1583,7 @@ public class TelecomAccountRegistry {
                                     || (phone.getState() == PhoneConstants.State.OFFHOOK))) {
                             Log.i(this, "Adding emergency account to phone id: "+phone.getPhoneId());
                             mAccounts.add(new AccountEntry(phone, true /* emergency */,
-                                    false /* isDummy */));
+                                    false /* isTest */));
                         }
                     }
                 }
@@ -1588,14 +1595,14 @@ public class TelecomAccountRegistry {
                     Log.i(this, "setupAccounts: adding default");
                     mAccounts.add(new AccountEntry(PhoneFactory.getPhone(
                             PhoneUtils.getPrimaryStackPhoneId()), true /* emergency */,
-                            false /* isDummy */));
+                            false /* isTest */));
                 }
             }
 
             // Add a fake account entry.
-            if (DBG && phones.length > 0 && "TRUE".equals(System.getProperty("dummy_sim"))) {
+            if (DBG && phones.length > 0 && "TRUE".equals(System.getProperty("test_sim"))) {
                 mAccounts.add(new AccountEntry(phones[0], false /* emergency */,
-                        true /* isDummy */));
+                        true /* isTest */));
             }
         }
 

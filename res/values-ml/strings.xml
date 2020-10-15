@@ -50,6 +50,7 @@
     <string name="voice_number_setting_primary_user_only" msgid="3394706575741912843">"പ്രാഥമിക ഉപയോക്താവിന് മാത്രമേ വോയ്‌സ്‌മെയിൽ ക്രമീകരണം പരിഷ്‌ക്കരിക്കാനാവൂ."</string>
     <string name="puk_unlocked" msgid="4627340655215746511">"സിം കാർഡ് തടഞ്ഞത് മാറ്റി. നിങ്ങളുടെ ഫോൺ അൺലോക്കുചെയ്യുന്നു…"</string>
     <string name="label_ndp" msgid="7617392683877410341">"സിം നെറ്റ്‌വർക്ക് അൺലോക്ക് പിൻ"</string>
+    <string name="label_phoneid" msgid="8775611434123577808">"ഓപ്പറേറ്റർക്കായി SIM ലോക്ക് ചെയ്‌തിരിക്കുന്നു"</string>
     <string name="sim_ndp_unlock_text" msgid="7737338355451978338">"അൺലോക്കുചെയ്യുക"</string>
     <string name="sim_ndp_dismiss_text" msgid="89667342248929777">"നിരസിക്കുക"</string>
     <string name="requesting_unlock" msgid="930512210309437741">"നെറ്റ്‌വർക്ക് അൺലോക്ക് അഭ്യർത്ഥിക്കുന്നു…"</string>
@@ -905,6 +906,11 @@
     <string name="radio_info_smsc_refresh_label" msgid="8409923721451604560">"പുതുക്കിയെടുക്കുക"</string>
     <string name="radio_info_toggle_dns_check_label" msgid="1394078554927787350">"DNS പരിശോധന മാറ്റുക"</string>
     <string name="oem_radio_info_label" msgid="2914167475119997456">"OEM-നിർദ്ദിഷ്‌ട വിവരം/ക്രമീകരണം"</string>
+    <string name="radio_info_endc_available" msgid="4410653375290113436">"EN-DC ലഭ്യം:"</string>
+    <string name="radio_info_dcnr_restricted" msgid="2469125498066960807">"DCNR നിയന്ത്രിച്ചിരിക്കുന്നു:"</string>
+    <string name="radio_info_nr_available" msgid="1321318331361249997">"NR ലഭ്യം:"</string>
+    <string name="radio_info_nr_state" msgid="1337571996788535356">"NR നില:"</string>
+    <string name="radio_info_nr_frequency" msgid="1201156032796584128">"NR ഫ്രീക്വൻസി:"</string>
     <string name="band_mode_title" msgid="7988822920724576842">"റേഡിയോ ബാൻഡ് മോഡ് സജ്ജീകരിക്കുക"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"ബാൻഡ് ലിസ്‌റ്റ് ലോഡ് ചെയ്യുന്നു…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"സജ്ജീകരിക്കുക"</string>
