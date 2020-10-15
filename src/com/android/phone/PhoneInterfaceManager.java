@@ -104,8 +104,6 @@ import android.telephony.ims.RegistrationManager;
 import android.telephony.ims.aidl.IImsCapabilityCallback;
 import android.telephony.ims.aidl.IImsConfig;
 import android.telephony.ims.aidl.IImsConfigCallback;
-import android.telephony.ims.aidl.IImsMmTelFeature;
-import android.telephony.ims.aidl.IImsRcsFeature;
 import android.telephony.ims.aidl.IImsRegistration;
 import android.telephony.ims.aidl.IImsRegistrationCallback;
 import android.telephony.ims.feature.ImsFeature;
@@ -132,6 +130,7 @@ import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.DefaultPhoneNotifier;
 import com.android.internal.telephony.HalVersion;
 import com.android.internal.telephony.IBooleanConsumer;
+import com.android.internal.telephony.ICallForwardingInfoCallback;
 import com.android.internal.telephony.IIntegerConsumer;
 import com.android.internal.telephony.INumberVerificationCallback;
 import com.android.internal.telephony.ITelephony;
@@ -172,6 +171,7 @@ import com.android.internal.telephony.uicc.UiccProfile;
 import com.android.internal.telephony.uicc.UiccSlot;
 import com.android.internal.telephony.util.LocaleUtils;
 import com.android.internal.telephony.util.VoicemailNotificationSettingsUtil;
+import com.android.internal.util.FunctionalUtils;
 import com.android.internal.util.HexDump;
 import com.android.phone.settings.PickSmsSubscriptionActivity;
 import com.android.phone.vvm.PhoneAccountHandleConverter;
@@ -831,38 +831,43 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     getPhoneFromRequest(request).getAvailableNetworks(onCompleted);
                     break;
 
-                case CMD_GET_CALL_FORWARDING:
+                case CMD_GET_CALL_FORWARDING: {
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_GET_CALL_FORWARDING_DONE, request);
-                    int callForwardingReason = (Integer) request.argument;
-                    getPhoneFromRequest(request).getCallForwardingOption(
-                            callForwardingReason, onCompleted);
+                    Pair<Integer, TelephonyManager.CallForwardingInfoCallback> args =
+                            (Pair<Integer, TelephonyManager.CallForwardingInfoCallback>)
+                                    request.argument;
+                    int callForwardingReason = args.first;
+                    request.phone.getCallForwardingOption(callForwardingReason, onCompleted);
                     break;
-
-                case EVENT_GET_CALL_FORWARDING_DONE:
+                }
+                case EVENT_GET_CALL_FORWARDING_DONE: {
                     ar = (AsyncResult) msg.obj;
                     request = (MainThreadRequest) ar.userObj;
-                    CallForwardingInfo callForwardingInfo = null;
+                    TelephonyManager.CallForwardingInfoCallback callback =
+                            ((Pair<Integer, TelephonyManager.CallForwardingInfoCallback>)
+                                    request.argument).second;
                     if (ar.exception == null && ar.result != null) {
+                        CallForwardingInfo callForwardingInfo = null;
                         CallForwardInfo[] callForwardInfos = (CallForwardInfo[]) ar.result;
                         for (CallForwardInfo callForwardInfo : callForwardInfos) {
                             // Service Class is a bit mask per 3gpp 27.007. Search for
                             // any service for voice call.
                             if ((callForwardInfo.serviceClass
                                     & CommandsInterface.SERVICE_CLASS_VOICE) > 0) {
-                                callForwardingInfo = new CallForwardingInfo(
-                                        callForwardInfo.serviceClass, callForwardInfo.reason,
-                                                callForwardInfo.number,
-                                                        callForwardInfo.timeSeconds);
+                                callForwardingInfo = new CallForwardingInfo(true,
+                                        callForwardInfo.reason,
+                                        callForwardInfo.number,
+                                        callForwardInfo.timeSeconds);
                                 break;
                             }
                         }
                         // Didn't find a call forward info for voice call.
                         if (callForwardingInfo == null) {
-                            callForwardingInfo = new CallForwardingInfo(
-                                    CallForwardingInfo.STATUS_UNKNOWN_ERROR,
-                                            0 /* reason */, null /* number */, 0 /* timeout */);
+                            callForwardingInfo = new CallForwardingInfo(false /* enabled */,
+                                    0 /* reason */, null /* number */, 0 /* timeout */);
                         }
+                        callback.onCallForwardingInfoAvailable(callForwardingInfo);
                     } else {
                         if (ar.result == null) {
                             loge("EVENT_GET_CALL_FORWARDING_DONE: Empty response");
@@ -870,56 +875,80 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         if (ar.exception != null) {
                             loge("EVENT_GET_CALL_FORWARDING_DONE: Exception: " + ar.exception);
                         }
-                        int errorCode = CallForwardingInfo.STATUS_UNKNOWN_ERROR;
+                        int errorCode = TelephonyManager
+                                .CallForwardingInfoCallback.RESULT_ERROR_UNKNOWN;
                         if (ar.exception instanceof CommandException) {
                             CommandException.Error error =
                                     ((CommandException) (ar.exception)).getCommandError();
                             if (error == CommandException.Error.FDN_CHECK_FAILURE) {
-                                errorCode = CallForwardingInfo.STATUS_FDN_CHECK_FAILURE;
+                                errorCode = TelephonyManager
+                                        .CallForwardingInfoCallback.RESULT_ERROR_FDN_CHECK_FAILURE;
                             } else if (error == CommandException.Error.REQUEST_NOT_SUPPORTED) {
-                                errorCode = CallForwardingInfo.STATUS_NOT_SUPPORTED;
+                                errorCode = TelephonyManager
+                                        .CallForwardingInfoCallback.RESULT_ERROR_NOT_SUPPORTED;
                             }
                         }
-                        callForwardingInfo = new CallForwardingInfo(
-                                errorCode, 0 /* reason */, null /* number */, 0 /* timeout */);
+                        callback.onError(errorCode);
                     }
-                    request.result = callForwardingInfo;
-                    notifyRequester(request);
                     break;
+                }
 
-                case CMD_SET_CALL_FORWARDING:
+                case CMD_SET_CALL_FORWARDING: {
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_SET_CALL_FORWARDING_DONE, request);
+                    request = (MainThreadRequest) msg.obj;
                     CallForwardingInfo callForwardingInfoToSet =
-                            (CallForwardingInfo) request.argument;
-                    getPhoneFromRequest(request).setCallForwardingOption(
-                            callForwardingInfoToSet.getStatus(),
+                            ((Pair<CallForwardingInfo, Consumer<Integer>>)
+                                    request.argument).first;
+                    request.phone.setCallForwardingOption(
+                            callForwardingInfoToSet.isEnabled()
+                                    ? CommandsInterface.CF_ACTION_ENABLE
+                                    : CommandsInterface.CF_ACTION_DISABLE,
                             callForwardingInfoToSet.getReason(),
                             callForwardingInfoToSet.getNumber(),
                             callForwardingInfoToSet.getTimeoutSeconds(), onCompleted);
                     break;
+                }
 
-                case EVENT_SET_CALL_FORWARDING_DONE:
+                case EVENT_SET_CALL_FORWARDING_DONE: {
                     ar = (AsyncResult) msg.obj;
                     request = (MainThreadRequest) ar.userObj;
-                    if (ar.exception == null) {
-                        request.result = true;
-                    } else {
-                        request.result = false;
+                    Consumer<Integer> callback =
+                            ((Pair<CallForwardingInfo, Consumer<Integer>>)
+                                    request.argument).second;
+                    if (ar.exception != null) {
                         loge("setCallForwarding exception: " + ar.exception);
+                        int errorCode = TelephonyManager.CallForwardingInfoCallback
+                                .RESULT_ERROR_UNKNOWN;
+                        if (ar.exception instanceof CommandException) {
+                            CommandException.Error error =
+                                    ((CommandException) (ar.exception)).getCommandError();
+                            if (error == CommandException.Error.FDN_CHECK_FAILURE) {
+                                errorCode = TelephonyManager.CallForwardingInfoCallback
+                                        .RESULT_ERROR_FDN_CHECK_FAILURE;
+                            } else if (error == CommandException.Error.REQUEST_NOT_SUPPORTED) {
+                                errorCode = TelephonyManager.CallForwardingInfoCallback
+                                        .RESULT_ERROR_NOT_SUPPORTED;
+                            }
+                        }
+                        callback.accept(errorCode);
+                    } else {
+                        callback.accept(TelephonyManager.CallForwardingInfoCallback.RESULT_SUCCESS);
                     }
-                    notifyRequester(request);
                     break;
+                }
 
-                case CMD_GET_CALL_WAITING:
+                case CMD_GET_CALL_WAITING: {
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_GET_CALL_WAITING_DONE, request);
                     getPhoneFromRequest(request).getCallWaiting(onCompleted);
                     break;
+                }
 
-                case EVENT_GET_CALL_WAITING_DONE:
+                case EVENT_GET_CALL_WAITING_DONE: {
                     ar = (AsyncResult) msg.obj;
                     request = (MainThreadRequest) ar.userObj;
+                    Consumer<Integer> callback = (Consumer<Integer>) request.argument;
                     int callForwardingStatus = TelephonyManager.CALL_WAITING_STATUS_UNKNOWN_ERROR;
                     if (ar.exception == null && ar.result != null) {
                         int[] callForwardResults = (int[]) ar.result;
@@ -927,12 +956,12 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         // Search for any service for voice call.
                         if (callForwardResults.length > 1
                                 && ((callForwardResults[1]
-                                        & CommandsInterface.SERVICE_CLASS_VOICE) > 0)) {
+                                & CommandsInterface.SERVICE_CLASS_VOICE) > 0)) {
                             callForwardingStatus = callForwardResults[0] == 0
-                                    ? TelephonyManager.CALL_WAITING_STATUS_INACTIVE
-                                            : TelephonyManager.CALL_WAITING_STATUS_ACTIVE;
+                                    ? TelephonyManager.CALL_WAITING_STATUS_DISABLED
+                                    : TelephonyManager.CALL_WAITING_STATUS_ENABLED;
                         } else {
-                            callForwardingStatus = TelephonyManager.CALL_WAITING_STATUS_INACTIVE;
+                            callForwardingStatus = TelephonyManager.CALL_WAITING_STATUS_DISABLED;
                         }
                     } else {
                         if (ar.result == null) {
@@ -950,28 +979,43 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                             }
                         }
                     }
-                    request.result = callForwardingStatus;
-                    notifyRequester(request);
+                    callback.accept(callForwardingStatus);
                     break;
+                }
 
-                case CMD_SET_CALL_WAITING:
+                case CMD_SET_CALL_WAITING: {
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_SET_CALL_WAITING_DONE, request);
-                    boolean isEnable = (Boolean) request.argument;
-                    getPhoneFromRequest(request).setCallWaiting(isEnable, onCompleted);
+                    boolean enable = ((Pair<Boolean, Consumer<Integer>>) request.argument).first;
+                    getPhoneFromRequest(request).setCallWaiting(enable, onCompleted);
                     break;
+                }
 
-                case EVENT_SET_CALL_WAITING_DONE:
+                case EVENT_SET_CALL_WAITING_DONE: {
                     ar = (AsyncResult) msg.obj;
                     request = (MainThreadRequest) ar.userObj;
-                    if (ar.exception == null) {
-                        request.result = true;
-                    } else {
-                        request.result = false;
+                    boolean enable = ((Pair<Boolean, Consumer<Integer>>) request.argument).first;
+                    Consumer<Integer> callback =
+                            ((Pair<Boolean, Consumer<Integer>>) request.argument).second;
+                    if (ar.exception != null) {
                         loge("setCallWaiting exception: " + ar.exception);
+                        if (ar.exception instanceof CommandException) {
+                            CommandException.Error error =
+                                    ((CommandException) (ar.exception)).getCommandError();
+                            if (error == CommandException.Error.REQUEST_NOT_SUPPORTED) {
+                                callback.accept(TelephonyManager.CALL_WAITING_STATUS_NOT_SUPPORTED);
+                            } else {
+                                callback.accept(TelephonyManager.CALL_WAITING_STATUS_UNKNOWN_ERROR);
+                            }
+                        } else {
+                            callback.accept(TelephonyManager.CALL_WAITING_STATUS_UNKNOWN_ERROR);
+                        }
+                    } else {
+                        callback.accept(enable ? TelephonyManager.CALL_WAITING_STATUS_ENABLED
+                                : TelephonyManager.CALL_WAITING_STATUS_DISABLED);
                     }
-                    notifyRequester(request);
                     break;
+                }
 
                 case EVENT_PERFORM_NETWORK_SCAN_DONE:
                     ar = (AsyncResult) msg.obj;
@@ -1036,7 +1080,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         ResultReceiver result = (ResultReceiver) request.argument;
                         Bundle bundle = new Bundle();
                         bundle.putParcelable(TelephonyManager.MODEM_ACTIVITY_RESULT_KEY,
-                                new ModemActivityInfo(0, 0, 0, new int[0], 0));
+                                new ModemActivityInfo(0, 0, 0,
+                                        new int[ModemActivityInfo.getNumTxPowerLevels()], 0));
                         result.send(0, bundle);
                     }
                     break;
@@ -1046,19 +1091,20 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     request = (MainThreadRequest) ar.userObj;
                     ResultReceiver result = (ResultReceiver) request.argument;
 
-                    ModemActivityInfo ret = new ModemActivityInfo(0, 0, 0, new int[0], 0);
+                    ModemActivityInfo ret = new ModemActivityInfo(0, 0, 0,
+                            new int[ModemActivityInfo.getNumTxPowerLevels()], 0);
                     if (ar.exception == null && ar.result != null) {
                         // Update the last modem activity info and the result of the request.
                         ModemActivityInfo info = (ModemActivityInfo) ar.result;
                         if (isModemActivityInfoValid(info)) {
-                            int[] mergedTxTimeMs = new int[ModemActivityInfo.TX_POWER_LEVELS];
+                            int[] mergedTxTimeMs = new int[ModemActivityInfo.getNumTxPowerLevels()];
                             int[] txTimeMs = info.getTransmitTimeMillis();
                             int[] lastModemTxTimeMs = mLastModemActivityInfo
                                     .getTransmitTimeMillis();
                             for (int i = 0; i < mergedTxTimeMs.length; i++) {
                                 mergedTxTimeMs[i] = txTimeMs[i] + lastModemTxTimeMs[i];
                             }
-                            mLastModemActivityInfo.setTimestamp(info.getTimestamp());
+                            mLastModemActivityInfo.setTimestamp(info.getTimestampMillis());
                             mLastModemActivityInfo.setSleepTimeMillis(info.getSleepTimeMillis()
                                     + mLastModemActivityInfo.getSleepTimeMillis());
                             mLastModemActivityInfo.setIdleTimeMillis(info.getIdleTimeMillis()
@@ -1068,7 +1114,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                                     info.getReceiveTimeMillis()
                                             + mLastModemActivityInfo.getReceiveTimeMillis());
                         }
-                        ret = new ModemActivityInfo(mLastModemActivityInfo.getTimestamp(),
+                        ret = new ModemActivityInfo(mLastModemActivityInfo.getTimestampMillis(),
                                 mLastModemActivityInfo.getSleepTimeMillis(),
                                 mLastModemActivityInfo.getIdleTimeMillis(),
                                 mLastModemActivityInfo.getTransmitTimeMillis(),
@@ -5011,58 +5057,35 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     /**
-     * Returns the {@link IImsMmTelFeature} that corresponds to the given slot Id for the MMTel
-     * feature or {@link null} if the service is not available. If the feature is available, the
-     * {@link IImsServiceFeatureCallback} callback is registered as a listener for feature updates.
+     * Registers for updates to the MmTelFeature connection through the IImsServiceFeatureCallback
+     * callback.
      */
-    public IImsMmTelFeature getMmTelFeatureAndListen(int slotId,
-            IImsServiceFeatureCallback callback) {
+    @Override
+    public void registerMmTelFeatureCallback(int slotId, IImsServiceFeatureCallback callback) {
         enforceModifyPermission();
 
         final long identity = Binder.clearCallingIdentity();
         try {
             if (mImsResolver == null) {
-                // may happen if the device does not support IMS.
-                return null;
+                throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
+                        "Device does not support IMS");
             }
-            return mImsResolver.getMmTelFeatureAndListen(slotId, callback);
+            mImsResolver.listenForFeature(slotId, ImsFeature.FEATURE_MMTEL, callback);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
     }
-
-    /**
-     * Returns the {@link IImsRcsFeature} that corresponds to the given slot Id for the RCS
-     * feature during emergency calling or {@link null} if the service is not available. If the
-     * feature is available, the {@link IImsServiceFeatureCallback} callback is registered as a
-     * listener for feature updates.
-     */
-    public IImsRcsFeature getRcsFeatureAndListen(int slotId, IImsServiceFeatureCallback callback) {
-        enforceModifyPermission();
-
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            if (mImsResolver == null) {
-                // may happen if the device does not support IMS.
-                return null;
-            }
-            return mImsResolver.getRcsFeatureAndListen(slotId, callback);
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
-    }
-
     /**
      * Unregister a previously registered IImsServiceFeatureCallback associated with an ImsFeature.
      */
-    public void unregisterImsFeatureCallback(int slotId, int featureType,
-            IImsServiceFeatureCallback callback) {
+    @Override
+    public void unregisterImsFeatureCallback(IImsServiceFeatureCallback callback) {
         enforceModifyPermission();
 
         final long identity = Binder.clearCallingIdentity();
         try {
             if (mImsResolver == null) return;
-            mImsResolver.unregisterImsFeatureCallback(slotId, featureType, callback);
+            mImsResolver.unregisterImsFeatureCallback(callback);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -5239,7 +5262,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         }
     }
 
-   /**
+    /**
      * Ask the radio to connect to the input network and change selection mode to manual.
      *
      * @param subId the id of the subscription.
@@ -5345,7 +5368,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * Get the call forwarding info, given the call forwarding reason.
      */
     @Override
-    public CallForwardingInfo getCallForwarding(int subId, int callForwardingReason) {
+    public void getCallForwarding(int subId, int callForwardingReason,
+            ICallForwardingInfoCallback callback) {
         enforceReadPrivilegedPermission("getCallForwarding");
         long identity = Binder.clearCallingIdentity();
         try {
@@ -5353,8 +5377,39 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 log("getCallForwarding: subId " + subId
                         + " callForwardingReason" + callForwardingReason);
             }
-            return (CallForwardingInfo) sendRequest(
-                    CMD_GET_CALL_FORWARDING, callForwardingReason, subId);
+
+            Phone phone = getPhone(subId);
+            if (phone == null) {
+                try {
+                    callback.onError(
+                            TelephonyManager.CallForwardingInfoCallback.RESULT_ERROR_UNKNOWN);
+                } catch (RemoteException e) {
+                    // ignore
+                }
+                return;
+            }
+
+            Pair<Integer, TelephonyManager.CallForwardingInfoCallback> argument = Pair.create(
+                    callForwardingReason, new TelephonyManager.CallForwardingInfoCallback() {
+                        @Override
+                        public void onCallForwardingInfoAvailable(CallForwardingInfo info) {
+                            try {
+                                callback.onCallForwardingInfoAvailable(info);
+                            } catch (RemoteException e) {
+                                // ignore
+                            }
+                        }
+
+                        @Override
+                        public void onError(int error) {
+                            try {
+                                callback.onError(error);
+                            } catch (RemoteException e) {
+                                // ignore
+                            }
+                        }
+                    });
+            sendRequestAsync(CMD_GET_CALL_FORWARDING, argument, phone, null);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -5365,7 +5420,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * reason, the number to forward, and the timeout before the forwarding is attempted.
      */
     @Override
-    public boolean setCallForwarding(int subId, CallForwardingInfo callForwardingInfo) {
+    public void setCallForwarding(int subId, CallForwardingInfo callForwardingInfo,
+            IIntegerConsumer callback) {
         enforceModifyPermission();
         long identity = Binder.clearCallingIdentity();
         try {
@@ -5373,38 +5429,79 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 log("setCallForwarding: subId " + subId
                         + " callForwardingInfo" + callForwardingInfo);
             }
-            return (Boolean) sendRequest(CMD_SET_CALL_FORWARDING, callForwardingInfo, subId);
+
+            Phone phone = getPhone(subId);
+            if (phone == null) {
+                try {
+                    callback.accept(
+                            TelephonyManager.CallForwardingInfoCallback.RESULT_ERROR_UNKNOWN);
+                } catch (RemoteException e) {
+                    // ignore
+                }
+                return;
+            }
+
+            Pair<CallForwardingInfo, Consumer<Integer>> arguments = Pair.create(callForwardingInfo,
+                    FunctionalUtils.ignoreRemoteException(callback::accept));
+
+            sendRequestAsync(CMD_SET_CALL_FORWARDING, arguments, phone, null);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
     }
 
     /**
-     * Get the call forwarding info, given the call forwarding reason.
+     * Get the call waiting status for a subId.
      */
     @Override
-    public int getCallWaitingStatus(int subId) {
+    public void getCallWaitingStatus(int subId, IIntegerConsumer callback) {
         enforceReadPrivilegedPermission("getCallForwarding");
         long identity = Binder.clearCallingIdentity();
         try {
+
+            Phone phone = getPhone(subId);
+            if (phone == null) {
+                try {
+                    callback.accept(TelephonyManager.CALL_WAITING_STATUS_UNKNOWN_ERROR);
+                } catch (RemoteException e) {
+                    // ignore
+                }
+                return;
+            }
+
+            Consumer<Integer> argument = FunctionalUtils.ignoreRemoteException(callback::accept);
+
             if (DBG) log("getCallWaitingStatus: subId " + subId);
-            return (Integer) sendRequest(CMD_GET_CALL_WAITING, null, subId);
+            sendRequestAsync(CMD_GET_CALL_WAITING, argument, phone, null);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
     }
 
     /**
-     * Sets the voice call forwarding info including status (enable/disable), call forwarding
-     * reason, the number to forward, and the timeout before the forwarding is attempted.
+     * Sets whether call waiting is enabled for a given subId.
      */
     @Override
-    public boolean setCallWaitingStatus(int subId, boolean isEnable) {
+    public void setCallWaitingStatus(int subId, boolean enable, IIntegerConsumer callback) {
         enforceModifyPermission();
         long identity = Binder.clearCallingIdentity();
         try {
-            if (DBG) log("setCallWaitingStatus: subId " + subId + " isEnable: " + isEnable);
-            return (Boolean) sendRequest(CMD_SET_CALL_WAITING, isEnable, subId);
+            if (DBG) log("setCallWaitingStatus: subId " + subId + " enable: " + enable);
+
+            Phone phone = getPhone(subId);
+            if (phone == null) {
+                try {
+                    callback.accept(TelephonyManager.CALL_WAITING_STATUS_UNKNOWN_ERROR);
+                } catch (RemoteException e) {
+                    // ignore
+                }
+                return;
+            }
+
+            Pair<Boolean, Consumer<Integer>> arguments = Pair.create(enable,
+                    FunctionalUtils.ignoreRemoteException(callback::accept));
+
+            sendRequestAsync(CMD_SET_CALL_WAITING, arguments, phone, null);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -5437,7 +5534,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                                 .setMinSdkVersionForEnforcement(Build.VERSION_CODES.Q)
                                 .build());
         if (locationResult != LocationAccessPolicy.LocationPermissionResult.ALLOWED) {
-            SecurityException e = checkNetworkRequestForSanitizedLocationAccess(request, subId);
+            SecurityException e = checkNetworkRequestForSanitizedLocationAccess(
+                    request, subId, callingPackage);
             if (e != null) {
                 if (locationResult == LocationAccessPolicy.LocationPermissionResult.DENIED_HARD) {
                     throw e;
@@ -5460,8 +5558,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     private SecurityException checkNetworkRequestForSanitizedLocationAccess(
-            NetworkScanRequest request, int subId) {
-        boolean hasCarrierPriv = getCarrierPrivilegeStatusForUid(subId, Binder.getCallingUid())
+            NetworkScanRequest request, int subId, String callingPackage) {
+        boolean hasCarrierPriv = checkCarrierPrivilegesForPackage(subId, callingPackage)
                 == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
         boolean hasNetworkScanPermission =
                 mApp.checkCallingOrSelfPermission(android.Manifest.permission.NETWORK_SCAN)
@@ -6834,7 +6932,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     private final ModemActivityInfo mLastModemActivityInfo =
-            new ModemActivityInfo(0, 0, 0, new int[0], 0);
+            new ModemActivityInfo(0, 0, 0, new int[ModemActivityInfo.getNumTxPowerLevels()], 0);
 
     /**
      * Responds to the ResultReceiver with the {@link android.telephony.ModemActivityInfo} object
@@ -6864,12 +6962,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             return false;
         }
         int activityDurationMs =
-            (int) (info.getTimestamp() - mLastModemActivityInfo.getTimestamp());
-        int totalTxTimeMs = 0;
-        int[] txTimeMs = info.getTransmitTimeMillis();
-        for (int i = 0; i < info.getTransmitPowerInfo().size(); i++) {
-            totalTxTimeMs += txTimeMs[i];
-        }
+                (int) (info.getTimestampMillis() - mLastModemActivityInfo.getTimestampMillis());
+        int totalTxTimeMs = Arrays.stream(info.getTransmitTimeMillis()).sum();
+
         return (info.isValid()
             && (info.getSleepTimeMillis() <= activityDurationMs)
             && (info.getIdleTimeMillis() <= activityDurationMs)
@@ -7970,11 +8065,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         try {
             for (Phone phone: PhoneFactory.getPhones()) {
                 if (phone.getEmergencyNumberTracker() != null
-                        && phone.getEmergencyNumberTracker() != null) {
-                    if (phone.getEmergencyNumberTracker().isEmergencyNumber(
-                            number, exactMatch)) {
-                        return true;
-                    }
+                        && phone.getEmergencyNumberTracker()
+                                .isEmergencyNumber(number, exactMatch)) {
+                    return true;
                 }
             }
             return false;
@@ -8355,7 +8448,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      *  1) user data is turned on, or
      *  2) APN is un-metered for this subscription, or
      *  3) APN type is whitelisted. E.g. MMS is whitelisted if
-     *  {@link TelephonyManager#setAlwaysAllowMmsData} is turned on.
+     *  {@link TelephonyManager#MOBILE_DATA_POLICY_MMS_ALWAYS_ALLOWED} is enabled.
      *
      * @return whether data is allowed for a apn type.
      *
@@ -8497,55 +8590,54 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     @Override
-    public boolean setDataAllowedDuringVoiceCall(int subId, boolean allow) {
-        enforceModifyPermission();
+    public boolean isMobileDataPolicyEnabled(int subscriptionId, int policy) {
+        enforceReadPrivilegedPermission("isMobileDataPolicyEnabled");
 
-        // Now that all security checks passes, perform the operation as ourselves.
         final long identity = Binder.clearCallingIdentity();
         try {
-            Phone phone = getPhone(subId);
+            Phone phone = getPhone(subscriptionId);
             if (phone == null) return false;
 
-            return phone.getDataEnabledSettings().setAllowDataDuringVoiceCall(allow);
+            switch (policy) {
+                case TelephonyManager.MOBILE_DATA_POLICY_DATA_ON_NON_DEFAULT_DURING_VOICE_CALL:
+                    return phone.getDataEnabledSettings().isDataAllowedInVoiceCall();
+                case TelephonyManager.MOBILE_DATA_POLICY_MMS_ALWAYS_ALLOWED:
+                    return phone.getDataEnabledSettings().isMmsAlwaysAllowed();
+                default:
+                    throw new IllegalArgumentException(policy + " is not a valid policy");
+            }
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
     }
 
     @Override
-    public boolean isDataAllowedInVoiceCall(int subId) {
-        enforceReadPrivilegedPermission("isDataAllowedInVoiceCall");
-
-        // Now that all security checks passes, perform the operation as ourselves.
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            Phone phone = getPhone(subId);
-            if (phone == null) return false;
-
-            return phone.getDataEnabledSettings().isDataAllowedInVoiceCall();
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
-    }
-
-    @Override
-    public boolean setAlwaysAllowMmsData(int subId, boolean alwaysAllow) {
+    public void setMobileDataPolicyEnabledStatus(int subscriptionId, int policy,
+            boolean enabled) {
         enforceModifyPermission();
 
-        // Now that all security checks passes, perform the operation as ourselves.
         final long identity = Binder.clearCallingIdentity();
         try {
-            Phone phone = getPhone(subId);
-            if (phone == null) return false;
+            Phone phone = getPhone(subscriptionId);
+            if (phone == null) return;
 
-            return phone.getDataEnabledSettings().setAlwaysAllowMmsData(alwaysAllow);
+            switch (policy) {
+                case TelephonyManager.MOBILE_DATA_POLICY_DATA_ON_NON_DEFAULT_DURING_VOICE_CALL:
+                    phone.getDataEnabledSettings().setAllowDataDuringVoiceCall(enabled);
+                    break;
+                case TelephonyManager.MOBILE_DATA_POLICY_MMS_ALWAYS_ALLOWED:
+                    phone.getDataEnabledSettings().setAlwaysAllowMmsData(enabled);
+                    break;
+                default:
+                    throw new IllegalArgumentException(policy + " is not a valid policy");
+            }
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
     }
 
     /**
-     * Updates whether conference event pacakge handling is enabled.
+     * Updates whether conference event package handling is enabled.
      * @param isCepEnabled {@code true} if CEP handling is enabled (default), or {@code false}
      *                                 otherwise.
      */
@@ -8721,5 +8813,26 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     @Override
     public boolean canConnectTo5GInDsdsMode() {
         return mApp.getResources().getBoolean(R.bool.config_5g_connection_in_dsds_mode);
+    }
+
+    @Override
+    public @NonNull List<String> getEquivalentHomePlmns(int subId, String callingPackage,
+            String callingFeatureId) {
+        if (!TelephonyPermissions.checkCallingOrSelfReadPhoneState(
+                mApp, subId, callingPackage, callingFeatureId, "getEquivalentHomePlmns")) {
+            throw new SecurityException("Requires READ_PHONE_STATE permission.");
+        }
+
+        Phone phone = getPhone(subId);
+        if (phone == null) {
+            throw new RuntimeException("phone is not available");
+        }
+        // Now that all security checks passes, perform the operation as ourselves.
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            return phone.getEquivalentHomePlmns();
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
     }
 }
