@@ -168,21 +168,18 @@ public class TelecomAccountRegistry {
             mIncomingCallNotifier = new PstnIncomingCallNotifier((Phone) mPhone);
             mPhoneCapabilitiesNotifier = new PstnPhoneCapabilitiesNotifier((Phone) mPhone,
                     this);
-            mImsManagerConnector = new FeatureConnector<>(mPhone.getContext(), mPhone.getPhoneId(),
-                    new FeatureConnector.Listener<ImsManager>() {
-                        @Override
-                        public ImsManager getFeatureManager() {
-                            return ImsManager.getInstance(mPhone.getContext(), mPhone.getPhoneId());
-                        }
-                        @Override
-                        public void connectionReady(ImsManager manager){
-                            registerImsRegistrationCallback();
-                        }
-                        @Override
-                        public void connectionUnavailable() {
-                            unregisterImsRegistrationCallback();
-                        }
-                    }, "TelecomAccountRegistry");
+            mImsManagerConnector = ImsManager.getConnector(
+                mPhone.getContext(), mPhone.getPhoneId(), "TelecomAccountRegistry",
+                new FeatureConnector.Listener<ImsManager>() {
+                    @Override
+                    public void connectionReady(ImsManager manager){
+                        registerImsRegistrationCallback();
+                    }
+                    @Override
+                    public void connectionUnavailable(int reason) {
+                        unregisterImsRegistrationCallback();
+                    }
+                }, null);
 
             if (mIsTestAccount || isEmergency) {
                 // For test and emergency entries, there is no sub ID that can be assigned, so do

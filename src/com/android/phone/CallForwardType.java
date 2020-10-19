@@ -108,7 +108,7 @@ public class CallForwardType extends PreferenceActivity {
 
     private void setListeners() throws ImsException {
         ImsManager imsMgr = ImsManager.getInstance(mPhone.getContext(), mPhone.getPhoneId());
-        imsMgr.addCapabilitiesCallback(mCapabilityCallback);
+        imsMgr.addCapabilitiesCallback(mCapabilityCallback, null);
     }
 
     private void removeListeners() {
@@ -140,25 +140,21 @@ public class CallForwardType extends PreferenceActivity {
         mPhoneId = mPhone.getPhoneId();
         mIsUtCapable = mPhone.isUtEnabled();
         mIsVtCapable = mPhone.isVideoEnabled();
-        mFeatureConnector = new FeatureConnector(mPhone.getContext(), mPhone.getPhoneId(),
-                new FeatureConnector.Listener<ImsManager>() {
-                    @Override
-                    public ImsManager getFeatureManager() {
-                        return ImsManager.getInstance(mPhone.getContext(), mPhone.getPhoneId());
-                    }
+        mFeatureConnector = ImsManager.getConnector(
+            mPhone.getContext(), mPhone.getPhoneId(), LOG_TAG,
+            new FeatureConnector.Listener<ImsManager>() {
+                @Override
+                public void connectionReady(ImsManager manager) throws ImsException {
+                    Log.d(LOG_TAG, "ImsManager: connection ready.");
+                    setListeners();
+                }
 
-                    @Override
-                    public void connectionReady(ImsManager manager) throws ImsException {
-                        Log.d(LOG_TAG, "ImsManager: connection ready.");
-                        setListeners();
-                    }
-
-                    @Override
-                    public void connectionUnavailable() {
-                        Log.d(LOG_TAG, "ImsManager: connection unavailable.");
-                        removeListeners();
-                    }
-                }, LOG_TAG);
+                @Override
+                public void connectionUnavailable(int reason) {
+                    Log.d(LOG_TAG, "ImsManager: connection unavailable.");
+                    removeListeners();
+                }
+            }, null);
 
         /*Voice Button*/
         mVoicePreference = (Preference) findPreference(BUTTON_CF_KEY_VOICE);
