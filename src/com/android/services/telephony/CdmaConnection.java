@@ -16,11 +16,12 @@
 
 package com.android.services.telephony;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.Settings;
 import android.telephony.DisconnectCause;
-import android.telephony.PhoneNumberUtils;
+import android.telephony.TelephonyManager;
 
 import com.android.internal.telephony.Call;
 import com.android.internal.telephony.CallStateException;
@@ -284,8 +285,15 @@ final class CdmaConnection extends TelephonyConnection {
     }
 
     private boolean isEmergency() {
-        return getAddress() != null && PhoneUtils.isLocalEmergencyNumber(
-                getAddress().getSchemeSpecificPart());
+        Phone phone = getPhone();
+        if (phone != null && getAddress() != null) {
+            TelephonyManager tm = (TelephonyManager) phone.getContext()
+                    .getSystemService(Context.TELEPHONY_SERVICE);
+            if (tm != null) {
+                return tm.isEmergencyNumber(getAddress().getSchemeSpecificPart());
+            }
+        }
+        return false;
     }
 
     /**
