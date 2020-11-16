@@ -289,6 +289,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     private static final int EVENT_GET_CALL_WAITING_DONE = 88;
     private static final int CMD_SET_CALL_WAITING = 89;
     private static final int EVENT_SET_CALL_WAITING_DONE = 90;
+    private static final int CMD_ENABLE_NR_DUAL_CONNECTIVITY = 91;
+    private static final int EVENT_ENABLE_NR_DUAL_CONNECTIVITY_DONE = 92;
+    private static final int CMD_IS_NR_DUAL_CONNECTIVITY_ENABLED = 93;
+    private static final int EVENT_IS_NR_DUAL_CONNECTIVITY_ENABLED_DONE = 94;
 
     // Parameters of select command.
     private static final int SELECT_COMMAND = 0xA4;
@@ -751,6 +755,90 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     handleNullReturnEvent(msg, "resetModemConfig");
                     break;
 
+                case CMD_IS_NR_DUAL_CONNECTIVITY_ENABLED: {
+                    request = (MainThreadRequest) msg.obj;
+                    onCompleted = obtainMessage(EVENT_IS_NR_DUAL_CONNECTIVITY_ENABLED_DONE,
+                            request);
+                    Phone phone = getPhoneFromRequest(request);
+                    if (phone != null) {
+                        phone.isNrDualConnectivityEnabled(onCompleted, request.workSource);
+                    } else {
+                        loge("isNRDualConnectivityEnabled: No phone object");
+                        request.result = false;
+                        notifyRequester(request);
+                    }
+                    break;
+                }
+
+                case EVENT_IS_NR_DUAL_CONNECTIVITY_ENABLED_DONE:
+                    ar = (AsyncResult) msg.obj;
+                    request = (MainThreadRequest) ar.userObj;
+                    if (ar.exception == null && ar.result != null) {
+                        request.result = ar.result;
+                    } else {
+                        // request.result must be set to something non-null
+                        // for the calling thread to unblock
+                        if (request.result != null) {
+                            request.result = ar.result;
+                        } else {
+                            request.result = false;
+                        }
+                        if (ar.result == null) {
+                            loge("isNRDualConnectivityEnabled: Empty response");
+                        } else if (ar.exception instanceof CommandException) {
+                            loge("isNRDualConnectivityEnabled: CommandException: "
+                                    + ar.exception);
+                        } else {
+                            loge("isNRDualConnectivityEnabled: Unknown exception");
+                        }
+                    }
+                    notifyRequester(request);
+                    break;
+
+                case CMD_ENABLE_NR_DUAL_CONNECTIVITY: {
+                    request = (MainThreadRequest) msg.obj;
+                    onCompleted = obtainMessage(EVENT_ENABLE_NR_DUAL_CONNECTIVITY_DONE, request);
+                    Phone phone = getPhoneFromRequest(request);
+                    if (phone != null) {
+                        phone.setNrDualConnectivityState((int) request.argument, onCompleted,
+                                request.workSource);
+                    } else {
+                        loge("enableNrDualConnectivity: No phone object");
+                        request.result =
+                                TelephonyManager.ENABLE_NR_DUAL_CONNECTIVITY_RADIO_NOT_AVAILABLE;
+                        notifyRequester(request);
+                    }
+                    break;
+                }
+
+                case EVENT_ENABLE_NR_DUAL_CONNECTIVITY_DONE: {
+                    ar = (AsyncResult) msg.obj;
+                    request = (MainThreadRequest) ar.userObj;
+                    if (ar.exception == null) {
+                        request.result =
+                                TelephonyManager.ENABLE_NR_DUAL_CONNECTIVITY_SUCCESS;
+                    } else {
+                        request.result =
+                                TelephonyManager
+                                        .ENABLE_NR_DUAL_CONNECTIVITY_RADIO_ERROR;
+                        if (ar.exception instanceof CommandException) {
+                            CommandException.Error error =
+                                    ((CommandException) (ar.exception)).getCommandError();
+                            if (error == CommandException.Error.RADIO_NOT_AVAILABLE) {
+                                request.result =
+                                        TelephonyManager
+                                                .ENABLE_NR_DUAL_CONNECTIVITY_RADIO_NOT_AVAILABLE;
+                            }
+                            loge("enableNrDualConnectivity" + ": CommandException: "
+                                    + ar.exception);
+                        } else {
+                            loge("enableNrDualConnectivity" + ": Unknown exception");
+                        }
+                    }
+                    notifyRequester(request);
+                    break;
+                }
+
                 case CMD_GET_PREFERRED_NETWORK_TYPE:
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_GET_PREFERRED_NETWORK_TYPE_DONE, request);
@@ -1086,13 +1174,13 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     }
                     break;
 
-                case EVENT_GET_MODEM_ACTIVITY_INFO_DONE:
+                case EVENT_GET_MODEM_ACTIVITY_INFO_DONE: {
                     ar = (AsyncResult) msg.obj;
                     request = (MainThreadRequest) ar.userObj;
                     ResultReceiver result = (ResultReceiver) request.argument;
 
-                    ModemActivityInfo ret = new ModemActivityInfo(0, 0, 0,
-                            new int[ModemActivityInfo.getNumTxPowerLevels()], 0);
+                    ModemActivityInfo ret = null;
+                    int error = 0;
                     if (ar.exception == null && ar.result != null) {
                         // Update the last modem activity info and the result of the request.
                         ModemActivityInfo info = (ModemActivityInfo) ar.result;
@@ -1122,18 +1210,29 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     } else {
                         if (ar.result == null) {
                             loge("queryModemActivityInfo: Empty response");
+                            error = TelephonyManager.ModemActivityInfoException
+                                    .ERROR_INVALID_INFO_RECEIVED;
                         } else if (ar.exception instanceof CommandException) {
                             loge("queryModemActivityInfo: CommandException: " +
                                     ar.exception);
+                            error = TelephonyManager.ModemActivityInfoException
+                                    .ERROR_MODEM_RESPONSE_ERROR;
                         } else {
                             loge("queryModemActivityInfo: Unknown exception");
+                            error = TelephonyManager.ModemActivityInfoException
+                                    .ERROR_UNKNOWN;
                         }
                     }
                     Bundle bundle = new Bundle();
-                    bundle.putParcelable(TelephonyManager.MODEM_ACTIVITY_RESULT_KEY, ret);
+                    if (ret != null) {
+                        bundle.putParcelable(TelephonyManager.MODEM_ACTIVITY_RESULT_KEY, ret);
+                    } else {
+                        bundle.putInt(TelephonyManager.EXCEPTION_RESULT_KEY, error);
+                    }
                     result.send(0, bundle);
                     notifyRequester(request);
                     break;
+                }
 
                 case CMD_SET_ALLOWED_CARRIERS:
                     request = (MainThreadRequest) msg.obj;
@@ -5741,6 +5840,58 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     /**
+     * Enable/Disable E-UTRA-NR Dual Connectivity
+     * @param subId subscription id of the sim card
+     * @param nrDualConnectivityState expected NR dual connectivity state
+     * This can be passed following states
+     * <ol>
+     * <li>Enable NR dual connectivity {@link TelephonyManager#NR_DUAL_CONNECTIVITY_ENABLE}
+     * <li>Disable NR dual connectivity {@link TelephonyManager#NR_DUAL_CONNECTIVITY_DISABLE}
+     * <li>Disable NR dual connectivity and force secondary cell to be released
+     * {@link TelephonyManager#NR_DUAL_CONNECTIVITY_DISABLE_IMMEDIATE}
+     * </ol>
+     * @return operation result.
+     */
+    @Override
+    public int setNrDualConnectivityState(int subId,
+            @TelephonyManager.NrDualConnectivityState int nrDualConnectivityState) {
+        TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
+                mApp, subId, "enableNRDualConnectivity");
+        WorkSource workSource = getWorkSource(Binder.getCallingUid());
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            int result = (int) sendRequest(CMD_ENABLE_NR_DUAL_CONNECTIVITY,
+                    nrDualConnectivityState, subId,
+                    workSource);
+            if (DBG) log("enableNRDualConnectivity result: " + result);
+            return result;
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Is E-UTRA-NR Dual Connectivity enabled
+     * @return true if dual connectivity is enabled else false
+     */
+    @Override
+    public boolean isNrDualConnectivityEnabled(int subId) {
+        TelephonyPermissions
+                .enforeceCallingOrSelfReadPrivilegedPhoneStatePermissionOrCarrierPrivilege(
+                        mApp, subId, "isNRDualConnectivityEnabled");
+        WorkSource workSource = getWorkSource(Binder.getCallingUid());
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            boolean isEnabled = (boolean) sendRequest(CMD_IS_NR_DUAL_CONNECTIVITY_ENABLED,
+                    null, subId, workSource);
+            if (DBG) log("isNRDualConnectivityEnabled: " + isEnabled);
+            return isEnabled;
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
      * Get the effective allowed network types on the device.
      * This API will return an intersection of allowed network types for all reasons,
      * including the configuration done through setAllowedNetworkTypes
@@ -7017,6 +7168,14 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         boolean hasCoarsePermission =
                 coarseLocationResult == LocationAccessPolicy.LocationPermissionResult.ALLOWED;
 
+        final Phone phone = getPhone(subId);
+        if (phone == null) {
+            return null;
+        }
+
+        boolean isCallingPackageDataService = phone.getDataServicePackages()
+                .contains(callingPackage);
+
         final long identity = Binder.clearCallingIdentity();
         try {
             // isActiveSubId requires READ_PHONE_STATE, which we already check for above
@@ -7026,16 +7185,11 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 return null;
             }
 
-            final Phone phone = getPhone(subId);
-            if (phone == null) {
-                return null;
-            }
-
             ServiceState ss = phone.getServiceState();
 
             // Scrub out the location info in ServiceState depending on what level of access
             // the caller has.
-            if (hasFinePermission) return ss;
+            if (hasFinePermission || isCallingPackageDataService) return ss;
             if (hasCoarsePermission) return ss.createLocationInfoSanitizedCopy(false);
             return ss.createLocationInfoSanitizedCopy(true);
         } finally {
