@@ -65,6 +65,7 @@ import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.telephony.Annotation.ApnType;
 import android.telephony.CallForwardingInfo;
+import android.telephony.CarrierBandwidth;
 import android.telephony.CarrierConfigManager;
 import android.telephony.CarrierRestrictionRules;
 import android.telephony.CellIdentity;
@@ -293,6 +294,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     private static final int EVENT_ENABLE_NR_DUAL_CONNECTIVITY_DONE = 92;
     private static final int CMD_IS_NR_DUAL_CONNECTIVITY_ENABLED = 93;
     private static final int EVENT_IS_NR_DUAL_CONNECTIVITY_ENABLED_DONE = 94;
+    private static final int CMD_GET_CDMA_SUBSCRIPTION_MODE = 95;
+    private static final int EVENT_GET_CDMA_SUBSCRIPTION_MODE_DONE = 96;
 
     // Parameters of select command.
     private static final int SELECT_COMMAND = 0xA4;
@@ -1395,11 +1398,27 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     request.result = ar.exception == null;
                     notifyRequester(request);
                     break;
+                case CMD_GET_CDMA_SUBSCRIPTION_MODE:
+                    request = (MainThreadRequest) msg.obj;
+                    onCompleted = obtainMessage(EVENT_GET_CDMA_SUBSCRIPTION_MODE_DONE, request);
+                    getPhoneFromRequest(request).queryCdmaSubscriptionMode(onCompleted);
+                    break;
+                case EVENT_GET_CDMA_SUBSCRIPTION_MODE_DONE:
+                    ar = (AsyncResult) msg.obj;
+                    request = (MainThreadRequest) ar.userObj;
+                    if (ar.exception != null) {
+                        request.result = TelephonyManager.CDMA_SUBSCRIPTION_RUIM_SIM;
+                    } else {
+                        request.result = ((int[]) ar.result)[0];
+                    }
+                    notifyRequester(request);
+                    break;
                 case CMD_SET_CDMA_SUBSCRIPTION_MODE:
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_SET_CDMA_SUBSCRIPTION_MODE_DONE, request);
                     int subscriptionMode = (int) request.argument;
-                    getPhoneFromRequest(request).setCdmaSubscription(subscriptionMode, onCompleted);
+                    getPhoneFromRequest(request).setCdmaSubscriptionMode(
+                            subscriptionMode, onCompleted);
                     break;
                 case EVENT_SET_CDMA_SUBSCRIPTION_MODE_DONE:
                     ar = (AsyncResult) msg.obj;
@@ -5892,6 +5911,28 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     /**
+     * get carrier bandwidth per primary and secondary carrier
+     * @param subId subscription id of the sim card
+     * @return CarrierBandwidth with bandwidth of both primary and secondary carrier..
+     */
+    @Override
+    public CarrierBandwidth getCarrierBandwidth(int subId) {
+        TelephonyPermissions
+                .enforeceCallingOrSelfReadPrivilegedPhoneStatePermissionOrCarrierPrivilege(
+                        mApp, subId, "isNRDualConnectivityEnabled");
+        WorkSource workSource = getWorkSource(Binder.getCallingUid());
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            CarrierBandwidth carrierBandwidth =
+                    getPhoneFromSubId(subId).getCarrierBandwidth();
+            if (DBG) log("getCarrierBandwidth: " + carrierBandwidth);
+            return carrierBandwidth;
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
      * Get the effective allowed network types on the device.
      * This API will return an intersection of allowed network types for all reasons,
      * including the configuration done through setAllowedNetworkTypes
@@ -6333,12 +6374,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         final Phone phone = getPhone(subId);
         UiccCard card = phone == null ? null : phone.getUiccCard();
         if (card == null) {
-            loge("getIccId: No UICC");
             return null;
         }
         String iccId = card.getIccId();
         if (TextUtils.isEmpty(iccId)) {
-            loge("getIccId: ICC ID is null or empty.");
             return null;
         }
         return iccId;
@@ -8164,6 +8203,20 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         final long identity = Binder.clearCallingIdentity();
         try {
             return (boolean) sendRequest(CMD_SET_CDMA_ROAMING_MODE, mode, subId);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    @Override
+    public int getCdmaSubscriptionMode(int subId) {
+        TelephonyPermissions
+                .enforeceCallingOrSelfReadPrivilegedPhoneStatePermissionOrCarrierPrivilege(
+                        mApp, subId, "getCdmaSubscriptionMode");
+
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            return (int) sendRequest(CMD_GET_CDMA_SUBSCRIPTION_MODE, null /* argument */, subId);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
