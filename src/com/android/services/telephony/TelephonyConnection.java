@@ -1586,6 +1586,14 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         }
     }
 
+    private void maybeRemoveAnsweringDropsFgCallExtra() {
+        if(mOriginalConnection != null && mOriginalConnection.isActiveCallDisconnectedOnAnswer()
+                && mOriginalConnection.getState() !=  Call.State.INCOMING){
+            Log.v(TelephonyConnection.this, "maybeRemoveAnsweringDropsFgCallExtra removing extra");
+            removeExtras(Connection.EXTRA_ANSWERING_DROPS_FG_CALL);
+        }
+    }
+
     private int transformCodec(int codec) {
         switch (codec) {
             case ImsStreamMediaProfile.AUDIO_QUALITY_NONE:
@@ -2291,6 +2299,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         updateMultiparty();
         refreshDisableAddCall();
         refreshCodecType();
+        maybeRemoveAnsweringDropsFgCallExtra();
     }
 
     /**
