@@ -179,7 +179,7 @@ public class TelecomAccountRegistry {
                     public void connectionUnavailable(int reason) {
                         unregisterImsRegistrationCallback();
                     }
-                }, null);
+                }, mPhone.getContext().getMainExecutor());
 
             if (mIsTestAccount || isEmergency) {
                 // For test and emergency entries, there is no sub ID that can be assigned, so do
