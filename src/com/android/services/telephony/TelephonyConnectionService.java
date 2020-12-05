@@ -162,6 +162,9 @@ public class TelephonyConnectionService extends ConnectionService {
     private EmergencyTonePlayer mEmergencyTonePlayer;
     private HoldTracker mHoldTracker;
     private boolean mIsTtyEnabled;
+    /** Set to true when there is an emergency call pending which will potential trigger a dial.
+     * This must be set to false when the call is dialed. */
+    private volatile boolean mIsEmergencyCallPending;
     private AnswerAndReleaseHandler mAnswerAndReleaseHandler = null;
 
     // Contains one TelephonyConnection that has placed a call and a memory of which Phones it has
@@ -857,6 +860,10 @@ public class TelephonyConnectionService extends ConnectionService {
             if (mRadioOnHelper == null) {
                 mRadioOnHelper = new RadioOnHelper(this);
             }
+
+            if (isEmergencyNumber) {
+                mIsEmergencyCallPending = true;
+            }
             mRadioOnHelper.triggerRadioOnAndListen(new RadioOnStateListener.Callback() {
                 @Override
                 public void onComplete(RadioOnStateListener listener, boolean isRadioReady) {
@@ -969,6 +976,14 @@ public class TelephonyConnectionService extends ConnectionService {
     }
 
     /**
+     * @return whether radio has recently been turned on for emergency call but hasn't actually
+     * dialed the call yet.
+     */
+    public boolean isEmergencyCallPending() {
+        return mIsEmergencyCallPending;
+    }
+
+    /**
      * Whether the cellular radio is power off because the device is on Bluetooth.
      */
     private boolean isRadioPowerDownOnBluetooth() {
@@ -993,6 +1008,7 @@ public class TelephonyConnectionService extends ConnectionService {
                 for (Phone curPhone : mPhoneFactoryProxy.getPhones()) {
                     curPhone.setRadioPower(true, false, false, true);
                 }
+                mIsEmergencyCallPending = false;
             }
             return;
         }
@@ -1008,6 +1024,7 @@ public class TelephonyConnectionService extends ConnectionService {
                         Log.i(this, "handleOnComplete - delayDialForDdsSwitch result = " + result);
                         adjustAndPlaceOutgoingConnection(phone, originalConnection, request,
                                 numberToDial, handle, originalPhoneType, true);
+                        mIsEmergencyCallPending = false;
                     }
                 });
             }
@@ -1018,6 +1035,7 @@ public class TelephonyConnectionService extends ConnectionService {
                     mDisconnectCauseFactory.toTelecomDisconnectCause(
                             android.telephony.DisconnectCause.POWER_OFF,
                             "Failed to turn on radio."));
+            mIsEmergencyCallPending = false;
         }
     }
 
