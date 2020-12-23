@@ -1169,6 +1169,9 @@ public class TelephonyConnectionService extends ConnectionService {
                     if (phone.isUtEnabled() && number.endsWith("#")) {
                         Log.d(this, "onCreateOutgoingConnection dial for UT");
                         break;
+                    } else if (phone.isOutgoingImsVoiceAllowed()) {
+                        Log.d(this, "onCreateOutgoingConnection dial with PS only");
+                        break;
                     } else {
                         return Connection.createFailedConnection(
                                 mDisconnectCauseFactory.toTelecomDisconnectCause(
