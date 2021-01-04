@@ -104,6 +104,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     private static final int MSG_CONFERENCE_MERGE_FAILED = 6;
     private static final int MSG_SUPP_SERVICE_NOTIFY = 7;
 
+    // the threshold used to compare mAudioCodecBitrateKbps and mAudioCodecBandwidth.
+    private static final float THRESHOLD = 0.01f;
+
     /**
      * Mappings from {@link com.android.internal.telephony.Connection} extras keys to their
      * equivalents defined in {@link android.telecom.Connection}.
@@ -1387,7 +1390,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                 setCallerDisplayName(name, namePresentation);
             }
 
-            if (PhoneNumberUtils.isEmergencyNumber(mOriginalConnection.getAddress())) {
+            TelephonyManager tm = (TelephonyManager) getPhone().getContext()
+                    .getSystemService(Context.TELEPHONY_SERVICE);
+            if (tm.isEmergencyNumber(mOriginalConnection.getAddress())) {
                 mTreatAsEmergencyCall = true;
             }
 
@@ -1452,7 +1457,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             mHandler.obtainMessage(MSG_CONNECTION_EXTRAS_CHANGED, connExtras == null ? null :
                     new Bundle(connExtras)).sendToTarget();
 
-        if (PhoneNumberUtils.isEmergencyNumber(mOriginalConnection.getAddress())) {
+        TelephonyManager tm = (TelephonyManager) getPhone().getContext()
+                .getSystemService(Context.TELEPHONY_SERVICE);
+        if (tm.isEmergencyNumber(mOriginalConnection.getAddress())) {
             mTreatAsEmergencyCall = true;
         }
         // Propagate VERSTAT for IMS calls.
@@ -1562,7 +1569,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         }
     }
 
-    private void refreshCodecType() {
+    private void refreshCodec() {
+        boolean changed = false;
         Bundle newExtras = getExtras();
         if (newExtras == null) {
             newExtras = new Bundle();
@@ -1578,7 +1586,40 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                 Connection.AUDIO_CODEC_NONE);
         if (newCodecType != oldCodecType) {
             newExtras.putInt(Connection.EXTRA_AUDIO_CODEC, newCodecType);
+            changed = true;
+        }
+        if (isImsConnection()) {
+            float newBitrate = getOriginalConnection().getAudioCodecBitrateKbps();
+            float oldBitrate = newExtras.getFloat(Connection.EXTRA_AUDIO_CODEC_BITRATE_KBPS, 0.0f);
+            if (Math.abs(newBitrate - oldBitrate) > THRESHOLD) {
+                newExtras.putFloat(Connection.EXTRA_AUDIO_CODEC_BITRATE_KBPS, newBitrate);
+                changed = true;
+            }
+
+            float newBandwidth = getOriginalConnection().getAudioCodecBandwidthKhz();
+            float oldBandwidth = newExtras.getFloat(Connection.EXTRA_AUDIO_CODEC_BANDWIDTH_KHZ,
+                    0.0f);
+            if (Math.abs(newBandwidth - oldBandwidth) > THRESHOLD) {
+                newExtras.putFloat(Connection.EXTRA_AUDIO_CODEC_BANDWIDTH_KHZ, newBandwidth);
+                changed = true;
+            }
+        } else {
+            ArrayList<String> toRemove = new ArrayList<>();
+            toRemove.add(Connection.EXTRA_AUDIO_CODEC_BITRATE_KBPS);
+            toRemove.add(Connection.EXTRA_AUDIO_CODEC_BANDWIDTH_KHZ);
+            removeTelephonyExtras(toRemove);
+        }
+
+        if (changed) {
             putTelephonyExtras(newExtras);
+        }
+    }
+
+    private void maybeRemoveAnsweringDropsFgCallExtra() {
+        if(mOriginalConnection != null && mOriginalConnection.isActiveCallDisconnectedOnAnswer()
+                && mOriginalConnection.getState() !=  Call.State.INCOMING){
+            Log.v(TelephonyConnection.this, "maybeRemoveAnsweringDropsFgCallExtra removing extra");
+            removeExtras(Connection.EXTRA_ANSWERING_DROPS_FG_CALL);
         }
     }
 
@@ -1664,7 +1705,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                 wasVideoCall = call.wasVideoCall();
             }
 
-            isVowifiEnabled = ImsUtil.isWfcEnabled(phone.getContext(), phone.getPhoneId());
+            isVowifiEnabled = isWfcEnabled(phone);
         }
 
         if (isCurrentVideoCall) {
@@ -2286,7 +2327,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         updateAddress();
         updateMultiparty();
         refreshDisableAddCall();
-        refreshCodecType();
+        refreshCodec();
+        maybeRemoveAnsweringDropsFgCallExtra();
     }
 
     /**
@@ -2653,8 +2695,10 @@ abstract class TelephonyConnection extends Connection implements Holdable,
      */
     protected boolean isImsConnection() {
         com.android.internal.telephony.Connection originalConnection = getOriginalConnection();
-        return originalConnection != null &&
-                originalConnection.getPhoneType() == PhoneConstants.PHONE_TYPE_IMS;
+
+        return originalConnection != null
+                && originalConnection.getPhoneType() == PhoneConstants.PHONE_TYPE_IMS
+                && originalConnection instanceof ImsPhoneConnection;
     }
 
     /**
@@ -2835,7 +2879,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         boolean isIms = phone.getPhoneType() == PhoneConstants.PHONE_TYPE_IMS;
         boolean isVoWifiEnabled = false;
         if (isIms) {
-            isVoWifiEnabled = ImsUtil.isWfcEnabled(phone.getContext(), phone.getPhoneId());
+            isVoWifiEnabled = isWfcEnabled(phone);
         }
         boolean isRttMergeSupported = getCarrierConfig()
                 .getBoolean(CarrierConfigManager.KEY_ALLOW_MERGING_RTT_CALLS_BOOL);
@@ -2904,6 +2948,12 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             notifyConferenceSupportedChanged(isConferenceSupported);
         }
     }
+
+    @VisibleForTesting
+    boolean isWfcEnabled(Phone phone) {
+        return ImsUtil.isWfcEnabled(phone.getContext(), phone.getPhoneId());
+    }
+
     /**
      * Provides a mapping from extras keys which may be found in the
      * {@link com.android.internal.telephony.Connection} to their equivalents defined in

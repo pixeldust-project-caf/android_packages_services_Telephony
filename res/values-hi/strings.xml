@@ -50,6 +50,7 @@
     <string name="voice_number_setting_primary_user_only" msgid="3394706575741912843">"वॉइसमेल सेटिंग को केवल प्राथमिक उपयोगकर्ता ही बदल सकता है."</string>
     <string name="puk_unlocked" msgid="4627340655215746511">"आपका सिम कार्ड अनब्लॉक कर दिया गया है. आपका फ़ोन अनलॉक किया जा रहा है..."</string>
     <string name="label_ndp" msgid="7617392683877410341">"सिम नेटवर्क अनलॉक पिन"</string>
+    <string name="label_phoneid" msgid="8775611434123577808">"ऑपरेटर के लिए सिम को लॉक किया गया"</string>
     <string name="sim_ndp_unlock_text" msgid="7737338355451978338">"अनब्लॉक करें"</string>
     <string name="sim_ndp_dismiss_text" msgid="89667342248929777">"खारिज करें"</string>
     <string name="requesting_unlock" msgid="930512210309437741">"नेटवर्क अनलॉक के लिए अनुरोध कर रहा है..."</string>
@@ -874,7 +875,6 @@
     <string name="radio_info_dds" msgid="1122593144425697126">"डिफ़ॉल्ट डेटा सिम का सब-आईडी:"</string>
     <string name="radio_info_dl_kbps" msgid="2382922659525318726">"डीएल बैंडविड्थ (केबीपीएस):"</string>
     <string name="radio_info_ul_kbps" msgid="2102225400904799036">"यूएल बैंडविड्थ (केबीपीएस):"</string>
-    <string name="radio_info_signal_location_label" msgid="6188435197086550049">"सेल की जगह की जानकारी (रोकी गयी है):"</string>
     <string name="radio_info_phy_chan_config" msgid="1277949603275436081">"एलटीई की फ़िज़िकल चैनल कॉन्फ़िगरेशन:"</string>
     <string name="radio_info_cell_info_refresh_rate" msgid="670511448975997340">"सेल की जानकारी रीफ़्रेश होने की दर:"</string>
     <string name="radio_info_cellinfo_label" msgid="8199062974670377659">"सभी सेल के माप की पूरी जानकारी:"</string>
@@ -905,6 +905,11 @@
     <string name="radio_info_smsc_refresh_label" msgid="8409923721451604560">"रीफ़्रेश करें"</string>
     <string name="radio_info_toggle_dns_check_label" msgid="1394078554927787350">"डीएनएस जांच टॉगल करें"</string>
     <string name="oem_radio_info_label" msgid="2914167475119997456">"ओईएम-खास जानकारी/सेटिंग"</string>
+    <string name="radio_info_endc_available" msgid="4410653375290113436">"EN-DC उपलब्ध है:"</string>
+    <string name="radio_info_dcnr_restricted" msgid="2469125498066960807">"DCNR प्रतिबंधित है:"</string>
+    <string name="radio_info_nr_available" msgid="1321318331361249997">"NR उपलब्ध है:"</string>
+    <string name="radio_info_nr_state" msgid="1337571996788535356">"NR की स्थिति:"</string>
+    <string name="radio_info_nr_frequency" msgid="1201156032796584128">"NR की फ़्रीक्वेंसी:"</string>
     <string name="band_mode_title" msgid="7988822920724576842">"\'रेडियो बैंड\' मोड सेट करें"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"बैंड सूची लोड की जा रही है…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"सेट करें"</string>

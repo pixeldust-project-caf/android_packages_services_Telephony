@@ -50,6 +50,7 @@
     <string name="voice_number_setting_primary_user_only" msgid="3394706575741912843">"କେବଳ ପ୍ରାଥମିକ ୟୁଜରଙ୍କ ଦ୍ଵାରା ଭଏସମେଲ୍ ସେଟିଙ୍ଗକୁ ସଂଶୋଧିତ କରାଯାଇପାରିବ।"</string>
     <string name="puk_unlocked" msgid="4627340655215746511">"ଆପଣଙ୍କର SIM କାର୍ଡକୁ ଅବରୋଧ କରିଦିଆଯାଇଛି। ଆପଣଙ୍କର ଫୋନ୍ ଅନଲକ୍ ହେଉଛି…"</string>
     <string name="label_ndp" msgid="7617392683877410341">"SIM ନେଟ୍‌ୱର୍କ‌କୁ ଅନଲକ୍ କରିବା ପାଇଁ PIN"</string>
+    <string name="label_phoneid" msgid="8775611434123577808">"ଅପରେଟର୍ ପାଇଁ SIM ଲକ୍ କରାଯାଇଛି"</string>
     <string name="sim_ndp_unlock_text" msgid="7737338355451978338">"ଅନଲକ୍‌ କରନ୍ତୁ"</string>
     <string name="sim_ndp_dismiss_text" msgid="89667342248929777">"ଖାରଜ କରନ୍ତୁ"</string>
     <string name="requesting_unlock" msgid="930512210309437741">"ନେଟ୍‌ୱର୍କକୁ ଅନଲକ୍ କରିବା ପାଇଁ ଅନୁରୋଧ କରାଯାଉଛି…"</string>
@@ -874,7 +875,6 @@
     <string name="radio_info_dds" msgid="1122593144425697126">"ଡିଫଲ୍ଟ ଡାଟା SIMର SubId:"</string>
     <string name="radio_info_dl_kbps" msgid="2382922659525318726">"DL ବ୍ୟାଣ୍ଡୱିଡଥ୍ (kbps):"</string>
     <string name="radio_info_ul_kbps" msgid="2102225400904799036">"UL ବ୍ୟାଣ୍ଡୱିଡଥ୍ (kbps):"</string>
-    <string name="radio_info_signal_location_label" msgid="6188435197086550049">"ସେଲ୍ ଲୋକେସନ୍ ସୂଚନା (ଅନୁରୋଧ କରାଯାଇଛି):"</string>
     <string name="radio_info_phy_chan_config" msgid="1277949603275436081">"LTE ଫିଜିକାଲ୍ ଚ୍ୟାନେଲ୍ କନ୍‌ଫିଗରେସନ୍:"</string>
     <string name="radio_info_cell_info_refresh_rate" msgid="670511448975997340">"ସେଲ୍ ସୂଚନା ରିଫ୍ରେସ୍ ଦର:"</string>
     <string name="radio_info_cellinfo_label" msgid="8199062974670377659">"ସମସ୍ତ ସେଲ୍ ପରିମାପ ସୂଚନା:"</string>
@@ -905,6 +905,11 @@
     <string name="radio_info_smsc_refresh_label" msgid="8409923721451604560">"ରିଫ୍ରେସ୍ କରନ୍ତୁ"</string>
     <string name="radio_info_toggle_dns_check_label" msgid="1394078554927787350">"DNS ଯାଞ୍ଚ ଟୋଗଲ୍ କରନ୍ତୁ"</string>
     <string name="oem_radio_info_label" msgid="2914167475119997456">"OEM-ନିର୍ଦ୍ଦିଷ୍ଟ ସୂଚନା/ସେଟିଂସ୍"</string>
+    <string name="radio_info_endc_available" msgid="4410653375290113436">"EN-DC ଉପଲବ୍ଧ:"</string>
+    <string name="radio_info_dcnr_restricted" msgid="2469125498066960807">"DCNR ପ୍ରତିବନ୍ଧିତ:"</string>
+    <string name="radio_info_nr_available" msgid="1321318331361249997">"NR ଉପଲବ୍ଧ:"</string>
+    <string name="radio_info_nr_state" msgid="1337571996788535356">"NR ସ୍ଥିତି:"</string>
+    <string name="radio_info_nr_frequency" msgid="1201156032796584128">"NR ଫ୍ରିକ୍ୱେନ୍ସୀ:"</string>
     <string name="band_mode_title" msgid="7988822920724576842">"ରେଡିଓ ବ୍ୟାଣ୍ଡ ମୋଡ୍ ସେଟ୍ କରନ୍ତୁ"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"ବ୍ୟାଣ୍ଡ ତାଲିକା ଲୋଡ୍ କରାଯାଉଛି…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"ସେଟ୍ କରନ୍ତୁ"</string>

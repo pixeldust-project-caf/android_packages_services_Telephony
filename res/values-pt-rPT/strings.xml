@@ -50,6 +50,7 @@
     <string name="voice_number_setting_primary_user_only" msgid="3394706575741912843">"As definições do correio de voz só podem ser modificadas pelo utilizador principal."</string>
     <string name="puk_unlocked" msgid="4627340655215746511">"O cartão SIM foi desbloqueado. O telefone está a ser desbloqueado..."</string>
     <string name="label_ndp" msgid="7617392683877410341">"PIN para desbloqueio de rede do cartão SIM"</string>
+    <string name="label_phoneid" msgid="8775611434123577808">"SIM bloqueado para o operador"</string>
     <string name="sim_ndp_unlock_text" msgid="7737338355451978338">"Desbloquear"</string>
     <string name="sim_ndp_dismiss_text" msgid="89667342248929777">"Ignorar"</string>
     <string name="requesting_unlock" msgid="930512210309437741">"A pedir desbloqueio de rede..."</string>
@@ -95,10 +96,10 @@
     <string name="sum_loading_settings" msgid="434063780286688775">"A carregar as definições..."</string>
     <string name="sum_hide_caller_id" msgid="131100328602371933">"Ocultar o número em chamadas efectuadas"</string>
     <string name="sum_show_caller_id" msgid="3571854755324664591">"Número apresentado em chamadas efectuadas"</string>
-    <string name="sum_default_caller_id" msgid="1767070797135682959">"Utilizar as predefinições do operador para apresentar o meu número nas chamadas efectuadas"</string>
+    <string name="sum_default_caller_id" msgid="1767070797135682959">"Utilizar as predefinições do operador para apresentar o meu número nas chamadas efetuadas"</string>
     <string name="labelCW" msgid="8449327023861428622">"Chamada em espera"</string>
-    <string name="sum_cw_enabled" msgid="3977308526187139996">"Notificar-me de chamadas a receber durante uma chamada"</string>
-    <string name="sum_cw_disabled" msgid="3658094589461768637">"Notificar-me de chamadas a receber durante uma chamada"</string>
+    <string name="sum_cw_enabled" msgid="3977308526187139996">"Notificar-me de chamadas em espera durante uma chamada"</string>
+    <string name="sum_cw_disabled" msgid="3658094589461768637">"Notificar-me de chamadas em espera durante uma chamada"</string>
     <string name="call_forwarding_settings" msgid="8937130467468257671">"Definições do encaminhamento de chamadas"</string>
     <string name="call_forwarding_settings_with_label" msgid="2345432813399564272">"Definições de encaminhamento de chamadas (<xliff:g id="SUBSCRIPTIONLABEL">%s</xliff:g>)"</string>
     <string name="labelCF" msgid="3578719437928476078">"Encaminhamento de chamadas"</string>
@@ -874,7 +875,6 @@
     <string name="radio_info_dds" msgid="1122593144425697126">"SubID do SIM de dados predefinido:"</string>
     <string name="radio_info_dl_kbps" msgid="2382922659525318726">"Largura de banda de transferência (kbps):"</string>
     <string name="radio_info_ul_kbps" msgid="2102225400904799036">"Largura de banda de carregamento (kbps):"</string>
-    <string name="radio_info_signal_location_label" msgid="6188435197086550049">"Informações da localização da célula (descontinuadas):"</string>
     <string name="radio_info_phy_chan_config" msgid="1277949603275436081">"Configuração do canal físico LTE:"</string>
     <string name="radio_info_cell_info_refresh_rate" msgid="670511448975997340">"Taxa de atualização das informações da célula:"</string>
     <string name="radio_info_cellinfo_label" msgid="8199062974670377659">"Todas as informações de medição de células:"</string>
@@ -905,6 +905,11 @@
     <string name="radio_info_smsc_refresh_label" msgid="8409923721451604560">"Atualizar"</string>
     <string name="radio_info_toggle_dns_check_label" msgid="1394078554927787350">"Ativar/desativar verificação de DNS"</string>
     <string name="oem_radio_info_label" msgid="2914167475119997456">"Informações/definições específicas de OEM"</string>
+    <string name="radio_info_endc_available" msgid="4410653375290113436">"EN-DC disponível:"</string>
+    <string name="radio_info_dcnr_restricted" msgid="2469125498066960807">"DCNR restrito:"</string>
+    <string name="radio_info_nr_available" msgid="1321318331361249997">"NR disponível:"</string>
+    <string name="radio_info_nr_state" msgid="1337571996788535356">"Estado NR:"</string>
+    <string name="radio_info_nr_frequency" msgid="1201156032796584128">"Frequência NR:"</string>
     <string name="band_mode_title" msgid="7988822920724576842">"Definir modo de banda de rádio"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"A carregar lista de bandas…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"Definir"</string>

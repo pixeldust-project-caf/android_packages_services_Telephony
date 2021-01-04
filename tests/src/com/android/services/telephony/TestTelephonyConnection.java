@@ -16,6 +16,8 @@
 
 package com.android.services.telephony;
 
+import android.telephony.TelephonyManager;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -39,6 +41,7 @@ import com.android.internal.telephony.Connection;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
+import com.android.internal.telephony.imsphone.ImsExternalConnection;
 import com.android.internal.telephony.imsphone.ImsPhoneConnection;
 
 import org.mockito.Mock;
@@ -66,10 +69,16 @@ public class TestTelephonyConnection extends TelephonyConnection {
     Resources mMockResources;
 
     @Mock
+    TelephonyManager mMockTelephonyManager;
+
+    @Mock
     EmergencyNumberTracker mEmergencyNumberTracker;
 
     @Mock
     ImsPhoneConnection mImsPhoneConnection;
+
+    @Mock
+    ImsExternalConnection mImsExternalConnection;
 
     @Mock
     ImsCall mImsCall;
@@ -81,6 +90,7 @@ public class TestTelephonyConnection extends TelephonyConnection {
     CarrierConfigManager mCarrierConfigManager;
 
     private boolean mIsImsConnection;
+    private boolean mIsImsExternalConnection;
     private boolean mIsConferenceSupported = true;
     private Phone mMockPhone;
     private int mNotifyPhoneAccountChangedCount = 0;
@@ -90,7 +100,9 @@ public class TestTelephonyConnection extends TelephonyConnection {
 
     @Override
     public com.android.internal.telephony.Connection getOriginalConnection() {
-        if (mIsImsConnection) {
+        if (mIsImsExternalConnection) {
+            return mImsExternalConnection;
+        } else if (mIsImsConnection) {
             return mImsPhoneConnection;
         } else {
             return mMockRadioConnection;
@@ -107,14 +119,17 @@ public class TestTelephonyConnection extends TelephonyConnection {
         MockitoAnnotations.initMocks(this);
 
         mIsImsConnection = false;
+        mIsImsExternalConnection = false;
         mMockPhone = mock(Phone.class);
         mMockContext = mock(Context.class);
-        mTelecomAccountRegistry = mock(TelecomAccountRegistry.class);
+        mMockTelephonyManager = mock(TelephonyManager.class);
         mOriginalConnection = mMockRadioConnection;
         // Set up mMockRadioConnection and mMockPhone to contain an active call
         when(mMockRadioConnection.getState()).thenReturn(Call.State.ACTIVE);
         when(mOriginalConnection.getState()).thenReturn(Call.State.ACTIVE);
         when(mMockRadioConnection.getAudioCodec()).thenReturn(
+                android.telecom.Connection.AUDIO_CODEC_AMR);
+        when(mImsPhoneConnection.getAudioCodec()).thenReturn(
                 android.telecom.Connection.AUDIO_CODEC_AMR);
         when(mMockRadioConnection.getCall()).thenReturn(mMockCall);
         when(mMockRadioConnection.getPhoneType()).thenReturn(PhoneConstants.PHONE_TYPE_IMS);
@@ -128,6 +143,8 @@ public class TestTelephonyConnection extends TelephonyConnection {
         when(mMockPhone.getContext()).thenReturn(mMockContext);
         when(mMockPhone.getCurrentSubscriberUris()).thenReturn(null);
         when(mMockContext.getResources()).thenReturn(mMockResources);
+        when(mMockContext.getSystemService(Context.TELEPHONY_SERVICE))
+                .thenReturn(mMockTelephonyManager);
         when(mMockResources.getBoolean(anyInt())).thenReturn(false);
         when(mMockPhone.getDefaultPhone()).thenReturn(mMockPhone);
         when(mMockPhone.getPhoneType()).thenReturn(PhoneConstants.PHONE_TYPE_IMS);
@@ -231,6 +248,12 @@ public class TestTelephonyConnection extends TelephonyConnection {
         when(mImsCall.wasVideoCall()).thenReturn(wasVideoCall);
     }
 
+    @Override
+    boolean isWfcEnabled(Phone phone) {
+        // Requires ImsManager dependencies, mock for test.
+        return true;
+    }
+
     public int getNotifyPhoneAccountChangedCount() {
         return mNotifyPhoneAccountChangedCount;
     }
@@ -247,6 +270,10 @@ public class TestTelephonyConnection extends TelephonyConnection {
         mIsImsConnection = isImsConnection;
         when(mTelecomAccountRegistry.isMergeImsCallSupported(notNull(PhoneAccountHandle.class)))
                 .thenReturn(isImsConnection && mIsConferenceSupported);
+    }
+
+    public void setIsImsExternalConnection(boolean isExternalConnection) {
+        mIsImsExternalConnection = isExternalConnection;
     }
 
     public void setDownGradeVideoCall(boolean downgrade) {

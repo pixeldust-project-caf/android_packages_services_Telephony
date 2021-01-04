@@ -24,7 +24,6 @@
 
     <original-package android:name="com.android.phone" />
 
-    <protected-broadcast android:name="android.telecom.action.TTY_PREFERRED_MODE_CHANGED" />
     <protected-broadcast android:name="android.telecom.action.CURRENT_TTY_MODE_CHANGED" />
     <protected-broadcast android:name="android.intent.action.SERVICE_STATE" />
     <protected-broadcast android:name="android.intent.action.RADIO_TECHNOLOGY" />
@@ -83,6 +82,7 @@
     <protected-broadcast android:name= "com.android.cellbroadcastreceiver.GET_LATEST_CB_AREA_INFO" />
     <protected-broadcast android:name= "com.android.internal.telephony.ACTION_CARRIER_CERTIFICATE_DOWNLOAD" />
     <protected-broadcast android:name= "com.android.internal.telephony.OPEN_DEFAULT_SMS_APP" />
+    <protected-broadcast android:name= "com.android.internal.telephony.ACTION_TEST_OVERRIDE_CARRIER_ID" />
     <protected-broadcast android:name= "android.telephony.action.SIM_CARD_STATE_CHANGED" />
     <protected-broadcast android:name= "android.telephony.action.SIM_APPLICATION_STATE_CHANGED" />
     <protected-broadcast android:name= "android.telephony.action.SIM_SLOT_STATUS_CHANGED" />
@@ -224,12 +224,15 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
     <uses-permission android:name="android.permission.READ_PRECISE_PHONE_STATE" />
     <uses-permission android:name="android.permission.MANAGE_ROLE_HOLDERS" />
-    <!-- Allows us to whitelist receivers of the
+    <!-- Allows us to allow list receivers of the
          ACTION_SIM_SLOT_STATUS_CHANGED broadcast to start activities
          from the background.  -->
     <uses-permission android:name="android.permission.START_ACTIVITIES_FROM_BACKGROUND" />
     <uses-permission android:name="android.permission.NETWORK_STATS_PROVIDER" />
-    <uses-permission android:name="android.permission.HANDLE_CAR_MODE_CHANGES"/>
+    <uses-permission android:name="android.permission.MANAGE_SUBSCRIPTION_PLANS"/>
+
+    <!-- Needed to listen to changes in projection state. -->
+    <uses-permission android:name="android.permission.READ_PROJECTION_STATE"/>
 
     <uses-permission android:name="com.qti.permission.BIND_QTI_IMS_SERVICE" />
 
@@ -564,7 +567,7 @@
 
         <activity android:name="LimitedServiceActivity"
             android:exported="true"
-            android:autoRemoveFromRecents="true"
+            android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar">

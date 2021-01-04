@@ -47,21 +47,25 @@ public class TelephonyRcsService {
     private static final String LOG_TAG = "TelephonyRcsService";
 
     /**
-     * Used to inject RcsFeatureController and UserCapabilityExchangeImpl instances for testing.
+     * Used to inject RcsFeatureController and UceController instances for testing.
      */
     @VisibleForTesting
     public interface FeatureFactory {
         /**
-         * @return an {@link RcsFeatureController} assoicated with the slot specified.
+         * @return an {@link RcsFeatureController} associated with the slot specified.
          */
         RcsFeatureController createController(Context context, int slotId);
 
         /**
-         * @return an instance of {@link UserCapabilityExchangeImpl} associated with the slot
+         * @return an instance of {@link UceControllerManager} associated with the slot specified.
+         */
+        UceControllerManager createUceControllerManager(Context context, int slotId, int subId);
+
+        /**
+         * @return an instance of {@link SipTransportController} for the slot and subscription
          * specified.
          */
-        UserCapabilityExchangeImpl createUserCapabilityExchange(Context context, int slotId,
-                int subId);
+        SipTransportController createSipTransportController(Context context, int slotId, int subId);
     }
 
     private FeatureFactory mFeatureFactory = new FeatureFactory() {
@@ -71,9 +75,15 @@ public class TelephonyRcsService {
         }
 
         @Override
-        public UserCapabilityExchangeImpl createUserCapabilityExchange(Context context, int slotId,
+        public UceControllerManager createUceControllerManager(Context context, int slotId,
                 int subId) {
-            return new UserCapabilityExchangeImpl(context, slotId, subId);
+            return new UceControllerManager(context, slotId, subId);
+        }
+
+        @Override
+        public SipTransportController createSipTransportController(Context context, int slotId,
+                int subId) {
+            return new SipTransportController(context, slotId, subId);
         }
     };
 
@@ -225,13 +235,24 @@ public class TelephonyRcsService {
 
     private void updateSupportedFeatures(RcsFeatureController c, int slotId, int subId) {
         if (doesSubscriptionSupportPresence(subId)) {
-            if (c.getFeature(UserCapabilityExchangeImpl.class) == null) {
-                c.addFeature(mFeatureFactory.createUserCapabilityExchange(mContext, slotId, subId),
-                        UserCapabilityExchangeImpl.class);
+            if (c.getFeature(UceControllerManager.class) == null) {
+                c.addFeature(mFeatureFactory.createUceControllerManager(mContext, slotId, subId),
+                        UceControllerManager.class);
             }
         } else {
-            if (c.getFeature(UserCapabilityExchangeImpl.class) != null) {
-                c.removeFeature(UserCapabilityExchangeImpl.class);
+            if (c.getFeature(UceControllerManager.class) != null) {
+                c.removeFeature(UceControllerManager.class);
+            }
+        }
+
+        if (doesSubscriptionSupportSingleRegistration(subId)) {
+            if (c.getFeature(SipTransportController.class) == null) {
+                c.addFeature(mFeatureFactory.createSipTransportController(mContext, slotId, subId),
+                        SipTransportController.class);
+            }
+        } else {
+            if (c.getFeature(SipTransportController.class) != null) {
+                c.removeFeature(SipTransportController.class);
             }
         }
         // Only start the connection procedure if we have active features.
@@ -250,6 +271,14 @@ public class TelephonyRcsService {
         return supportsUce;
     }
 
+    private boolean doesSubscriptionSupportSingleRegistration(int subId) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) return false;
+        CarrierConfigManager carrierConfigManager =
+                mContext.getSystemService(CarrierConfigManager.class);
+        if (carrierConfigManager == null) return false;
+        return carrierConfigManager.getConfigForSubId(subId).getBoolean(
+                CarrierConfigManager.Ims.KEY_IMS_SINGLE_REGISTRATION_REQUIRED_BOOL);
+    }
 
     private int getSubscriptionFromSlot(int slotId) {
         SubscriptionManager manager = mContext.getSystemService(SubscriptionManager.class);
