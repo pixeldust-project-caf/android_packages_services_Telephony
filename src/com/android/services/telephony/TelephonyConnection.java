@@ -28,7 +28,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
-import android.widget.Toast;
+import android.telecom.BluetoothCallQualityReport;
 import android.telecom.CallAudioState;
 import android.telecom.Conference;
 import android.telecom.Connection;
@@ -865,6 +865,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     private final Set<TelephonyConnectionListener> mTelephonyListeners = Collections.newSetFromMap(
             new ConcurrentHashMap<TelephonyConnectionListener, Boolean>(8, 0.9f, 1));
 
+    private CallQualityManager mCallQualityManager;
+
     protected TelephonyConnection(com.android.internal.telephony.Connection originalConnection,
             String callId, @android.telecom.Call.Details.CallDirection int callDirection) {
         setCallDirection(callDirection);
@@ -874,6 +876,20 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         }
     }
 
+    @Override
+    public void onCallEvent(String event, Bundle extras) {
+        switch (event) {
+            case BluetoothCallQualityReport.EVENT_BLUETOOTH_CALL_QUALITY_REPORT:
+                if (mCallQualityManager == null) {
+                    mCallQualityManager = new CallQualityManager(getPhone().getContext());
+                }
+                mCallQualityManager.onBluetoothCallQualityReported(extras);
+                break;
+            default:
+                break;
+        }
+
+    }
     /**
      * Creates a clone of the current {@link TelephonyConnection}.
      *
@@ -1489,6 +1505,15 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         } else {
             extrasToRemove.add(Connection.EXTRA_DISABLE_ADD_CALL);
         }
+
+        if (mOriginalConnection != null) {
+            ArrayList<String> forwardedNumber = mOriginalConnection.getForwardedNumber();
+            if (forwardedNumber != null) {
+                extrasToPut.putStringArrayList(Connection.EXTRA_LAST_FORWARDED_NUMBER,
+                        forwardedNumber);
+            }
+        }
+
         putTelephonyExtras(extrasToPut);
         removeTelephonyExtras(extrasToRemove);
 
@@ -1839,8 +1864,12 @@ abstract class TelephonyConnection extends Connection implements Holdable,
           *     - not indicated, then the add participant capability is same as before.
           */
         if (isCapable && (mOriginalConnection != null) && !mIsMultiParty) {
-            isCapable = mOriginalConnectionExtras.getBoolean(
+            // In case OEMs are still using deprecated value, read it and use it as default value.
+            boolean isCapableFromDeprecatedExtra = mOriginalConnectionExtras.getBoolean(
                     ImsCallProfile.EXTRA_CONFERENCE_AVAIL, isCapable);
+            isCapable = mOriginalConnectionExtras.getBoolean(
+                    ImsCallProfile.EXTRA_EXTENDING_TO_CONFERENCE_SUPPORTED,
+                    isCapableFromDeprecatedExtra);
         }
         return isCapable;
     }
@@ -2176,7 +2205,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                     // If extras contain Conference support information,
                     // then ensure capabilities are updated and propagated to Telecom.
                     if (mOriginalConnectionExtras.containsKey(
-                            ImsCallProfile.EXTRA_CONFERENCE_AVAIL)) {
+                            ImsCallProfile.EXTRA_EXTENDING_TO_CONFERENCE_SUPPORTED)
+                            || mOriginalConnectionExtras.containsKey(
+                                ImsCallProfile.EXTRA_CONFERENCE_AVAIL)) {
                         updateConnectionCapabilities();
                     }
                 } else {

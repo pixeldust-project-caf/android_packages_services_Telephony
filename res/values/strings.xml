@@ -2213,6 +2213,14 @@
     <!-- Trigger Carrier Provisioning [CHAR LIMIT=NONE] -->
     <string name="trigger_carrier_provisioning">Trigger Carrier Provisioning</string>
 
+    <!-- details of the message popped up when there is
+    bad call quality caused by bluetooth connection-->
+    <string name="call_quality_notification_bluetooth_details">
+        Suggestion: Improve Bluetooth connectivity</string>
+    <!-- name of the notification that pops up during
+    a phone call when there is bad call quality -->
+    <string name="call_quality_notification_name">Call Quality Notification</string>
+
     <string name="labelCommonMore">Call settings</string>
     <string name="labelCommonMore_with_label">Call settings (<xliff:g id="subscriptionlabel" example="T-Mobile">%s</xliff:g>)</string>
     <string name="sum_common_call_settings">Additional call settings</string>
