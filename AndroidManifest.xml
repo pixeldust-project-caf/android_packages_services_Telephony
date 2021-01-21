@@ -236,6 +236,7 @@
     <uses-permission android:name="android.permission.READ_PROJECTION_STATE"/>
 
     <uses-permission android:name="com.qti.permission.BIND_QTI_IMS_SERVICE" />
+    <uses-permission android:name="com.qualcomm.qti.permission.USE_EXT_TELEPHONY_SERVICE" />
 
     <application android:name="PhoneApp"
             android:persistent="true"
