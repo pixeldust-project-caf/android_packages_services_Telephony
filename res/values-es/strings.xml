@@ -555,7 +555,7 @@
     <string name="emergency_information_owner_hint" msgid="6256909888049185316">"Propietario"</string>
     <string name="emergency_information_confirm_hint" msgid="5109017615894918914">"Tocar de nuevo para ver la información"</string>
     <string name="emergency_enable_radio_dialog_title" msgid="2667568200755388829">"Llamada de emergencia"</string>
-    <string name="single_emergency_number_title" msgid="8413371079579067196">"Llamada de emergencia"</string>
+    <string name="single_emergency_number_title" msgid="8413371079579067196">"Número de emergencia"</string>
     <string name="numerous_emergency_numbers_title" msgid="8972398932506755510">"Números de emergencia"</string>
     <string name="emergency_call_shortcut_hint" msgid="1290485125107779500">"Tocar de nuevo para llamar al <xliff:g id="EMERGENCY_NUMBER">%s</xliff:g>"</string>
     <string name="emergency_enable_radio_dialog_message" msgid="1695305158151408629">"Activando señal móvil…"</string>
@@ -919,4 +919,6 @@
     <string name="phone_info_label" product="default" msgid="1784175881556791433">"Información sobre el teléfono"</string>
     <string name="carrier_provisioning" msgid="2668065041869578376">"Información de servicios del operador"</string>
     <string name="trigger_carrier_provisioning" msgid="1301829588620638234">"Activar servicios del operador"</string>
+    <string name="call_quality_notification_bluetooth_details" msgid="219073466476340435">"Sugerencia: mejorar la conectividad Bluetooth"</string>
+    <string name="call_quality_notification_name" msgid="3476828289553948830">"Notificación de calidad de la llamada"</string>
 </resources>
