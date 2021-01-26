@@ -26,6 +26,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppOpsManager;
 import android.app.PendingIntent;
+import android.app.role.RoleManager;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -90,6 +91,8 @@ import android.telephony.RadioAccessSpecifier;
 import android.telephony.RadioInterfaceCapabilities;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
+import android.telephony.SignalStrengthUpdateRequest;
+import android.telephony.SignalThresholdInfo;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyFrameworkInitializer;
@@ -192,7 +195,10 @@ import com.android.services.telephony.TelecomAccountRegistry;
 import com.android.services.telephony.TelephonyConnectionService;
 import com.android.telephony.Rlog;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -202,7 +208,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -313,6 +322,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     private static final int EVENT_SET_DATA_THROTTLING_DONE = 100;
     private static final int CMD_SET_SIM_POWER = 101;
     private static final int EVENT_SET_SIM_POWER_DONE = 102;
+    private static final int CMD_SET_SIGNAL_STRENGTH_UPDATE_REQUEST = 103;
+    private static final int EVENT_SET_SIGNAL_STRENGTH_UPDATE_REQUEST_DONE = 104;
+    private static final int CMD_CLEAR_SIGNAL_STRENGTH_UPDATE_REQUEST = 105;
+    private static final int EVENT_CLEAR_SIGNAL_STRENGTH_UPDATE_REQUEST_DONE = 106;
 
     // Parameters of select command.
     private static final int SELECT_COMMAND = 0xA4;
@@ -1805,6 +1818,60 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     }
                     break;
                 }
+                case CMD_SET_SIGNAL_STRENGTH_UPDATE_REQUEST: {
+                    request = (MainThreadRequest) msg.obj;
+
+                    final Phone phone = getPhoneFromRequest(request);
+                    if (phone == null || phone.getServiceStateTracker() == null) {
+                        request.result = new IllegalStateException("Phone or SST is null");
+                        notifyRequester(request);
+                        break;
+                    }
+
+                    Pair<Integer, SignalStrengthUpdateRequest> pair =
+                            (Pair<Integer, SignalStrengthUpdateRequest>) request.argument;
+                    onCompleted = obtainMessage(EVENT_SET_SIGNAL_STRENGTH_UPDATE_REQUEST_DONE,
+                            request);
+                    phone.getServiceStateTracker().setSignalStrengthUpdateRequest(
+                                    request.subId, pair.first /*callingUid*/,
+                                    pair.second /*request*/, onCompleted);
+                    break;
+                }
+                case EVENT_SET_SIGNAL_STRENGTH_UPDATE_REQUEST_DONE: {
+                    ar = (AsyncResult) msg.obj;
+                    request = (MainThreadRequest) ar.userObj;
+                    // request.result will be the exception of ar if present, true otherwise.
+                    // Be cautious not to leave result null which will wait() forever
+                    request.result = ar.exception != null ? ar.exception : true;
+                    notifyRequester(request);
+                    break;
+                }
+                case CMD_CLEAR_SIGNAL_STRENGTH_UPDATE_REQUEST: {
+                    request = (MainThreadRequest) msg.obj;
+
+                    Phone phone = getPhoneFromRequest(request);
+                    if (phone == null || phone.getServiceStateTracker() == null) {
+                        request.result = new IllegalStateException("Phone or SST is null");
+                        notifyRequester(request);
+                        break;
+                    }
+
+                    Pair<Integer, SignalStrengthUpdateRequest> pair =
+                            (Pair<Integer, SignalStrengthUpdateRequest>) request.argument;
+                    onCompleted = obtainMessage(EVENT_CLEAR_SIGNAL_STRENGTH_UPDATE_REQUEST_DONE,
+                            request);
+                    phone.getServiceStateTracker().clearSignalStrengthUpdateRequest(
+                                    request.subId, pair.first /*callingUid*/,
+                                    pair.second /*request*/, onCompleted);
+                    break;
+                }
+                case EVENT_CLEAR_SIGNAL_STRENGTH_UPDATE_REQUEST_DONE: {
+                    ar = (AsyncResult) msg.obj;
+                    request = (MainThreadRequest) ar.userObj;
+                    request.result = ar.exception != null ? ar.exception : true;
+                    notifyRequester(request);
+                    break;
+                }
 
                 default:
                     Log.w(LOG_TAG, "MainThreadHandler: unexpected message code: " + msg.what);
@@ -3029,7 +3096,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      *
      * @throws SecurityException if the caller is not system.
      */
-    private void enforceSystemCaller() {
+    private static void enforceSystemCaller() {
         if (Binder.getCallingUid() != Process.SYSTEM_UID) {
             throw new SecurityException("Caller must be system");
         }
@@ -3242,7 +3309,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
         String authorizedPackage = NumberVerificationManager.getAuthorizedPackage(mApp);
         if (!TextUtils.equals(callingPackage, authorizedPackage)) {
-            throw new SecurityException("Calling package must be configured in the device config");
+            throw new SecurityException("Calling package must be configured in the device config: "
+                    + "calling package: " + callingPackage
+                    + ", configured package: " + authorizedPackage);
         }
 
         if (range == null) {
@@ -3916,6 +3985,50 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         try {
             // TODO: Refactor to remove ImsManager dependence and query through ImsPhone directly.
             ImsManager.getInstance(mApp, getSlotIndexOrException(subId)).setWfcSetting(isEnabled);
+        } catch (ImsException e) {
+            throw new ServiceSpecificException(e.getCode());
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * @return true if the user's setting for Voice over Cross SIM is enabled and false if it is not
+     * Requires carrier privileges or READ_PRECISE_PHONE_STATE permission.
+     * @param subId The subscription to use to check the configuration.
+     */
+    @Override
+    public boolean isCrossSimCallingEnabledByUser(int subId) {
+        TelephonyPermissions.enforeceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
+                mApp, subId, "isCrossSimCallingEnabledByUser");
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            // TODO: Refactor to remove ImsManager dependence and query through ImsPhone directly.
+            return ImsManager.getInstance(mApp,
+                    getSlotIndexOrException(subId)).isCrossSimCallingEnabledByUser();
+        } catch (ImsException e) {
+            throw new ServiceSpecificException(e.getCode());
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Sets the user's setting for whether or not Voice over Cross SIM is enabled.
+     * Requires MODIFY_PHONE_STATE permission.
+     * @param subId The subscription to use to check the configuration.
+     * @param isEnabled true if the user's setting for Voice over Cross SIM is enabled,
+     *                 false otherwise
+     */
+    @Override
+    public void setCrossSimCallingEnabled(int subId, boolean isEnabled) {
+        TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(mApp, subId,
+                "setCrossSimCallingEnabled");
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            // TODO: Refactor to remove ImsManager dependence and query through ImsPhone directly.
+            ImsManager.getInstance(mApp, getSlotIndexOrException(subId))
+                    .setCrossSimCallingEnabled(isEnabled);
         } catch (ImsException e) {
             throw new ServiceSpecificException(e.getCode());
         } finally {
@@ -5507,12 +5620,20 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         }
     }
 
-    public void setImsRegistrationState(boolean registered) {
+    /**
+     * Sets the ims registration state on all valid {@link Phone}s.
+     */
+    public void setImsRegistrationState(final boolean registered) {
         enforceModifyPermission();
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            getDefaultPhone().setImsRegistrationState(registered);
+            // NOTE: Before S, this method only set the default phone.
+            for (final Phone phone : PhoneFactory.getPhones()) {
+                if (SubscriptionManager.isValidSubscriptionId(phone.getSubId())) {
+                    phone.setImsRegistrationState(registered);
+                }
+            }
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -6915,6 +7036,84 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             Binder.restoreCallingIdentity(identity);
         }
         return raf;
+    }
+
+    @Override
+    public void uploadCallComposerPicture(int subscriptionId, String callingPackage,
+            String contentType, ParcelFileDescriptor fd, ResultReceiver callback) {
+        try {
+            if (!Objects.equals(mApp.getPackageManager().getPackageUid(callingPackage, 0),
+                    Binder.getCallingUid())) {
+                throw new SecurityException("Package uid and package name do not match: "
+                        + "uid=" + Binder.getCallingUid() + ", packageName=" + callingPackage);
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            throw new SecurityException("Package name invalid:" + callingPackage);
+        }
+        RoleManager rm = mApp.getSystemService(RoleManager.class);
+        List<String> dialerRoleHolders = rm.getRoleHolders(RoleManager.ROLE_DIALER);
+        if (!dialerRoleHolders.contains(callingPackage)) {
+            throw new SecurityException("App must be the dialer role holder to"
+                    + " upload a call composer pic");
+        }
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            ByteArrayOutputStream output = new ByteArrayOutputStream(
+                    (int) TelephonyManager.getMaximumCallComposerPictureSize());
+            InputStream input = new ParcelFileDescriptor.AutoCloseInputStream(fd);
+            boolean readUntilEnd = false;
+            int totalBytesRead = 0;
+            byte[] buffer = new byte[16 * 1024];
+            while (true) {
+                int numRead;
+                try {
+                    numRead = input.read(buffer);
+                } catch (IOException e) {
+                    try {
+                        fd.checkError();
+                        callback.send(TelephonyManager.CallComposerException.ERROR_INPUT_CLOSED,
+                                null);
+                    } catch (IOException e1) {
+                        // This means that the other side closed explicitly with an error. If this
+                        // happens, log and ignore.
+                        loge("Remote end of call composer picture pipe closed: " + e1);
+                    }
+                    break;
+                }
+                if (numRead == -1) {
+                    readUntilEnd = true;
+                    break;
+                }
+                totalBytesRead += numRead;
+                if (totalBytesRead > TelephonyManager.getMaximumCallComposerPictureSize()) {
+                    loge("Too many bytes read for call composer picture: " + totalBytesRead);
+                    try {
+                        input.close();
+                    } catch (IOException e) {
+                        // ignore
+                    }
+                    break;
+                }
+                output.write(buffer, 0, numRead);
+            }
+            // Generally, the remote end will close the file descriptors. The only case where we
+            // close is above, where the picture size is too big.
+
+            try {
+                fd.checkError();
+            } catch (IOException e) {
+                loge("Remote end for call composer closed with an error: " + e);
+                return;
+            }
+
+            // TODO: pass along the bytes read to the carrier somehow
+
+            ParcelUuid result = new ParcelUuid(UUID.randomUUID());
+            // TODO: cache this uuid that's been associated with the picture
+            Bundle outputResult = new Bundle();
+            outputResult.putParcelable(TelephonyManager.KEY_CALL_COMPOSER_PICTURE_HANDLE, result);
+            callback.send(-1, outputResult);
+        });
     }
 
     @Override
@@ -9626,10 +9825,11 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            ImsManager.getInstance(mApp, getSlotIndexOrException(subId))
-                    .addRcsProvisioningCallbackForSubscription(callback, subId);
-        } catch (ImsException e) {
-            throw new ServiceSpecificException(e.getCode());
+            if (!RcsProvisioningMonitor.getInstance()
+                    .registerRcsProvisioningChangedCallback(subId, callback)) {
+                throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
+                        "Service not available for the subscription.");
+            }
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -9653,11 +9853,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            ImsManager.getInstance(mApp, getSlotIndexOrException(subId))
-                    .removeRcsProvisioningCallbackForSubscription(callback, subId);
-        } catch (ImsException e) {
-            Log.i(LOG_TAG, "unregisterRcsProvisioningChangedCallback: " + subId
-                    + "is inactive, ignoring unregister.");
+            RcsProvisioningMonitor.getInstance()
+                    .unregisterRcsProvisioningChangedCallback(subId, callback);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -9776,6 +9973,94 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             return getDefaultPhone().getMobileProvisioningUrl();
         } finally {
             Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    @Override
+    public void setSignalStrengthUpdateRequest(int subId, SignalStrengthUpdateRequest request,
+            String callingPackage) {
+        TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
+                mApp, subId, "setSignalStrengthUpdateRequest");
+
+        final int callingUid = Binder.getCallingUid();
+        // Verify that tha callingPackage belongs to the calling UID
+        mApp.getSystemService(AppOpsManager.class)
+                .checkPackage(callingUid, callingPackage);
+
+        validateSignalStrengthUpdateRequest(request, callingUid);
+
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            Object result = sendRequest(CMD_SET_SIGNAL_STRENGTH_UPDATE_REQUEST,
+                    new Pair<Integer, SignalStrengthUpdateRequest>(callingUid, request), subId);
+
+            if (result instanceof IllegalStateException) {
+                throw (IllegalStateException) result;
+            }
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    @Override
+    public void clearSignalStrengthUpdateRequest(int subId, SignalStrengthUpdateRequest request,
+            String callingPackage) {
+        TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
+                mApp, subId, "clearSignalStrengthUpdateRequest");
+
+        final int callingUid = Binder.getCallingUid();
+        // Verify that tha callingPackage belongs to the calling UID
+        mApp.getSystemService(AppOpsManager.class)
+                .checkPackage(callingUid, callingPackage);
+
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            Object result = sendRequest(CMD_CLEAR_SIGNAL_STRENGTH_UPDATE_REQUEST,
+                    new Pair<Integer, SignalStrengthUpdateRequest>(callingUid, request), subId);
+
+            if (result instanceof IllegalStateException) {
+                throw (IllegalStateException) result;
+            }
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    private static void validateSignalStrengthUpdateRequest(SignalStrengthUpdateRequest request,
+            int callingUid) {
+        if (callingUid == Process.PHONE_UID || callingUid == Process.SYSTEM_UID) {
+            // phone/system process do not have further restriction on request
+            return;
+        }
+
+        // Applications has restrictions on how to use the request:
+        // Only system caller can set mIsSystemThresholdReportingRequestedWhileIdle
+        if (request.isSystemThresholdReportingRequestedWhileIdle()) {
+            // This is not system caller which has been checked above
+            throw new IllegalArgumentException(
+                    "Only system can set isSystemThresholdReportingRequestedWhileIdle");
+        }
+
+        for (SignalThresholdInfo info : request.getSignalThresholdInfos()) {
+            // Only system caller can set mHysteresisMs/mHysteresisDb/mIsEnabled.
+            if (info.getHysteresisMs() != SignalThresholdInfo.HYSTERESIS_MS_DISABLED
+                    || info.getHysteresisDb() != SignalThresholdInfo.HYSTERESIS_DB_DISABLED
+                    || info.isEnabled()) {
+                throw new IllegalArgumentException(
+                        "Only system can set hide fields in SignalThresholdInfo");
+            }
+
+            // Thresholds length for each RAN need in range. This has been validated in
+            // SignalThresholdInfo#Builder#setThreshold. Here we prevent apps calling hide method
+            // setThresholdUnlimited (e.g. through reflection) with too short or too long thresholds
+            final int[] thresholds = info.getThresholds();
+            Objects.requireNonNull(thresholds);
+            if (thresholds.length < SignalThresholdInfo.getMinimumNumberOfThresholdsAllowed()
+                    || thresholds.length
+                    > SignalThresholdInfo.getMaximumNumberOfThresholdsAllowed()) {
+                throw new IllegalArgumentException(
+                        "thresholds length is out of range: " + thresholds.length);
+            }
         }
     }
 }

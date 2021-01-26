@@ -26,6 +26,7 @@ android_app {
         "unsupportedappusage",
         "telephony-ext",
         "ims-ext-common",
+        "org.apache.http.legacy",
     ],
 
     static_libs: [
@@ -38,6 +39,7 @@ android_app {
         "guava",
         "PlatformProperties",
         "modules-utils-os",
+        "nist-sip",
     ],
 
     srcs: [
