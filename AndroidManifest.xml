@@ -770,5 +770,6 @@
             android:writePermission="android.permission.MODIFY_PHONE_STATE"/>
 
         <uses-library android:name="ims-ext-common"/>
+        <uses-library android:name="com.qti.extphone.extphonelib"/>
     </application>
 </manifest>
