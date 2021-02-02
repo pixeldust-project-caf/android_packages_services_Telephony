@@ -848,54 +848,6 @@ public class PhoneUtils {
         return IExtTelephony.Stub.asInterface(ServiceManager.getService("qti.radio.extphone"));
     }
 
-    public static boolean isLocalEmergencyNumber(String address) {
-        boolean result = false;
-        try {
-            result = getIExtTelephony().isLocalEmergencyNumber(address);
-        }catch (RemoteException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        } catch (NullPointerException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        }
-        return result;
-    }
-
-    public static boolean isPotentialLocalEmergencyNumber(String address) {
-        boolean result = false;
-        try {
-            result = getIExtTelephony().isPotentialLocalEmergencyNumber(address);
-        }catch (RemoteException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        } catch (NullPointerException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        }
-        return result;
-    }
-
-    public static boolean isEmergencyNumber(String address) {
-        boolean result = false;
-        try {
-            result = getIExtTelephony().isEmergencyNumber(address);
-        }catch (RemoteException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        } catch (NullPointerException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        }
-        return result;
-    }
-
-    public static boolean isDeviceInSingleStandBy() {
-        boolean result = false;
-        try {
-            result = getIExtTelephony().isDeviceInSingleStandby();
-        } catch (RemoteException ex) {
-            Log.e("TelephonyConnectionService", "Exception : " + ex);
-        } catch (NullPointerException ex) {
-            Log.e("TelephonyConnectionService", "Exception : " + ex);
-        }
-        return result;
-    }
-
     public static int getPhoneIdForECall() {
         int phoneId = 0;
         try {
