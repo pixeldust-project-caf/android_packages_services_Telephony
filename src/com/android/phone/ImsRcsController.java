@@ -67,6 +67,8 @@ public class ImsRcsController extends IImsRcsController.Stub {
     private PhoneGlobals mApp;
     private TelephonyRcsService mRcsService;
     private ImsResolver mImsResolver;
+    // set by shell cmd phone src set-device-enabled true/false
+    private Boolean mSingleRegistrationOverride;
 
     /**
      * Initialize the singleton ImsRcsController instance.
@@ -263,10 +265,6 @@ public class ImsRcsController extends IImsRcsController.Stub {
     public void requestCapabilities(int subId, String callingPackage, String callingFeatureId,
             List<Uri> contactNumbers, IRcsUceControllerCallback c) {
         enforceReadPrivilegedPermission("requestCapabilities");
-        if (!isUceSettingEnabled(subId, callingPackage, callingFeatureId)) {
-            throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
-                    "The user has not enabled UCE for this subscription.");
-        }
         final long token = Binder.clearCallingIdentity();
         try {
             UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
@@ -284,13 +282,9 @@ public class ImsRcsController extends IImsRcsController.Stub {
     }
 
     @Override
-    public void requestNetworkAvailability(int subId, String callingPackage,
+    public void requestAvailability(int subId, String callingPackage,
             String callingFeatureId, Uri contactNumber, IRcsUceControllerCallback c) {
-        enforceReadPrivilegedPermission("requestNetworkAvailability");
-        if (!isUceSettingEnabled(subId, callingPackage, callingFeatureId)) {
-            throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
-                    "The user has not enabled UCE for this subscription.");
-        }
+        enforceReadPrivilegedPermission("requestAvailability");
         final long token = Binder.clearCallingIdentity();
         try {
             UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
@@ -394,6 +388,9 @@ public class ImsRcsController extends IImsRcsController.Stub {
     @Override
     public boolean isSipDelegateSupported(int subId) {
         enforceReadPrivilegedPermission("isSipDelegateSupported");
+        if (!isImsSingleRegistrationSupportedOnDevice()) {
+            return false;
+        }
         final long token = Binder.clearCallingIdentity();
         try {
             SipTransportController transport = getRcsFeatureController(subId).getFeature(
@@ -419,6 +416,11 @@ public class ImsRcsController extends IImsRcsController.Stub {
             ISipDelegateConnectionStateCallback delegateState,
             ISipDelegateMessageCallback delegateMessage) {
         enforceModifyPermission();
+        if (!isImsSingleRegistrationSupportedOnDevice()) {
+            throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
+                    "SipDelegate creation is only supported for devices supporting IMS single "
+                            + "registration");
+        }
         if (!UserHandle.getUserHandleForUid(Binder.getCallingUid()).isSystem()) {
             throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
                     "SipDelegate creation is only available to primary user.");
@@ -594,7 +596,21 @@ public class ImsRcsController extends IImsRcsController.Stub {
         return c;
     }
 
+    private boolean isImsSingleRegistrationSupportedOnDevice() {
+        return mSingleRegistrationOverride != null ? mSingleRegistrationOverride
+                : mApp.getPackageManager().hasSystemFeature(
+                        PackageManager.FEATURE_TELEPHONY_IMS_SINGLE_REGISTRATION);
+    }
+
     void setRcsService(TelephonyRcsService rcsService) {
         mRcsService = rcsService;
+    }
+
+    /**
+     * Override device RCS single registration support check for CTS testing or remove override
+     * if the Boolean is set to null.
+     */
+    void setDeviceSingleRegistrationSupportOverride(Boolean deviceOverrideValue) {
+        mSingleRegistrationOverride = deviceOverrideValue;
     }
 }

@@ -79,6 +79,8 @@ import com.android.phone.ImsUtil;
 import com.android.phone.PhoneGlobals;
 import com.android.phone.PhoneUtils;
 import com.android.phone.R;
+import com.android.phone.callcomposer.CallComposerPictureManager;
+import com.android.phone.callcomposer.CallComposerPictureTransfer;
 import com.android.telephony.Rlog;
 
 import org.codeaurora.ims.QtiCallConstants;
@@ -1185,13 +1187,35 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     @Override
     public void onCallFilteringCompleted(boolean isBlocked, boolean isInContacts) {
         if (isImsConnection()) {
-            if (!isBlocked && isInContacts) {
+            ImsPhone imsPhone = (getPhone() instanceof ImsPhone) ? (ImsPhone) getPhone() : null;
+            if (imsPhone != null
+                    && imsPhone.getCallComposerStatus() == TelephonyManager.CALL_COMPOSER_STATUS_ON
+                    && !isBlocked && isInContacts) {
                 ImsPhoneConnection originalConnection = (ImsPhoneConnection) mOriginalConnection;
                 ImsCallProfile profile = originalConnection.getImsCall().getCallProfile();
+                String serverUrl = CallComposerPictureManager.sTestMode
+                        ? CallComposerPictureManager.FAKE_SERVER_URL
+                        : profile.getCallExtra(ImsCallProfile.EXTRA_PICTURE_URL);
                 if (profile != null
-                        && !TextUtils.isEmpty(
-                                profile.getCallExtra(ImsCallProfile.EXTRA_PICTURE_URL))) {
-                    // TODO: start off the picture download
+                        && !TextUtils.isEmpty(serverUrl)) {
+                    CallComposerPictureManager manager = CallComposerPictureManager
+                            .getInstance(getPhone().getContext(), getPhone().getSubId());
+                    manager.handleDownloadFromServer(new CallComposerPictureTransfer.Factory() {},
+                            serverUrl,
+                            (result) -> {
+                                if (result.first != null) {
+                                    Bundle newExtras = new Bundle();
+                                    newExtras.putParcelable(TelecomManager.EXTRA_PICTURE_URI,
+                                            result.first);
+                                    putTelephonyExtras(newExtras);
+                                } else {
+                                    Log.i(this, "Call composer picture download:"
+                                            + " error=" + result.second);
+                                    Bundle newExtras = new Bundle();
+                                    newExtras.putBoolean(TelecomManager.EXTRA_HAS_PICTURE, false);
+                                    putTelephonyExtras(newExtras);
+                                }
+                            });
                 }
             }
         }
@@ -3359,8 +3383,12 @@ abstract class TelephonyConnection extends Connection implements Holdable,
      */
     private void maybeConfigureDeviceToDeviceCommunication() {
         if (!getPhone().getContext().getResources().getBoolean(
-                R.bool.config_use_device_to_device_communication) || !isImsConnection()) {
+                R.bool.config_use_device_to_device_communication)) {
             Log.d(this, "maybeConfigureDeviceToDeviceCommunication: not using D2D.");
+            return;
+        }
+        if (!isImsConnection()) {
+            Log.d(this, "maybeConfigureDeviceToDeviceCommunication: not an IMS connection.");
             return;
         }
         // Implement abstracted out RTP functionality the RTP transport depends on.
@@ -3379,8 +3407,10 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             public void sendRtpHeaderExtensions(
                     @NonNull Set<RtpHeaderExtension> rtpHeaderExtensions) {
                 if (!isImsConnection()) {
-                    Log.w(this, "sendRtpHeaderExtensions: not an ims connection.");
+                    Log.w(TelephonyConnection.this, "sendRtpHeaderExtensions: not an ims conn.");
                 }
+                Log.d(TelephonyConnection.this, "sendRtpHeaderExtensions: sending %d messages",
+                        rtpHeaderExtensions.size());
                 ImsPhoneConnection originalConnection =
                         (ImsPhoneConnection) mOriginalConnection;
                 originalConnection.sendRtpHeaderExtensions(rtpHeaderExtensions);
@@ -3393,6 +3423,13 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     /**
+     * @return The D2D communication class, or {@code null} if not set up.
+     */
+    public @Nullable Communicator getCommunicator() {
+        return mCommunicator;
+    }
+
+    /**
      * Called by {@link Communicator} associated with this {@link TelephonyConnection} when there
      * are incoming device-to-device messages received.
      * @param messages the incoming messages.
@@ -3401,6 +3438,14 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     public void onMessagesReceived(@NonNull Set<Communicator.Message> messages) {
         Log.i(this, "onMessagesReceived: got d2d messages: %s", messages);
         // TODO: Actually do something WITH the messages.
+
+        // TODO: Remove this prior to launch.
+        // This is just here for debug purposes; send as a connection event so that it
+        // will be output in the Telecom logs.
+        for (Communicator.Message msg : messages) {
+            sendConnectionEvent("D2D_" + Communicator.messageToString(msg.getType())
+                + "_" + Communicator.valueToString(msg.getType(), msg.getValue()), null);
+        }
     }
 
     /**
