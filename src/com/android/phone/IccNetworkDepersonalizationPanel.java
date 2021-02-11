@@ -45,8 +45,7 @@ import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus.PersoSubState;
 
-import org.codeaurora.internal.IExtTelephony;
-import org.codeaurora.internal.IDepersoResCallback;
+import com.qti.extphone.IDepersoResCallback;
 /**
  * "SIM network unlock" PIN entry screen.
  *
@@ -97,9 +96,6 @@ public class IccNetworkDepersonalizationPanel extends IccPanel {
         ERROR,
         SUCCESS
     }
-
-    private IExtTelephony mExtTelephony = IExtTelephony.Stub.
-            asInterface(ServiceManager.getService("qti.radio.extphone"));
 
     /**
      * Shows the network depersonalization dialog, but only if it is not already visible.
@@ -313,11 +309,9 @@ public class IccNetworkDepersonalizationPanel extends IccPanel {
                     mPhone.getIccCard().supplySimDepersonalization(mPersoSubState,pin,
                            Message.obtain(mHandler, EVENT_ICC_NTWRK_DEPERSONALIZATION_RESULT));
                 } else {
-                    mExtTelephony.supplyIccDepersonalization(pin, Integer.toString(persoState),
-                             mCallback, mPhone.getPhoneId());
+                    PhoneUtils.getExtTelManager().supplyIccDepersonalization(pin,
+                            Integer.toString(persoState), mCallback, mPhone.getPhoneId());
                 }
-            } catch (RemoteException ex) {
-                log("RemoteException @supplyIccDepersonalization" + ex);
             } catch (NullPointerException ex) {
                 log("NullPointerException @supplyIccDepersonalization" + ex);
             }
