@@ -35,7 +35,7 @@ import com.android.services.telephony.sip.SipAccountRegistry;
 import com.android.services.telephony.sip.SipPreferences;
 import com.android.services.telephony.sip.SipUtil;
 
-import org.codeaurora.internal.IExtTelephony;
+import android.content.pm.PackageManager.NameNotFoundException;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -119,19 +119,14 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
         mTelephonyManager = TelephonyManager.from(getActivity());
         mSubscriptionManager = SubscriptionManager.from(getActivity());
 
-        IExtTelephony extTelephony =
-                IExtTelephony.Stub.asInterface(ServiceManager.getService("qti.radio.extphone"));
-
+        // check whether the target handler exist in system
+        PackageManager pm = getActivity().getPackageManager();
         try {
-            if (extTelephony != null) {
-                isXdivertAvailable = extTelephony.isVendorApkAvailable("com.qti.xdivert");
-            } else {
-                Log.d(LOG_TAG, "xdivert not available");
-            }
-        } catch (RemoteException e) {
-            e.printStackTrace();
+            pm.getPackageInfo("com.qti.xdivert", 0);
+            isXdivertAvailable = true;
+        } catch (NameNotFoundException e) {
+            Log.w(LOG_TAG, " com.qti.xdivert Vendor apk not available for ");
         }
-
     }
 
     @Override
