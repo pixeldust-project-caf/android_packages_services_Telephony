@@ -376,6 +376,7 @@ public class PhoneGlobals extends ContextWrapper {
                         defaultImsRcsPackage, PhoneFactory.getPhones().length,
                         new ImsFeatureBinderRepository());
                 mImsResolver.initialize();
+                RcsProvisioningMonitor.make(this);
             }
 
             // Start TelephonyDebugService After the default phone is created.
@@ -383,9 +384,6 @@ public class PhoneGlobals extends ContextWrapper {
             startService(intent);
 
             mCM = CallManager.getInstance();
-            for (Phone phone : PhoneFactory.getPhones()) {
-                mCM.registerPhone(phone);
-            }
 
             // Create the NotificationMgr singleton, which is used to display
             // status bar icons and control other status bar behavior.

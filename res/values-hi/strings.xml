@@ -656,7 +656,7 @@
     <string name="voicemail_number_not_set" msgid="8831561283386938155">"&lt;सेट नहीं है&gt;"</string>
     <string name="other_settings" msgid="8895088007393598447">"अन्य कॉल सेटिंग"</string>
     <string name="calling_via_template" msgid="1791323450703751750">"कॉल <xliff:g id="PROVIDER_NAME">%s</xliff:g> से जा रही है"</string>
-    <string name="contactPhoto" msgid="7885089213135154834">"संपर्क का फ़ोटो"</string>
+    <string name="contactPhoto" msgid="7885089213135154834">"संपर्क की फ़ोटो"</string>
     <string name="goPrivate" msgid="4645108311382209551">"निजी हो जाएं"</string>
     <string name="selectContact" msgid="1527612842599767382">"संपर्क को चुनें"</string>
     <string name="not_voice_capable" msgid="2819996734252084253">"ध्वनि कॉल करना समर्थित नहीं है"</string>
@@ -919,4 +919,6 @@
     <string name="phone_info_label" product="default" msgid="1784175881556791433">"फ़ोन की जानकारी"</string>
     <string name="carrier_provisioning" msgid="2668065041869578376">"मोबाइल और इंटरनेट सेवा देने वाली कंपनी के प्रावधान की जानकारी"</string>
     <string name="trigger_carrier_provisioning" msgid="1301829588620638234">"मोबाइल और इंटरनेट सेवा देने वाली कंपनी के प्रावधान चालू करें"</string>
+    <string name="call_quality_notification_bluetooth_details" msgid="219073466476340435">"सुझाव: ब्लूटूथ कनेक्टिविटी बेहतर करें"</string>
+    <string name="call_quality_notification_name" msgid="3476828289553948830">"कॉल की क्वालिटी की सूचना"</string>
 </resources>
