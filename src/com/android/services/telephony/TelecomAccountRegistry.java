@@ -32,6 +32,7 @@ import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.PersistableBundle;
@@ -121,6 +122,8 @@ public class TelecomAccountRegistry {
      */
     private static final String EXTRA_SUPPORTS_VIDEO_CALLING_FALLBACK =
             "android.telecom.extra.SUPPORTS_VIDEO_CALLING_FALLBACK";
+
+    private Handler mHandler;
 
     // Flag which decides whether SIM should power down due to APM,
     private static final String APM_SIM_NOT_PWDN_PROPERTY = "persist.vendor.radio.apm_sim_not_pwdn";
@@ -784,6 +787,15 @@ public class TelecomAccountRegistry {
         }
 
         /**
+         * Determines from carrier config whether to always allow RTT while roaming.
+         */
+        private boolean isCarrierAllowRttWhenRoaming() {
+            PersistableBundle b =
+                    PhoneGlobals.getInstance().getCarrierConfigForSubId(mPhone.getSubId());
+            return b.getBoolean(CarrierConfigManager.KEY_RTT_SUPPORTED_WHILE_ROAMING_BOOL);
+        }
+
+        /**
          * Where a device supports instant lettering and call subjects, retrieves the necessary
          * PhoneAccount extras for those features.
          *
@@ -935,11 +947,15 @@ public class TelecomAccountRegistry {
             boolean isRoaming = mTelephonyManager.isNetworkRoaming(mPhone.getSubId());
             boolean isOnWfc = mPhone.getImsRegistrationTech()
                     == ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
+            boolean alwaysAllowWhileRoaming = isCarrierAllowRttWhenRoaming();
 
-            boolean shouldDisableBecauseRoamingOffWfc = isRoaming && !isOnWfc;
+            boolean shouldDisableBecauseRoamingOffWfc =
+                    (isRoaming && !isOnWfc) && !alwaysAllowWhileRoaming;
+
             Log.i(this, "isRttCurrentlySupported -- regular acct,"
                     + " hasVoiceAvailability: " + hasVoiceAvailability + "\n"
                     + " isRttSupported: " + isRttSupported + "\n"
+                    + " alwaysAllowWhileRoaming: " + alwaysAllowWhileRoaming + "\n"
                     + " isRoaming: " + isRoaming + "\n"
                     + " isOnWfc: " + isOnWfc + "\n");
 
@@ -1109,7 +1125,11 @@ public class TelecomAccountRegistry {
         }
     };
 
-    private final PhoneStateListener mPhoneStateListener = new PhoneStateListener() {
+    private final PhoneStateListener mPhoneStateListener = new TelecomAccountPhoneStateListener();
+
+    private class TelecomAccountPhoneStateListener extends PhoneStateListener implements
+            PhoneStateListener.ActiveDataSubscriptionIdChangedListener,
+            PhoneStateListener.ServiceStateChangedListener {
         @Override
         public void onServiceStateChanged(ServiceState serviceState) {
             int newState = serviceState.getState();
@@ -1135,7 +1155,7 @@ public class TelecomAccountRegistry {
                 }
             }
         }
-    };
+    }
 
     private static TelecomAccountRegistry sInstance;
     private final Context mContext;
@@ -1175,6 +1195,7 @@ public class TelecomAccountRegistry {
         mTelephonyManager = TelephonyManager.from(context);
         mSubscriptionManager = SubscriptionManager.from(context);
         mHandlerThread.start();
+        mHandler = new Handler(Looper.getMainLooper());
         mRegisterSubscriptionListenerBackoff = new ExponentialBackoff(
                 REGISTER_START_DELAY_MS,
                 REGISTER_MAXIMUM_DELAY_MS,
@@ -1402,8 +1423,8 @@ public class TelecomAccountRegistry {
 
         // We also need to listen for changes to the service state (e.g. emergency -> in service)
         // because this could signal a removal or addition of a SIM in a single SIM phone.
-        mTelephonyManager.listen(mPhoneStateListener, PhoneStateListener.LISTEN_SERVICE_STATE
-                | PhoneStateListener.LISTEN_ACTIVE_DATA_SUBSCRIPTION_ID_CHANGE);
+        mTelephonyManager.registerPhoneStateListener(new HandlerExecutor(mHandler),
+                mPhoneStateListener);
 
         // Listen for user switches.  When the user switches, we need to ensure that if the current
         // use is not the primary user we disable video calling.
@@ -1423,8 +1444,7 @@ public class TelecomAccountRegistry {
 
     private void registerContentObservers() {
         // Listen to the RTT system setting so that we update it when the user flips it.
-        ContentObserver rttUiSettingObserver = new ContentObserver(
-                new Handler(Looper.getMainLooper())) {
+        ContentObserver rttUiSettingObserver = new ContentObserver(mHandler) {
             @Override
             public void onChange(boolean selfChange) {
                 synchronized (mAccountsLock) {
@@ -1444,8 +1464,7 @@ public class TelecomAccountRegistry {
         }
 
         // Listen to the changes to the user's Contacts Discovery Setting.
-        ContentObserver contactDiscoveryObserver = new ContentObserver(
-                new Handler(Looper.getMainLooper())) {
+        ContentObserver contactDiscoveryObserver = new ContentObserver(mHandler) {
             @Override
             public void onChange(boolean selfChange) {
                 synchronized (mAccountsLock) {

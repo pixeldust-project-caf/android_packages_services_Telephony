@@ -113,11 +113,7 @@ public class CallForwardType extends PreferenceActivity {
 
     private void removeListeners() {
         ImsManager imsMgr = ImsManager.getInstance(mPhone.getContext(), mPhone.getPhoneId());
-        try {
-            imsMgr.removeCapabilitiesCallback(mCapabilityCallback);
-        } catch (ImsException e) {
-            Log.d(LOG_TAG, "unable to remove callback.");
-        }
+        imsMgr.removeCapabilitiesCallback(mCapabilityCallback);
     }
 
     private void showVideoOption(boolean show) {
