@@ -21,6 +21,7 @@ import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static com.android.internal.telephony.PhoneConstants.PHONE_TYPE_IMS;
 import static com.android.internal.telephony.PhoneConstants.SUBSCRIPTION_KEY;
 
+import android.Manifest;
 import android.Manifest.permission;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -52,6 +53,7 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.ServiceSpecificException;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
@@ -88,7 +90,6 @@ import android.telephony.PhoneCapability;
 import android.telephony.PhoneNumberRange;
 import android.telephony.RadioAccessFamily;
 import android.telephony.RadioAccessSpecifier;
-import android.telephony.RadioInterfaceCapabilities;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
 import android.telephony.SignalStrengthUpdateRequest;
@@ -328,6 +329,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     private static final int EVENT_CLEAR_SIGNAL_STRENGTH_UPDATE_REQUEST_DONE = 106;
     private static final int CMD_SET_ALLOWED_NETWORK_TYPES_FOR_REASON = 107;
     private static final int EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_REASON_DONE = 108;
+    private static final int CMD_PREPARE_UNATTENDED_REBOOT = 109;
 
     // Parameters of select command.
     private static final int SELECT_COMMAND = 0xA4;
@@ -377,6 +379,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     public static final String RESET_NETWORK_ERASE_MODEM_CONFIG_ENABLED =
             "reset_network_erase_modem_config_enabled";
+
+    private static final int SET_NETWORK_SELECTION_MODE_AUTOMATIC_TIMEOUT_MS = 2000; // 2 seconds
 
     /**
      * A request object to use for transmitting data to an ICC.
@@ -1547,7 +1551,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     PhoneConfigurationManager.getInstance()
                             .enablePhone(request.phone, enable, onCompleted);
                     break;
-                case EVENT_ENABLE_MODEM_DONE:
+                case EVENT_ENABLE_MODEM_DONE: {
                     ar = (AsyncResult) msg.obj;
                     request = (MainThreadRequest) ar.userObj;
                     request.result = (ar.exception == null);
@@ -1562,6 +1566,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     }
                     notifyRequester(request);
                     break;
+                }
                 case CMD_GET_MODEM_STATUS:
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_GET_MODEM_STATUS_DONE, request);
@@ -1700,27 +1705,44 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     request = (MainThreadRequest) ar.userObj;
                     if (ar.exception == null) {
                         request.result = TelephonyManager.CHANGE_ICC_LOCK_SUCCESS;
+                        // If the operation is successful, update the PIN storage
+                        Pair<String, String> passwords = (Pair<String, String>) request.argument;
+                        int phoneId = getPhoneFromRequest(request).getPhoneId();
+                        UiccController.getInstance().getPinStorage()
+                                .storePin(passwords.second, phoneId);
                     } else {
                         request.result = msg.arg1;
                     }
                     notifyRequester(request);
                     break;
 
-                case CMD_SET_ICC_LOCK_ENABLED:
+                case CMD_SET_ICC_LOCK_ENABLED: {
                     request = (MainThreadRequest) msg.obj;
                     onCompleted = obtainMessage(EVENT_SET_ICC_LOCK_ENABLED_DONE, request);
                     Pair<Boolean, String> enabled = (Pair<Boolean, String>) request.argument;
                     getPhoneFromRequest(request).getIccCard().setIccLockEnabled(
                             enabled.first, enabled.second, onCompleted);
                     break;
+                }
                 case EVENT_SET_ICC_LOCK_ENABLED_DONE:
                     ar = (AsyncResult) msg.obj;
                     request = (MainThreadRequest) ar.userObj;
                     if (ar.exception == null) {
                         request.result = TelephonyManager.CHANGE_ICC_LOCK_SUCCESS;
+                        // If the operation is successful, update the PIN storage
+                        Pair<Boolean, String> enabled = (Pair<Boolean, String>) request.argument;
+                        int phoneId = getPhoneFromRequest(request).getPhoneId();
+                        if (enabled.first) {
+                            UiccController.getInstance().getPinStorage()
+                                    .storePin(enabled.second, phoneId);
+                        } else {
+                            UiccController.getInstance().getPinStorage().clearPin(phoneId);
+                        }
                     } else {
                         request.result = msg.arg1;
                     }
+
+
                     notifyRequester(request);
                     break;
 
@@ -1881,6 +1903,13 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     break;
                 }
 
+                case CMD_PREPARE_UNATTENDED_REBOOT:
+                    request = (MainThreadRequest) msg.obj;
+                    request.result =
+                            UiccController.getInstance().getPinStorage().prepareUnattendedReboot();
+                    notifyRequester(request);
+                    break;
+
                 default:
                     Log.w(LOG_TAG, "MainThreadHandler: unexpected message code: " + msg.what);
                     break;
@@ -1916,8 +1945,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * @see #sendRequestAsync
      */
     private Object sendRequest(int command, Object argument) {
-        return sendRequest(
-                command, argument, SubscriptionManager.INVALID_SUBSCRIPTION_ID, null, null);
+        return sendRequest(command, argument, SubscriptionManager.INVALID_SUBSCRIPTION_ID, null,
+                null, -1 /*timeoutInMs*/);
     }
 
     /**
@@ -1927,7 +1956,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     private Object sendRequest(int command, Object argument, WorkSource workSource) {
         return sendRequest(command, argument,  SubscriptionManager.INVALID_SUBSCRIPTION_ID,
-                null, workSource);
+                null, workSource, -1 /*timeoutInMs*/);
     }
 
     /**
@@ -1936,7 +1965,18 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * @see #sendRequestAsync
      */
     private Object sendRequest(int command, Object argument, Integer subId) {
-        return sendRequest(command, argument, subId, null, null);
+        return sendRequest(command, argument, subId, null, null, -1 /*timeoutInMs*/);
+    }
+
+    /**
+     * Posts the specified command to be executed on the main thread,
+     * waits for the request to complete for at most {@code timeoutInMs}, and returns the result
+     * if not timeout or null otherwise.
+     * @see #sendRequestAsync
+     */
+    private @Nullable Object sendRequest(int command, Object argument, Integer subId,
+            long timeoutInMs) {
+        return sendRequest(command, argument, subId, null, null, timeoutInMs);
     }
 
     /**
@@ -1945,7 +1985,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * @see #sendRequestAsync
      */
     private Object sendRequest(int command, Object argument, int subId, WorkSource workSource) {
-        return sendRequest(command, argument, subId, null, workSource);
+        return sendRequest(command, argument, subId, null, workSource, -1 /*timeoutInMs*/);
     }
 
     /**
@@ -1954,17 +1994,18 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * @see #sendRequestAsync
      */
     private Object sendRequest(int command, Object argument, Phone phone, WorkSource workSource) {
-        return sendRequest(
-                command, argument, SubscriptionManager.INVALID_SUBSCRIPTION_ID, phone, workSource);
+        return sendRequest(command, argument, SubscriptionManager.INVALID_SUBSCRIPTION_ID, phone,
+                workSource, -1 /*timeoutInMs*/);
     }
 
     /**
-     * Posts the specified command to be executed on the main thread,
-     * waits for the request to complete, and returns the result.
+     * Posts the specified command to be executed on the main thread. If {@code timeoutInMs} is
+     * negative, waits for the request to complete, and returns the result. Otherwise, wait for
+     * maximum of {@code timeoutInMs} milliseconds, interrupt and return null.
      * @see #sendRequestAsync
      */
-    private Object sendRequest(
-            int command, Object argument, Integer subId, Phone phone, WorkSource workSource) {
+    private @Nullable Object sendRequest(int command, Object argument, Integer subId, Phone phone,
+            WorkSource workSource, long timeoutInMs) {
         if (Looper.myLooper() == mMainThreadHandler.getLooper()) {
             throw new RuntimeException("This method will deadlock if called from the main thread.");
         }
@@ -1981,15 +2022,35 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         Message msg = mMainThreadHandler.obtainMessage(command, request);
         msg.sendToTarget();
 
-        // Wait for the request to complete
+
         synchronized (request) {
-            while (request.result == null) {
-                try {
-                    request.wait();
-                } catch (InterruptedException e) {
-                    // Do nothing, go back and wait until the request is complete
+            if (timeoutInMs >= 0) {
+                // Wait for at least timeoutInMs before returning null request result
+                long now = SystemClock.elapsedRealtime();
+                long deadline = now + timeoutInMs;
+                while (request == null && now < deadline) {
+                    try {
+                        request.wait(deadline - now);
+                    } catch (InterruptedException e) {
+                        // Do nothing, go back and check if request is completed or timeout
+                    } finally {
+                        now = SystemClock.elapsedRealtime();
+                    }
+                }
+            } else {
+                // Wait for the request to complete
+                while (request.result == null) {
+                    try {
+                        request.wait();
+                    } catch (InterruptedException e) {
+                        // Do nothing, go back and wait until the request is complete
+                    }
                 }
             }
+        }
+        if (request.result == null) {
+            Log.wtf(LOG_TAG,
+                    "sendRequest: Blocking command timed out. Something has gone terribly wrong.");
         }
         return request.result;
     }
@@ -2209,7 +2270,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            final UnlockSim checkSimPin = new UnlockSim(getPhone(subId).getIccCard());
+            Phone phone = getPhone(subId);
+            final UnlockSim checkSimPin = new UnlockSim(phone.getPhoneId(), phone.getIccCard());
             checkSimPin.start();
             return checkSimPin.unlockSim(null, pin);
         } finally {
@@ -2222,7 +2284,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            final UnlockSim checkSimPuk = new UnlockSim(getPhone(subId).getIccCard());
+            Phone phone = getPhone(subId);
+            final UnlockSim checkSimPuk = new UnlockSim(phone.getPhoneId(), phone.getIccCard());
             checkSimPuk.start();
             return checkSimPuk.unlockSim(puk, pin);
         } finally {
@@ -2237,6 +2300,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     private static class UnlockSim extends Thread {
 
         private final IccCard mSimCard;
+        private final int mPhoneId;
 
         private boolean mDone = false;
         private int mResult = PhoneConstants.PIN_GENERAL_FAILURE;
@@ -2248,7 +2312,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         // For async handler to identify request type
         private static final int SUPPLY_PIN_COMPLETE = 100;
 
-        public UnlockSim(IccCard simCard) {
+        UnlockSim(int phoneId, IccCard simCard) {
+            mPhoneId = phoneId;
             mSimCard = simCard;
         }
 
@@ -2330,6 +2395,11 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             int[] resultArray = new int[2];
             resultArray[0] = mResult;
             resultArray[1] = mRetryCount;
+
+            if (mResult == PhoneConstants.PIN_RESULT_SUCCESS && pin.length() > 0) {
+                UiccController.getInstance().getPinStorage().storePin(pin, mPhoneId);
+            }
+
             return resultArray;
         }
     }
@@ -3126,6 +3196,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
     private void enforceSettingsPermission() {
         mApp.enforceCallingOrSelfPermission(android.Manifest.permission.NETWORK_SETTINGS, null);
+    }
+
+    private void enforceRebootPermission() {
+        mApp.enforceCallingOrSelfPermission(android.Manifest.permission.REBOOT, null);
     }
 
     private String createTelUrl(String number) {
@@ -5662,7 +5736,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 return;
             }
             if (DBG) log("setNetworkSelectionModeAutomatic: subId " + subId);
-            sendRequest(CMD_SET_NETWORK_SELECTION_MODE_AUTOMATIC, null, subId);
+            sendRequest(CMD_SET_NETWORK_SELECTION_MODE_AUTOMATIC, null, subId,
+                    SET_NETWORK_SELECTION_MODE_AUTOMATIC_TIMEOUT_MS);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -7349,6 +7424,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         RadioAccessFamily.getRafFromNetworkType(getDefaultNetworkType(subId)));
                 setAllowedNetworkTypesForReason(subId,
                         TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_POWER,
+                        RadioAccessFamily.getRafFromNetworkType(getDefaultNetworkType(subId)));
+                setAllowedNetworkTypesForReason(subId,
+                        TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_ENABLE_2G,
                         RadioAccessFamily.getRafFromNetworkType(getDefaultNetworkType(subId)));
                 setDataRoamingEnabled(subId, getDefaultDataRoamingEnabled(subId));
                 CarrierInfoManager.deleteAllCarrierKeysForImsiEncryption(mApp);
@@ -9418,22 +9496,23 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
     @Override
     public boolean isRadioInterfaceCapabilitySupported(
-            @NonNull @TelephonyManager.RadioInterfaceCapability String capability) {
-        RadioInterfaceCapabilities radioInterfaceCapabilities =
+            final @NonNull @TelephonyManager.RadioInterfaceCapability String capability) {
+        Set<String> radioInterfaceCapabilities =
                 mPhoneConfigurationManager.getRadioInterfaceCapabilities();
         if (radioInterfaceCapabilities == null) {
             throw new RuntimeException("radio interface capabilities are not available");
-        } else {
-            return radioInterfaceCapabilities.isSupported(capability);
         }
+        return radioInterfaceCapabilities.contains(capability);
     }
 
     @Override
     public void bootstrapAuthenticationRequest(int subId, int appType, Uri nafUrl,
             UaSecurityProtocolIdentifier securityProtocol,
-            boolean forceBootStrapping, IBootstrapAuthenticationCallback callback)
-            throws RemoteException {
-        enforceModifyPermission();
+            boolean forceBootStrapping, IBootstrapAuthenticationCallback callback) {
+        TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(mApp, subId,
+                Binder.getCallingUid(), "bootstrapAuthenticationRequest",
+                Manifest.permission.PERFORM_IMS_SINGLE_REGISTRATION,
+                Manifest.permission.MODIFY_PHONE_STATE);
         if (DBG) {
             log("bootstrapAuthenticationRequest, subId:" + subId + ", appType:"
                     + appType + ", NAF:" + nafUrl + ", sp:" + securityProtocol
@@ -9709,7 +9788,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     @Override
     public boolean isRcsVolteSingleRegistrationCapable(int subId) {
-        enforceReadPrivilegedPermission("isRcsVolteSingleRegistrationCapable");
+        TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(mApp, subId,
+                Binder.getCallingUid(), "isRcsVolteSingleRegistrationCapable",
+                Manifest.permission.PERFORM_IMS_SINGLE_REGISTRATION,
+                permission.READ_PRIVILEGED_PHONE_STATE);
 
         if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             throw new IllegalArgumentException("Invalid Subscription ID: " + subId);
@@ -9733,7 +9815,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     @Override
     public void registerRcsProvisioningChangedCallback(int subId,
             IRcsConfigCallback callback) {
-        enforceReadPrivilegedPermission("registerRcsProvisioningChangedCallback");
+        TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(mApp, subId,
+                Binder.getCallingUid(), "registerRcsProvisioningChangedCallback",
+                Manifest.permission.PERFORM_IMS_SINGLE_REGISTRATION,
+                permission.READ_PRIVILEGED_PHONE_STATE);
 
         if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             throw new IllegalArgumentException("Invalid Subscription ID: " + subId);
@@ -9761,7 +9846,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     @Override
     public void unregisterRcsProvisioningChangedCallback(int subId,
             IRcsConfigCallback callback) {
-        enforceReadPrivilegedPermission("unregisterRcsProvisioningChangedCallback");
+        TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(mApp, subId,
+                Binder.getCallingUid(), "unregisterRcsProvisioningChangedCallback",
+                Manifest.permission.PERFORM_IMS_SINGLE_REGISTRATION,
+                permission.READ_PRIVILEGED_PHONE_STATE);
 
         if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             throw new IllegalArgumentException("Invalid Subscription ID: " + subId);
@@ -9784,8 +9872,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * trigger RCS reconfiguration.
      */
     public void triggerRcsReconfiguration(int subId) {
-        TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
-                mApp, subId, "triggerRcsReconfiguration");
+        TelephonyPermissions.enforceAnyPermissionGranted(mApp, Binder.getCallingUid(),
+                "triggerRcsReconfiguration",
+                Manifest.permission.PERFORM_IMS_SINGLE_REGISTRATION);
 
         if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             throw new IllegalArgumentException("Invalid Subscription ID: " + subId);
@@ -9807,8 +9896,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * Provide the client configuration parameters of the RCS application.
      */
     public void setRcsClientConfiguration(int subId, RcsClientConfiguration rcc) {
-        TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
-                mApp, subId, "setRcsClientConfiguration");
+        TelephonyPermissions.enforceAnyPermissionGranted(mApp, Binder.getCallingUid(),
+                "setRcsClientConfiguration",
+                Manifest.permission.PERFORM_IMS_SINGLE_REGISTRATION);
 
         if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             throw new IllegalArgumentException("Invalid Subscription ID: " + subId);
@@ -10077,6 +10167,23 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         final long identity = Binder.clearCallingIdentity();
         try {
             return mPhoneConfigurationManager.getCurrentPhoneCapability();
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Prepare TelephonyManager for an unattended reboot. The reboot is
+     * required to be done shortly after the API is invoked.
+     */
+    @Override
+    @TelephonyManager.PrepareUnattendedRebootResult
+    public int prepareForUnattendedReboot() {
+        enforceRebootPermission();
+
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            return (int) sendRequest(CMD_PREPARE_UNATTENDED_REBOOT, null);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
