@@ -108,7 +108,7 @@ public class CallForwardType extends PreferenceActivity {
 
     private void setListeners() throws ImsException {
         ImsManager imsMgr = ImsManager.getInstance(mPhone.getContext(), mPhone.getPhoneId());
-        imsMgr.addCapabilitiesCallback(mCapabilityCallback, null);
+        imsMgr.addCapabilitiesCallback(mCapabilityCallback, mPhone.getContext().getMainExecutor());
     }
 
     private void removeListeners() {
@@ -154,7 +154,7 @@ public class CallForwardType extends PreferenceActivity {
                     Log.d(LOG_TAG, "ImsManager: connection unavailable.");
                     removeListeners();
                 }
-            }, null);
+            }, mPhone.getContext().getMainExecutor());
 
         /*Voice Button*/
         mVoicePreference = (Preference) findPreference(BUTTON_CF_KEY_VOICE);

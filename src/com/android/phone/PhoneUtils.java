@@ -66,6 +66,9 @@ import com.android.internal.telephony.TelephonyCapabilities;
 import com.android.phone.settings.SuppServicesUiUtil;
 import com.android.telephony.Rlog;
 
+import com.qti.extphone.ExtTelephonyManager;
+import com.qti.extphone.ServiceCallback;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -110,6 +113,7 @@ public class PhoneUtils {
 
     /** USSD information used to aggregate all USSD messages */
     private static StringBuilder sUssdMsg = new StringBuilder();
+    private static ExtTelephonyManager mExtTelephonyManager;
 
     private static final ComponentName PSTN_CONNECTION_SERVICE_COMPONENT =
             new ComponentName("com.android.phone",
@@ -848,54 +852,6 @@ public class PhoneUtils {
         return IExtTelephony.Stub.asInterface(ServiceManager.getService("qti.radio.extphone"));
     }
 
-    public static boolean isLocalEmergencyNumber(String address) {
-        boolean result = false;
-        try {
-            result = getIExtTelephony().isLocalEmergencyNumber(address);
-        }catch (RemoteException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        } catch (NullPointerException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        }
-        return result;
-    }
-
-    public static boolean isPotentialLocalEmergencyNumber(String address) {
-        boolean result = false;
-        try {
-            result = getIExtTelephony().isPotentialLocalEmergencyNumber(address);
-        }catch (RemoteException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        } catch (NullPointerException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        }
-        return result;
-    }
-
-    public static boolean isEmergencyNumber(String address) {
-        boolean result = false;
-        try {
-            result = getIExtTelephony().isEmergencyNumber(address);
-        }catch (RemoteException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        } catch (NullPointerException ex) {
-            Log.e("TelephonyConnectionService", "Exception: " + ex);
-        }
-        return result;
-    }
-
-    public static boolean isDeviceInSingleStandBy() {
-        boolean result = false;
-        try {
-            result = getIExtTelephony().isDeviceInSingleStandby();
-        } catch (RemoteException ex) {
-            Log.e("TelephonyConnectionService", "Exception : " + ex);
-        } catch (NullPointerException ex) {
-            Log.e("TelephonyConnectionService", "Exception : " + ex);
-        }
-        return result;
-    }
-
     public static int getPhoneIdForECall() {
         int phoneId = 0;
         try {
@@ -946,4 +902,28 @@ public class PhoneUtils {
 
         return primayStackPhoneId;
     }
+
+    public static void connectExtTelephonyManager(Context context) {
+        mExtTelephonyManager = ExtTelephonyManager.getInstance(context);
+
+        mExtTelephonyManager.connectService(mExtTelManagerServiceCallback);
+    }
+
+    public static ExtTelephonyManager getExtTelManager() {
+        return mExtTelephonyManager;
+    }
+
+    private static ServiceCallback mExtTelManagerServiceCallback = new ServiceCallback() {
+
+        @Override
+        public void onConnected() {
+            Log.d(LOG_TAG, "mExtTelManagerServiceCallback: service connected");
+        }
+
+        @Override
+        public void onDisconnected() {
+            Log.d(LOG_TAG, "mExtTelManagerServiceCallback: service disconnected");
+        }
+    };
+
 }

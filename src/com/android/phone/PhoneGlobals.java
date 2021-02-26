@@ -479,6 +479,8 @@ public class PhoneGlobals extends ContextWrapper {
                     SettingsConstants.HAC_KEY + "=" + (hac == SettingsConstants.HAC_ENABLED
                             ? SettingsConstants.HAC_VAL_ON : SettingsConstants.HAC_VAL_OFF));
         }
+
+        PhoneUtils.connectExtTelephonyManager(this);
     }
 
     /**
