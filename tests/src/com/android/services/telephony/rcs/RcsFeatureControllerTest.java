@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.ims.ImsException;
 import android.telephony.ims.ImsReasonInfo;
+import android.telephony.ims.ImsRegistrationAttributes;
 import android.telephony.ims.RegistrationManager;
 import android.telephony.ims.aidl.IImsCapabilityCallback;
 import android.telephony.ims.aidl.IImsRegistrationCallback;
@@ -135,7 +136,8 @@ public class RcsFeatureControllerTest extends TelephonyTestBase {
             controller.registerRcsAvailabilityCallback(0 /*subId*/, capCb);
             controller.isCapable(RcsFeature.RcsImsCapabilities.CAPABILITY_TYPE_PRESENCE_UCE,
                     ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
-            controller.isAvailable(RcsFeature.RcsImsCapabilities.CAPABILITY_TYPE_PRESENCE_UCE);
+            controller.isAvailable(RcsFeature.RcsImsCapabilities.CAPABILITY_TYPE_PRESENCE_UCE,
+                    ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
             controller.getRegistrationTech(integer -> {
             });
             verify(mFeatureManager).registerImsRegistrationCallback(0, regCb);
@@ -144,7 +146,8 @@ public class RcsFeatureControllerTest extends TelephonyTestBase {
                     RcsFeature.RcsImsCapabilities.CAPABILITY_TYPE_PRESENCE_UCE,
                     ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
             verify(mFeatureManager).isAvailable(
-                    RcsFeature.RcsImsCapabilities.CAPABILITY_TYPE_PRESENCE_UCE);
+                    RcsFeature.RcsImsCapabilities.CAPABILITY_TYPE_PRESENCE_UCE,
+                    ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
             verify(mFeatureManager).getImsRegistrationTech(any());
         } catch (ImsException e) {
             fail("ImsException not expected.");
@@ -173,7 +176,9 @@ public class RcsFeatureControllerTest extends TelephonyTestBase {
         });
         verify(mRegistrationCallback).handleImsUnregistered(REASON_DISCONNECTED);
 
-        captor.getValue().onRegistering(ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
+        ImsRegistrationAttributes attr = new ImsRegistrationAttributes.Builder(
+                ImsRegistrationImplBase.REGISTRATION_TECH_LTE).build();
+        captor.getValue().onRegistering(attr);
         controller.getRegistrationState(result -> {
             assertNotNull(result);
             assertEquals(RegistrationManager.REGISTRATION_STATE_REGISTERING, result.intValue());
@@ -181,7 +186,7 @@ public class RcsFeatureControllerTest extends TelephonyTestBase {
         verify(mRegistrationCallback).handleImsRegistering(
                 AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
 
-        captor.getValue().onRegistered(ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
+        captor.getValue().onRegistered(attr);
         controller.getRegistrationState(result -> {
             assertNotNull(result);
             assertEquals(RegistrationManager.REGISTRATION_STATE_REGISTERED, result.intValue());
@@ -230,7 +235,8 @@ public class RcsFeatureControllerTest extends TelephonyTestBase {
             //expected
         }
         try {
-            controller.isAvailable(RcsFeature.RcsImsCapabilities.CAPABILITY_TYPE_PRESENCE_UCE);
+            controller.isAvailable(RcsFeature.RcsImsCapabilities.CAPABILITY_TYPE_PRESENCE_UCE,
+                    ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
             fail("ImsException expected for availability check");
         } catch (ImsException e) {
             //expected
