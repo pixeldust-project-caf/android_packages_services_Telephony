@@ -1511,12 +1511,6 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                 setCallerDisplayName(name, namePresentation);
             }
 
-            TelephonyManager tm = (TelephonyManager) getPhone().getContext()
-                    .getSystemService(Context.TELEPHONY_SERVICE);
-            if (tm.isEmergencyNumber(mOriginalConnection.getAddress())) {
-                mTreatAsEmergencyCall = true;
-            }
-
             // Changing the address of the connection can change whether it is an emergency call or
             // not, which can impact whether it can be part of a conference.
             refreshConferenceSupported();
@@ -2364,6 +2358,13 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         if (mOriginalConnection == null) {
             return;
         }
+
+        TelephonyManager tm = (TelephonyManager) getPhone().getContext()
+                .getSystemService(Context.TELEPHONY_SERVICE);
+        if (tm.isEmergencyNumber(mOriginalConnection.getAddress())) {
+            mTreatAsEmergencyCall = true;
+        }
+
         Call.State newState;
         // If the state is overridden and the state of the original connection hasn't changed since,
         // then we continue in the overridden state, else we go to the original connection's state.
