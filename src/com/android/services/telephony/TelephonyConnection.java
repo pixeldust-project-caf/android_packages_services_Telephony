@@ -28,6 +28,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.Messenger;
 import android.os.PersistableBundle;
 import android.telecom.BluetoothCallQualityReport;
 import android.telecom.CallAudioState;
@@ -101,6 +102,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * Base class for CDMA and GSM connections.
@@ -140,7 +142,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     private static final int MSG_ON_CONNECTION_EVENT = 19;
     private static final int MSG_REDIAL_CONNECTION_CHANGED = 20;
     private static final int MSG_REJECT = 21;
-    private static final int MSG_CONNECTION_REMOVED = 22;
+    private static final int MSG_DTMF_DONE = 22;
+    private static final int MSG_CONNECTION_REMOVED = 23;
 
     private static final String JAPAN_COUNTRY_CODE_WITH_PLUS_SIGN = "+81";
     private static final String JAPAN_ISO_COUNTRY_CODE = "JP";
@@ -340,6 +343,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                     int rejectReason = (int) msg.obj;
                     reject(rejectReason);
                     break;
+                case MSG_DTMF_DONE:
+                    Log.i(this, "MSG_DTMF_DONE");
+                    break;
                 case MSG_CONNECTION_REMOVED:
                     Log.d(this, "MSG_CONNECTION_REMOVED");
                     // Some connection has disconnected. Re fresh disable add call property.
@@ -382,6 +388,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             }
         }
     };
+
+    private final Messenger mHandlerMessenger = new Messenger(mHandler);
 
     /**
      * Handles {@link SuppServiceNotification}s pertinent to Telephony.
@@ -564,7 +572,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
 
         @Override
         public void onStateChanged(android.telecom.Connection c, int state) {
-            mCommunicator.onStateChanged(c, state);
+            mCommunicator.onStateChanged(c.getTelecomCallId(), state);
         }
     }
 
@@ -795,6 +803,15 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             Log.i(this, "onReceivedRtpHeaderExtensions: received %d extensions",
                     extensionData.size());
             mRtpTransport.onRtpHeaderExtensionsReceived(extensionData);
+        }
+
+        @Override
+        public void onReceivedDtmfDigit(char digit) {
+            if (mDtmfTransport == null) {
+                return;
+            }
+            Log.i(this, "onReceivedDtmfDigit: digit=%c", digit);
+            mDtmfTransport.onDtmfReceived(digit);
         }
     };
 
@@ -1193,24 +1210,33 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     @Override
-    public void onCallFilteringCompleted(boolean isBlocked, boolean isInContacts,
-            CallScreeningService.CallResponse callScreeningResponse,
-            boolean isResponseFromSystemDialer) {
+    public void onCallFilteringCompleted(CallFilteringCompletionInfo callFilteringCompletionInfo) {
         // Check what the call screening service has to say, if it's a system dialer.
         boolean isAllowedToDisplayPicture;
+        String callScreeningPackage =
+                callFilteringCompletionInfo.getCallScreeningComponent() == null
+                        ? null
+                        : callFilteringCompletionInfo.getCallScreeningComponent().getPackageName();
+        boolean isResponseFromSystemDialer =
+                Objects.equals(getPhone().getContext()
+                        .getSystemService(TelecomManager.class).getSystemDialerPackage(),
+                        callScreeningPackage);
+        CallScreeningService.CallResponse callScreeningResponse =
+                callFilteringCompletionInfo.getCallResponse();
+
         if (isResponseFromSystemDialer && callScreeningResponse != null
                 && callScreeningResponse.getCallComposerAttachmentsToShow() >= 0) {
             isAllowedToDisplayPicture = (callScreeningResponse.getCallComposerAttachmentsToShow()
                     & CallScreeningService.CallResponse.CALL_COMPOSER_ATTACHMENT_PICTURE) != 0;
         } else {
-            isAllowedToDisplayPicture = isInContacts;
+            isAllowedToDisplayPicture = callFilteringCompletionInfo.isInContacts();
         }
 
         if (isImsConnection()) {
             ImsPhone imsPhone = (getPhone() instanceof ImsPhone) ? (ImsPhone) getPhone() : null;
             if (imsPhone != null
                     && imsPhone.getCallComposerStatus() == TelephonyManager.CALL_COMPOSER_STATUS_ON
-                    && !isBlocked && isAllowedToDisplayPicture) {
+                    && !callFilteringCompletionInfo.isBlocked() && isAllowedToDisplayPicture) {
                 ImsPhoneConnection originalConnection = (ImsPhoneConnection) mOriginalConnection;
                 ImsCallProfile profile = originalConnection.getImsCall().getCallProfile();
                 String serverUrl = CallComposerPictureManager.sTestMode
@@ -2452,7 +2478,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             }
 
             if (mCommunicator != null) {
-                mCommunicator.onStateChanged(this, getState());
+                mCommunicator.onStateChanged(getTelecomCallId(), getState());
             }
         }
     }
@@ -3264,6 +3290,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         setDisconnected(disconnectCause);
         notifyDisconnected(disconnectCause);
         notifyStateChanged(getState());
+        if (mCallQualityManager != null) {
+            mCallQualityManager.clearNotifications();
+        }
     }
 
     /**
@@ -3404,13 +3433,18 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     private void maybeConfigureDeviceToDeviceCommunication() {
         if (!getPhone().getContext().getResources().getBoolean(
                 R.bool.config_use_device_to_device_communication)) {
-            Log.d(this, "maybeConfigureDeviceToDeviceCommunication: not using D2D.");
+            Log.i(this, "maybeConfigureDeviceToDeviceCommunication: not using D2D.");
             return;
         }
         if (!isImsConnection()) {
-            Log.d(this, "maybeConfigureDeviceToDeviceCommunication: not an IMS connection.");
+            Log.i(this, "maybeConfigureDeviceToDeviceCommunication: not an IMS connection.");
             return;
         }
+        if (mTreatAsEmergencyCall || mIsNetworkIdentifiedEmergencyCall) {
+            Log.i(this, "maybeConfigureDeviceToDeviceCommunication: emergency call; no D2D");
+            return;
+        }
+
         // Implement abstracted out RTP functionality the RTP transport depends on.
         RtpAdapter rtpAdapter = new RtpAdapter() {
             @Override
@@ -3429,8 +3463,11 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                 if (!isImsConnection()) {
                     Log.w(TelephonyConnection.this, "sendRtpHeaderExtensions: not an ims conn.");
                 }
-                Log.d(TelephonyConnection.this, "sendRtpHeaderExtensions: sending %d messages",
-                        rtpHeaderExtensions.size());
+
+                Log.i(TelephonyConnection.this, "sendRtpHeaderExtensions: sending: %s",
+                        rtpHeaderExtensions.stream()
+                                .map(r -> r.toString())
+                                .collect(Collectors.joining(",")));
                 ImsPhoneConnection originalConnection =
                         (ImsPhoneConnection) mOriginalConnection;
                 originalConnection.sendRtpHeaderExtensions(rtpHeaderExtensions);
@@ -3442,10 +3479,12 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             if (!isImsConnection()) {
                 Log.w(TelephonyConnection.this, "sendDtmf: not an ims conn.");
             }
-            Log.d(TelephonyConnection.this, "sendDtmf: send digit %c", digit);
+            Log.i(TelephonyConnection.this, "sendDtmf: send digit %c", digit);
             ImsPhoneConnection originalConnection =
                     (ImsPhoneConnection) mOriginalConnection;
-            originalConnection.getImsCall().sendDtmf(digit, null /* result msg not needed */);
+            Message dtmfComplete = mHandler.obtainMessage(MSG_DTMF_DONE);
+            dtmfComplete.replyTo = mHandlerMessenger;
+            originalConnection.getImsCall().sendDtmf(digit, dtmfComplete);
         };
         ContentResolver cr = getPhone().getContext().getContentResolver();
         mDtmfTransport = new DtmfTransport(dtmfAdapter, new Timeouts.Adapter(cr),
@@ -3470,14 +3509,13 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     @Override
     public void onMessagesReceived(@NonNull Set<Communicator.Message> messages) {
         Log.i(this, "onMessagesReceived: got d2d messages: %s", messages);
-        // TODO: Actually do something WITH the messages.
-
-        // TODO: Remove this prior to launch.
-        // This is just here for debug purposes; send as a connection event so that it
-        // will be output in the Telecom logs.
+        // Send connection events up to Telecom so that we can relay the messages to a valid
+        // CallDiagnosticService which is bound.
         for (Communicator.Message msg : messages) {
-            sendConnectionEvent("D2D_" + Communicator.messageToString(msg.getType())
-                + "_" + Communicator.valueToString(msg.getType(), msg.getValue()), null);
+            Bundle extras = new Bundle();
+            extras.putInt(Connection.EXTRA_DEVICE_TO_DEVICE_MESSAGE_TYPE, msg.getType());
+            extras.putInt(Connection.EXTRA_DEVICE_TO_DEVICE_MESSAGE_VALUE, msg.getValue());
+            sendConnectionEvent(Connection.EVENT_DEVICE_TO_DEVICE_MESSAGE, extras);
         }
     }
 

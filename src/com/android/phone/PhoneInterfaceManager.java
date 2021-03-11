@@ -18,6 +18,8 @@ package com.android.phone;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
+import static com.android.internal.telephony.PhoneConstants.PHONE_TYPE_CDMA;
+import static com.android.internal.telephony.PhoneConstants.PHONE_TYPE_GSM;
 import static com.android.internal.telephony.PhoneConstants.PHONE_TYPE_IMS;
 import static com.android.internal.telephony.PhoneConstants.SUBSCRIPTION_KEY;
 
@@ -143,6 +145,7 @@ import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.DefaultPhoneNotifier;
 import com.android.internal.telephony.GbaManager;
+import com.android.internal.telephony.GsmCdmaPhone;
 import com.android.internal.telephony.HalVersion;
 import com.android.internal.telephony.IBooleanConsumer;
 import com.android.internal.telephony.ICallForwardingInfoCallback;
@@ -4642,7 +4645,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         + subId + "' for key:" + key);
                 return ImsConfigImplBase.CONFIG_RESULT_UNKNOWN;
             }
-            return ImsManager.getInstance(mApp, slotId).getConfigInterface().getConfigInt(key);
+            return ImsManager.getInstance(mApp, slotId).getConfigInt(key);
         } catch (com.android.ims.ImsException e) {
             Log.w(LOG_TAG, "getImsProvisioningInt: ImsService is not available for subscription '"
                     + subId + "' for key:" + key);
@@ -4667,7 +4670,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         + subId + "' for key:" + key);
                 return ProvisioningManager.STRING_QUERY_RESULT_ERROR_GENERIC;
             }
-            return ImsManager.getInstance(mApp, slotId).getConfigInterface().getConfigString(key);
+            return ImsManager.getInstance(mApp, slotId).getConfigString(key);
         } catch (com.android.ims.ImsException e) {
             Log.w(LOG_TAG, "getImsProvisioningString: ImsService is not available for sub '"
                     + subId + "' for key:" + key);
@@ -4693,10 +4696,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         + subId + "' for key:" + key);
                 return ImsConfigImplBase.CONFIG_RESULT_FAILED;
             }
-            return ImsManager.getInstance(mApp, slotId).getConfigInterface().setConfig(key, value);
-        } catch (com.android.ims.ImsException e) {
+            return ImsManager.getInstance(mApp, slotId).setConfig(key, value);
+        } catch (com.android.ims.ImsException | RemoteException e) {
             Log.w(LOG_TAG, "setImsProvisioningInt: ImsService unavailable for sub '" + subId
-                    + "' for key:" + key);
+                    + "' for key:" + key, e);
             return ImsConfigImplBase.CONFIG_RESULT_FAILED;
         } finally {
             Binder.restoreCallingIdentity(identity);
@@ -4719,10 +4722,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         + subId + "' for key:" + key);
                 return ImsConfigImplBase.CONFIG_RESULT_FAILED;
             }
-            return ImsManager.getInstance(mApp, slotId).getConfigInterface().setConfig(key, value);
-        } catch (com.android.ims.ImsException e) {
+            return ImsManager.getInstance(mApp, slotId).setConfig(key, value);
+        } catch (com.android.ims.ImsException | RemoteException e) {
             Log.w(LOG_TAG, "setImsProvisioningString: ImsService unavailable for sub '" + subId
-                    + "' for key:" + key);
+                    + "' for key:" + key, e);
             return ImsConfigImplBase.CONFIG_RESULT_FAILED;
         } finally {
             Binder.restoreCallingIdentity(identity);
@@ -6982,15 +6985,6 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     @Override
-    public void setRadioCapability(RadioAccessFamily[] rafs) {
-        try {
-            ProxyController.getInstance().setRadioCapability(rafs);
-        } catch (RuntimeException e) {
-            Log.w(LOG_TAG, "setRadioCapability: Runtime Exception");
-        }
-    }
-
-    @Override
     public int getRadioAccessFamily(int phoneId, String callingPackage) {
         Phone phone = PhoneFactory.getPhone(phoneId);
         try {
@@ -8713,6 +8707,31 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     /**
+     * Start emergency callback mode for GsmCdmaPhone for testing.
+     */
+    @Override
+    public void startEmergencyCallbackMode() {
+        TelephonyPermissions.enforceShellOnly(Binder.getCallingUid(),
+                "startEmergencyCallbackMode");
+        enforceModifyPermission();
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            for (Phone phone : PhoneFactory.getPhones()) {
+                Rlog.d(LOG_TAG, "startEmergencyCallbackMode phone type: " + phone.getPhoneType());
+                if (phone != null && ((phone.getPhoneType() == PHONE_TYPE_GSM)
+                        || (phone.getPhoneType() == PHONE_TYPE_CDMA))) {
+                    GsmCdmaPhone gsmCdmaPhone = (GsmCdmaPhone) phone;
+                    gsmCdmaPhone.obtainMessage(
+                            GsmCdmaPhone.EVENT_EMERGENCY_CALLBACK_MODE_ENTER).sendToTarget();
+                    Rlog.d(LOG_TAG, "startEmergencyCallbackMode: triggered");
+                }
+            }
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
      * Update emergency number list for test mode.
      */
     @Override
@@ -9813,10 +9832,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * Register RCS provisioning callback.
      */
     @Override
-    public void registerRcsProvisioningChangedCallback(int subId,
+    public void registerRcsProvisioningCallback(int subId,
             IRcsConfigCallback callback) {
         TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(mApp, subId,
-                Binder.getCallingUid(), "registerRcsProvisioningChangedCallback",
+                Binder.getCallingUid(), "registerRcsProvisioningCallback",
                 Manifest.permission.PERFORM_IMS_SINGLE_REGISTRATION,
                 permission.READ_PRIVILEGED_PHONE_STATE);
 
@@ -9831,7 +9850,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         final long identity = Binder.clearCallingIdentity();
         try {
             if (!RcsProvisioningMonitor.getInstance()
-                    .registerRcsProvisioningChangedCallback(subId, callback)) {
+                    .registerRcsProvisioningCallback(subId, callback)) {
                 throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
                         "Service not available for the subscription.");
             }
@@ -9844,10 +9863,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      * Unregister RCS provisioning callback.
      */
     @Override
-    public void unregisterRcsProvisioningChangedCallback(int subId,
+    public void unregisterRcsProvisioningCallback(int subId,
             IRcsConfigCallback callback) {
         TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(mApp, subId,
-                Binder.getCallingUid(), "unregisterRcsProvisioningChangedCallback",
+                Binder.getCallingUid(), "unregisterRcsProvisioningCallback",
                 Manifest.permission.PERFORM_IMS_SINGLE_REGISTRATION,
                 permission.READ_PRIVILEGED_PHONE_STATE);
 
@@ -9862,7 +9881,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         final long identity = Binder.clearCallingIdentity();
         try {
             RcsProvisioningMonitor.getInstance()
-                    .unregisterRcsProvisioningChangedCallback(subId, callback);
+                    .unregisterRcsProvisioningCallback(subId, callback);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -9925,6 +9944,28 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     /**
+     * Enables or disables the test mode for RCS VoLTE single registration.
+     */
+    @Override
+    public void setRcsSingleRegistrationTestModeEnabled(boolean enabled) {
+        TelephonyPermissions.enforceShellOnly(Binder.getCallingUid(),
+                "setRcsSingleRegistrationTestModeEnabled");
+
+        RcsProvisioningMonitor.getInstance().setTestModeEnabled(enabled);
+    }
+
+    /**
+     * Gets the test mode for RCS VoLTE single registration.
+     */
+    @Override
+    public boolean getRcsSingleRegistrationTestModeEnabled() {
+        TelephonyPermissions.enforceShellOnly(Binder.getCallingUid(),
+                "getRcsSingleRegistrationTestModeEnabled");
+
+        return RcsProvisioningMonitor.getInstance().getTestModeEnabled();
+    }
+
+    /**
      * Overrides the config of RCS VoLTE single registration enabled for the device.
      */
     @Override
@@ -9947,7 +9988,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     @Override
     public void sendDeviceToDeviceMessage(int message, int value) {
         TelephonyPermissions.enforceShellOnly(Binder.getCallingUid(),
-                "setCarrierSingleRegistrationEnabledOverride");
+                "sendDeviceToDeviceMessage");
         enforceModifyPermission();
 
         final long identity = Binder.clearCallingIdentity();
@@ -9964,6 +10005,29 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         }
     }
 
+    /**
+     * Sets the specified device to device transport active.
+     * @param transport The transport to set active.
+     */
+    @Override
+    public void setActiveDeviceToDeviceTransport(@NonNull String transport) {
+        TelephonyPermissions.enforceShellOnly(Binder.getCallingUid(),
+                "setActiveDeviceToDeviceTransport");
+        enforceModifyPermission();
+
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            TelephonyConnectionService service =
+                    TelecomAccountRegistry.getInstance(null).getTelephonyConnectionService();
+            if (service == null) {
+                Rlog.e(LOG_TAG, "setActiveDeviceToDeviceTransport: not in a call.");
+                return;
+            }
+            service.setActiveDeviceToDeviceTransport(transport);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
 
     /**
      * Gets the config of RCS VoLTE single registration enabled for the device.
