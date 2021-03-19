@@ -243,6 +243,7 @@
 
     <uses-permission android:name="com.qti.permission.BIND_QTI_IMS_SERVICE" />
     <uses-permission android:name="com.qualcomm.qti.permission.USE_EXT_TELEPHONY_SERVICE" />
+    <uses-permission android:name="com.qti.permission.RECEIVE_SMS_CALLBACK_MODE" />
 
     <application android:name="PhoneApp"
             android:persistent="true"
