@@ -242,6 +242,10 @@ public class VvmSimStateTracker extends BroadcastReceiver {
     }
 
     private void listenToAccount(Context context, PhoneAccountHandle phoneAccountHandle) {
+        if (sListeners.get(phoneAccountHandle) != null) {
+            VvmLog.i(TAG, "Listener is registered for " + phoneAccountHandle);
+            return;
+        }
         ServiceStateListener listener = new ServiceStateListener(context, phoneAccountHandle);
         listener.listen();
         sListeners.put(phoneAccountHandle, listener);
