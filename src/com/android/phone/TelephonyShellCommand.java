@@ -71,6 +71,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private static final String CALL_COMPOSER_SUBCOMMAND = "callcomposer";
     private static final String IMS_SUBCOMMAND = "ims";
     private static final String NUMBER_VERIFICATION_SUBCOMMAND = "numverify";
+    private static final String EMERGENCY_CALLBACK_MODE = "emergency-callback-mode";
     private static final String EMERGENCY_NUMBER_TEST_MODE = "emergency-number-test-mode";
     private static final String END_BLOCK_SUPPRESSION = "end-block-suppression";
     private static final String RESTART_MODEM = "restart-modem";
@@ -83,6 +84,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
 
     private static final String CALL_COMPOSER_TEST_MODE = "test-mode";
     private static final String CALL_COMPOSER_SIMULATE_CALL = "simulate-outgoing-call";
+    private static final String CALL_COMPOSER_USER_SETTING = "user-setting";
 
     private static final String IMS_SET_IMS_SERVICE = "set-ims-service";
     private static final String IMS_GET_IMS_SERVICE = "get-ims-service";
@@ -110,15 +112,21 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private static final String SRC_GET_DEVICE_ENABLED = "get-device-enabled";
     private static final String SRC_SET_CARRIER_ENABLED = "set-carrier-enabled";
     private static final String SRC_GET_CARRIER_ENABLED = "get-carrier-enabled";
+    private static final String SRC_SET_TEST_ENABLED = "set-test-enabled";
+    private static final String SRC_GET_TEST_ENABLED = "get-test-enabled";
 
     private static final String D2D_SUBCOMMAND = "d2d";
     private static final String D2D_SEND = "send";
+    private static final String D2D_TRANSPORT = "transport";
 
     private static final String RCS_UCE_COMMAND = "uce";
     private static final String UCE_GET_EAB_CONTACT = "get-eab-contact";
     private static final String UCE_REMOVE_EAB_CONTACT = "remove-eab-contact";
     private static final String UCE_GET_DEVICE_ENABLED = "get-device-enabled";
     private static final String UCE_SET_DEVICE_ENABLED = "set-device-enabled";
+
+    // Check if a package has carrier privileges on any SIM, regardless of subId/phoneId.
+    private static final String HAS_CARRIER_PRIVILEGES_COMMAND = "has-carrier-privileges";
 
     // Take advantage of existing methods that already contain permissions checks when possible.
     private final ITelephony mInterface;
@@ -193,6 +201,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleRcsUceCommand();
             case NUMBER_VERIFICATION_SUBCOMMAND:
                 return handleNumberVerificationCommand();
+            case EMERGENCY_CALLBACK_MODE:
+                return handleEmergencyCallbackModeCommand();
             case EMERGENCY_NUMBER_TEST_MODE:
                 return handleEmergencyNumberTestModeCommand();
             case CARRIER_CONFIG_SUBCOMMAND: {
@@ -214,6 +224,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleCallComposerCommand();
             case UNATTENDED_REBOOT:
                 return handleUnattendedReboot();
+            case HAS_CARRIER_PRIVILEGES_COMMAND:
+                return handleHasCarrierPrivilegesCommand();
             default: {
                 return handleDefaultCommands(cmd);
             }
@@ -246,6 +258,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("    Restart modem command.");
         pw.println("  unattended-reboot");
         pw.println("    Prepare for unattended reboot.");
+        pw.println("  has-carrier-privileges [package]");
+        pw.println("    Query carrier privilege status for a package. Prints true or false.");
         onHelpIms();
         onHelpUce();
         onHelpEmergencyNumber();
@@ -271,6 +285,9 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                         MESSAGE_DEVICE_BATTERY_STATE));
         pw.println("    Type: " + MESSAGE_DEVICE_NETWORK_COVERAGE + " - "
                 + Communicator.messageToString(MESSAGE_DEVICE_NETWORK_COVERAGE));
+        pw.println("  d2d transport TYPE");
+        pw.println("    Forces the specified D2D transport TYPE to be active.  Use the");
+        pw.println("    short class name of the transport; i.e. DtmfTransport or RtpTransport.");
     }
 
     private void onHelpIms() {
@@ -427,6 +444,11 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private void onHelpSrc() {
         PrintWriter pw = getOutPrintWriter();
         pw.println("RCS VoLTE Single Registration Config Commands:");
+        pw.println("  src set-test-enabled true|false");
+        pw.println("    Sets the test mode enabled for RCS VoLTE single registration.");
+        pw.println("    The value could be true, false, or null(undefined).");
+        pw.println("  src get-test-enabled");
+        pw.println("    Gets the test mode for RCS VoLTE single registration.");
         pw.println("  src set-device-enabled true|false|null");
         pw.println("    Sets the device config for RCS VoLTE single registration to the value.");
         pw.println("    The value could be true, false, or null(undefined).");
@@ -507,6 +529,19 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             default:
                 onHelpDataTestMode();
                 break;
+        }
+        return 0;
+    }
+
+    private int handleEmergencyCallbackModeCommand() {
+        PrintWriter errPw = getErrPrintWriter();
+        try {
+            mInterface.startEmergencyCallbackMode();
+            Log.d(LOG_TAG, "handleEmergencyCallbackModeCommand: triggered");
+        } catch (RemoteException ex) {
+            Log.w(LOG_TAG, "emergency-callback-mode error: " + ex.getMessage());
+            errPw.println("Exception: " + ex.getMessage());
+            return -1;
         }
         return 0;
     }
@@ -634,6 +669,9 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             case D2D_SEND: {
                 return handleD2dSendCommand();
             }
+            case D2D_TRANSPORT: {
+                return handleD2dTransportCommand();
+            }
         }
 
         return -1;
@@ -641,10 +679,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
 
     private int handleD2dSendCommand() {
         PrintWriter errPw = getErrPrintWriter();
-        String opt;
         int messageType = -1;
         int messageValue = -1;
-
 
         String arg = getNextArg();
         if (arg == null) {
@@ -669,7 +705,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             errPw.println("message value must be a valid integer");
             return -1;
         }
-        
+
         try {
             mInterface.sendDeviceToDeviceMessage(messageType, messageValue);
         } catch (RemoteException e) {
@@ -678,6 +714,25 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             return -1;
         }
 
+        return 0;
+    }
+
+    private int handleD2dTransportCommand() {
+        PrintWriter errPw = getErrPrintWriter();
+
+        String arg = getNextArg();
+        if (arg == null) {
+            onHelpD2D();
+            return 0;
+        }
+
+        try {
+            mInterface.setActiveDeviceToDeviceTransport(arg);
+        } catch (RemoteException e) {
+            Log.w(LOG_TAG, "d2d transport error: " + e.getMessage());
+            errPw.println("Exception: " + e.getMessage());
+            return -1;
+        }
         return 0;
     }
 
@@ -1628,6 +1683,12 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         }
 
         switch (arg) {
+            case SRC_SET_TEST_ENABLED: {
+                return handleSrcSetTestEnabledCommand();
+            }
+            case SRC_GET_TEST_ENABLED: {
+                return handleSrcGetTestEnabledCommand();
+            }
             case SRC_SET_DEVICE_ENABLED: {
                 return handleSrcSetDeviceEnabledCommand();
             }
@@ -1747,6 +1808,40 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         return 0;
     }
 
+    private int handleSrcSetTestEnabledCommand() {
+        String enabledStr = getNextArg();
+        if (enabledStr == null) {
+            return -1;
+        }
+
+        try {
+            mInterface.setRcsSingleRegistrationTestModeEnabled(Boolean.parseBoolean(enabledStr));
+            if (VDBG) {
+                Log.v(LOG_TAG, "src set-test-enabled " + enabledStr + ", done");
+            }
+            getOutPrintWriter().println("Done");
+        } catch (NumberFormatException | RemoteException e) {
+            Log.w(LOG_TAG, "src set-test-enabled " + enabledStr + ", error" + e.getMessage());
+            getErrPrintWriter().println("Exception: " + e.getMessage());
+            return -1;
+        }
+        return 0;
+    }
+
+    private int handleSrcGetTestEnabledCommand() {
+        boolean result = false;
+        try {
+            result = mInterface.getRcsSingleRegistrationTestModeEnabled();
+        } catch (RemoteException e) {
+            return -1;
+        }
+        if (VDBG) {
+            Log.v(LOG_TAG, "src get-test-enabled, returned: " + result);
+        }
+        getOutPrintWriter().println(result);
+        return 0;
+    }
+
     private int handleSrcSetDeviceEnabledCommand() {
         String enabledStr = getNextArg();
         if (enabledStr == null) {
@@ -1840,6 +1935,9 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("  callcomposer simulate-outgoing-call [subId] [UUID]");
         pw.println("    Simulates an outgoing call being placed with the picture ID as");
         pw.println("    the provided UUID. This triggers storage to the call log.");
+        pw.println("  callcomposer user-setting [subId] enable|disable|query");
+        pw.println("    Enables or disables the user setting for call composer, as set by");
+        pw.println("    TelephonyManager#setCallComposerStatus.");
     }
 
     private int handleCallComposerCommand() {
@@ -1883,8 +1981,48 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 }
                 break;
             }
+            case CALL_COMPOSER_USER_SETTING: {
+                try {
+                    int subscriptionId = Integer.valueOf(getNextArg());
+                    String enabledStr = getNextArg();
+                    if (ENABLE.equals(enabledStr)) {
+                        mInterface.setCallComposerStatus(subscriptionId,
+                                TelephonyManager.CALL_COMPOSER_STATUS_ON);
+                    } else if (DISABLE.equals(enabledStr)) {
+                        mInterface.setCallComposerStatus(subscriptionId,
+                                TelephonyManager.CALL_COMPOSER_STATUS_OFF);
+                    } else if (QUERY.equals(enabledStr)) {
+                        getOutPrintWriter().println(mInterface.getCallComposerStatus(subscriptionId)
+                                == TelephonyManager.CALL_COMPOSER_STATUS_ON);
+                    } else {
+                        onHelpCallComposer();
+                        return 1;
+                    }
+                } catch (RemoteException e) {
+                    e.printStackTrace(getOutPrintWriter());
+                    return 1;
+                }
+                break;
+            }
+        }
+        return 0;
+    }
+
+    private int handleHasCarrierPrivilegesCommand() {
+        String packageName = getNextArgRequired();
+
+        boolean hasCarrierPrivileges;
+        try {
+            hasCarrierPrivileges =
+                    mInterface.checkCarrierPrivilegesForPackageAnyPhone(packageName)
+                            == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
+        } catch (RemoteException e) {
+            Log.w(LOG_TAG, HAS_CARRIER_PRIVILEGES_COMMAND + " exception", e);
+            getErrPrintWriter().println("Exception: " + e.getMessage());
+            return -1;
         }
 
+        getOutPrintWriter().println(hasCarrierPrivileges);
         return 0;
     }
 }
