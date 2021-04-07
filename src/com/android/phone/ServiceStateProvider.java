@@ -18,6 +18,9 @@ package com.android.phone;
 
 import static android.provider.Telephony.ServiceStateTable;
 import static android.provider.Telephony.ServiceStateTable.CONTENT_URI;
+import static android.provider.Telephony.ServiceStateTable.DATA_NETWORK_TYPE;
+import static android.provider.Telephony.ServiceStateTable.DATA_REG_STATE;
+import static android.provider.Telephony.ServiceStateTable.DUPLEX_MODE;
 import static android.provider.Telephony.ServiceStateTable.IS_MANUAL_NETWORK_SELECTION;
 import static android.provider.Telephony.ServiceStateTable.VOICE_REG_STATE;
 import static android.provider.Telephony.ServiceStateTable.getUriForSubscriptionId;
@@ -59,18 +62,6 @@ public class ServiceStateProvider extends ContentProvider {
      * @hide
      */
     public static final String SERVICE_STATE = "service_state";
-
-    /**
-     * An integer value indicating the current data service state.
-     * <p>
-     * Valid values: {@link ServiceState#STATE_IN_SERVICE},
-     * {@link ServiceState#STATE_OUT_OF_SERVICE}, {@link ServiceState#STATE_EMERGENCY_ONLY},
-     * {@link ServiceState#STATE_POWER_OFF}.
-     * <p>
-     * This is the same as {@link ServiceState#getDataRegState()}.
-     * @hide
-     */
-    public static final String DATA_REG_STATE = "data_reg_state";
 
     /**
      * An integer value indicating the current voice roaming type.
@@ -257,6 +248,8 @@ public class ServiceStateProvider extends ContentProvider {
         IS_USING_CARRIER_AGGREGATION,
         OPERATOR_ALPHA_LONG_RAW,
         OPERATOR_ALPHA_SHORT_RAW,
+        DATA_NETWORK_TYPE,
+        DUPLEX_MODE,
     };
 
     @Override
@@ -392,6 +385,8 @@ public class ServiceStateProvider extends ContentProvider {
             final int is_using_carrier_aggregation = (ss.isUsingCarrierAggregation()) ? 1 : 0;
             final String operator_alpha_long_raw = ss.getOperatorAlphaLongRaw();
             final String operator_alpha_short_raw = ss.getOperatorAlphaShortRaw();
+            final int data_network_type = ss.getDataNetworkType();
+            final int duplex_mode = ss.getDuplexMode();
 
             return buildSingleRowResult(projection, sColumns, new Object[] {
                     voice_reg_state,
@@ -418,6 +413,8 @@ public class ServiceStateProvider extends ContentProvider {
                     is_using_carrier_aggregation,
                     operator_alpha_long_raw,
                     operator_alpha_short_raw,
+                    data_network_type,
+                    duplex_mode,
             });
         }
     }
@@ -480,6 +477,10 @@ public class ServiceStateProvider extends ContentProvider {
             context.getContentResolver().notifyChange(
                     getUriForSubscriptionIdAndField(subId, DATA_ROAMING_TYPE), null, false);
         }
+        if (firstUpdate || dataNetworkTypeChanged(oldSS, newSS)) {
+            context.getContentResolver().notifyChange(
+                    getUriForSubscriptionIdAndField(subId, DATA_NETWORK_TYPE), null, false);
+        }
     }
 
     private static boolean voiceRegStateChanged(ServiceState oldSS, ServiceState newSS) {
@@ -496,6 +497,10 @@ public class ServiceStateProvider extends ContentProvider {
 
     private static boolean dataRoamingTypeChanged(ServiceState oldSS, ServiceState newSS) {
         return oldSS.getDataRoamingType() != newSS.getDataRoamingType();
+    }
+
+    private static boolean dataNetworkTypeChanged(ServiceState oldSS, ServiceState newSS) {
+        return oldSS.getDataNetworkType() != newSS.getDataNetworkType();
     }
 
     /**
@@ -517,7 +522,8 @@ public class ServiceStateProvider extends ContentProvider {
         // If oldSS is null and newSS is not (e.g. first update of service state) this will also
         // notify
         if (oldSS == null || voiceRegStateChanged(oldSS, newSS) || dataRegStateChanged(oldSS, newSS)
-                || voiceRoamingTypeChanged(oldSS, newSS) || dataRoamingTypeChanged(oldSS, newSS)) {
+                || voiceRoamingTypeChanged(oldSS, newSS) || dataRoamingTypeChanged(oldSS, newSS)
+                || dataNetworkTypeChanged(oldSS, newSS)) {
             context.getContentResolver().notifyChange(getUriForSubscriptionId(subId), null, false);
         }
     }
