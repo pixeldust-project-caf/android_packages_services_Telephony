@@ -2972,7 +2972,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     private void updateStatusHints() {
-        if (isWifi() && getPhone() != null) {
+        if (isWifi() && !isCrossSimCall() && getPhone() != null) {
             int labelId = isValidRingingCall()
                     ? R.string.status_hint_label_incoming_wifi_call
                     : R.string.status_hint_label_wifi_call;
