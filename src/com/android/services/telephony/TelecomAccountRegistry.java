@@ -943,6 +943,7 @@ public class TelecomAccountRegistry {
 
             boolean isRttSupported = PhoneGlobals.getInstance().phoneMgr
                     .isRttEnabled(mPhone.getSubId());
+            boolean isUserRttSettingOn = isUserRttSettingOn();
 
             boolean isRoaming = mTelephonyManager.isNetworkRoaming(mPhone.getSubId());
             boolean isOnWfc = mPhone.getImsRegistrationTech()
@@ -955,11 +956,21 @@ public class TelecomAccountRegistry {
             Log.i(this, "isRttCurrentlySupported -- regular acct,"
                     + " hasVoiceAvailability: " + hasVoiceAvailability + "\n"
                     + " isRttSupported: " + isRttSupported + "\n"
+                    + " isUserRttSettingOn: " + isUserRttSettingOn + "\n"
                     + " alwaysAllowWhileRoaming: " + alwaysAllowWhileRoaming + "\n"
                     + " isRoaming: " + isRoaming + "\n"
                     + " isOnWfc: " + isOnWfc + "\n");
 
-            return hasVoiceAvailability && isRttSupported && !shouldDisableBecauseRoamingOffWfc;
+            return hasVoiceAvailability && isRttSupported && !shouldDisableBecauseRoamingOffWfc
+                    && isUserRttSettingOn;
+        }
+
+        private boolean isUserRttSettingOn() {
+            int rttSetting = Settings.Secure.getInt(
+                    mContext.getContentResolver(),
+                    Settings.Secure.RTT_CALLING_MODE
+                    + convertRttPhoneId(mPhone.getPhoneId()) , 0);
+            return rttSetting != 0;
         }
 
         /**
