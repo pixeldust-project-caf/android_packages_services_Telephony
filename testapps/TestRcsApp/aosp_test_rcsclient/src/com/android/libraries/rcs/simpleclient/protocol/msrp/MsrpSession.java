@@ -19,6 +19,18 @@ package com.android.libraries.rcs.simpleclient.protocol.msrp;
 import static com.android.libraries.rcs.simpleclient.protocol.msrp.MsrpChunk.Method.SEND;
 import static com.android.libraries.rcs.simpleclient.protocol.msrp.MsrpChunk.Method.UNKNOWN;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.QosCallback;
+import android.net.QosCallbackException;
+import android.net.QosSession;
+import android.net.QosSessionAttributes;
+import android.net.QosSocketInfo;
+import android.util.Log;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.concurrent.futures.CallbackToFutureAdapter;
 import androidx.concurrent.futures.CallbackToFutureAdapter.Completer;
 
@@ -26,6 +38,7 @@ import com.android.libraries.rcs.simpleclient.protocol.msrp.MsrpChunk.Continuati
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +51,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Provides MSRP sending and receiving messages ability.
  */
 public class MsrpSession {
+    private static final String DEDICATED_BEARER_SUCCESS = "Dedicated bearer succeeded";
+    private static final String DEDICATED_BEARER_ERROR = "Dedicated bearer error";
+    private final Network network;
     private final Socket socket;
     private final InputStream input;
     private final OutputStream output;
@@ -45,13 +61,56 @@ public class MsrpSession {
     private final ConcurrentHashMap<String, MsrpTransaction> transactions =
             new ConcurrentHashMap<>();
     private final MsrpSessionListener listener;
+    private final ConnectivityManager connectivityManager;
+    private final String LOG_TAG = MsrpSession.class.getSimpleName();
+    private final Context context;
 
     /** Creates a new MSRP session on the given listener and the provided streams. */
-    MsrpSession(Socket socket, MsrpSessionListener listener) throws IOException {
+    MsrpSession(ConnectivityManager connectivityManager, Context context, Network network,
+            Socket socket, MsrpSessionListener listener) throws IOException {
+        this.connectivityManager = connectivityManager;
+        this.context = context;
+        this.network = network;
         this.socket = socket;
         this.input = socket.getInputStream();
         this.output = socket.getOutputStream();
         this.listener = listener;
+
+        listenForBearer();
+    }
+
+    private final QosCallback qosCallback = new QosCallback() {
+        @Override
+        public void onError(@NonNull QosCallbackException exception) {
+            Toast.makeText(context, DEDICATED_BEARER_ERROR, Toast.LENGTH_SHORT).show();
+            Log.e(LOG_TAG, "onError: " + exception.toString());
+            super.onError(exception);
+        }
+
+        @Override
+        public void onQosSessionAvailable(@NonNull QosSession session,
+                @NonNull QosSessionAttributes sessionAttributes) {
+            Toast.makeText(context, DEDICATED_BEARER_SUCCESS, Toast.LENGTH_SHORT).show();
+            Log.d(LOG_TAG, "onQosSessionAvailable: " + session.toString() + ", "
+                    + sessionAttributes.toString());
+            super.onQosSessionAvailable(session, sessionAttributes);
+        }
+
+        @Override
+        public void onQosSessionLost(@NonNull QosSession session) {
+            Toast.makeText(context, DEDICATED_BEARER_ERROR, Toast.LENGTH_SHORT).show();
+            Log.e(LOG_TAG, "onQosSessionLost: " + session.toString());
+            super.onQosSessionLost(session);
+        }
+    };
+
+    private void listenForBearer() {
+        try {
+            connectivityManager.registerQosCallback(new QosSocketInfo(network, socket),
+                    MoreExecutors.directExecutor(), qosCallback);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -110,6 +169,7 @@ public class MsrpSession {
         if (isOpen.getAndSet(false)) {
             output.flush();
         }
+        connectivityManager.unregisterQosCallback(qosCallback);
         socket.close();
     }
 

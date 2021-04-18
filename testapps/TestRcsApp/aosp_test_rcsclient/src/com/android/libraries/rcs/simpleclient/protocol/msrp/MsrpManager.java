@@ -17,6 +17,7 @@
 package com.android.libraries.rcs.simpleclient.protocol.msrp;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
 import android.net.Network;
 
 import com.google.common.util.concurrent.Futures;
@@ -24,34 +25,40 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.Socket;
 
 /** Provides creating and managing {@link MsrpSession} */
 public class MsrpManager {
     private final ImsPdnNetworkFetcher imsPdnNetworkFetcher;
+    private Context context;
 
     public MsrpManager(Context context) {
+        this.context = context;
         imsPdnNetworkFetcher = new ImsPdnNetworkFetcher(context);
     }
 
-    private static MsrpSession createMsrpSession(
-            Network network, String host, int port, MsrpSessionListener listener)
-            throws IOException {
-        Socket socket = network.getSocketFactory().createSocket(host, port);
-        MsrpSession msrpSession = new MsrpSession(socket, listener);
+    private MsrpSession createMsrpSession(ConnectivityManager manager,
+            Network network, String host, int port, String localIp, int localPort,
+            MsrpSessionListener listener) throws IOException {
+        Socket socket = network.getSocketFactory().createSocket(host, port,
+                InetAddress.getByName(localIp), localPort);
+        MsrpSession msrpSession = new MsrpSession(manager, context,
+                network, socket, listener);
         Thread thread = new Thread(msrpSession::run);
         thread.start();
         return msrpSession;
     }
 
     public ListenableFuture<MsrpSession> createMsrpSession(
-            String host, int port, MsrpSessionListener listener) {
+            String host, int port, String localIp, int localPort, MsrpSessionListener listener) {
         return Futures.transformAsync(
                 imsPdnNetworkFetcher.getImsPdnNetwork(),
                 network -> {
                     if (network != null) {
                         return Futures.immediateFuture(
-                                createMsrpSession(network, host, port, listener));
+                                createMsrpSession(imsPdnNetworkFetcher.getConnectivityManager(),
+                                        network, host, port, localIp, localPort, listener));
                     } else {
                         return Futures.immediateFailedFuture(
                                 new IllegalStateException("Network is null"));

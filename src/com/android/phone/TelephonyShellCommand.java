@@ -28,15 +28,21 @@ import android.os.Binder;
 import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.ServiceSpecificException;
 import android.provider.BlockedNumberContract;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.telephony.emergency.EmergencyNumber;
+import android.telephony.ims.ImsException;
+import android.telephony.ims.RcsContactUceCapability;
 import android.telephony.ims.feature.ImsFeature;
 import android.text.TextUtils;
+import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.ims.rcs.uce.util.FeatureTags;
 import com.android.internal.telephony.ITelephony;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
@@ -48,9 +54,12 @@ import com.android.phone.callcomposer.CallComposerPictureManager;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -71,6 +80,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private static final String CALL_COMPOSER_SUBCOMMAND = "callcomposer";
     private static final String IMS_SUBCOMMAND = "ims";
     private static final String NUMBER_VERIFICATION_SUBCOMMAND = "numverify";
+    private static final String EMERGENCY_CALLBACK_MODE = "emergency-callback-mode";
     private static final String EMERGENCY_NUMBER_TEST_MODE = "emergency-number-test-mode";
     private static final String END_BLOCK_SUPPRESSION = "end-block-suppression";
     private static final String RESTART_MODEM = "restart-modem";
@@ -83,6 +93,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
 
     private static final String CALL_COMPOSER_TEST_MODE = "test-mode";
     private static final String CALL_COMPOSER_SIMULATE_CALL = "simulate-outgoing-call";
+    private static final String CALL_COMPOSER_USER_SETTING = "user-setting";
 
     private static final String IMS_SET_IMS_SERVICE = "set-ims-service";
     private static final String IMS_GET_IMS_SERVICE = "get-ims-service";
@@ -110,15 +121,29 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private static final String SRC_GET_DEVICE_ENABLED = "get-device-enabled";
     private static final String SRC_SET_CARRIER_ENABLED = "set-carrier-enabled";
     private static final String SRC_GET_CARRIER_ENABLED = "get-carrier-enabled";
+    private static final String SRC_SET_TEST_ENABLED = "set-test-enabled";
+    private static final String SRC_GET_TEST_ENABLED = "get-test-enabled";
+    private static final String SRC_SET_FEATURE_ENABLED = "set-feature-validation";
+    private static final String SRC_GET_FEATURE_ENABLED = "get-feature-validation";
 
     private static final String D2D_SUBCOMMAND = "d2d";
     private static final String D2D_SEND = "send";
+    private static final String D2D_TRANSPORT = "transport";
 
     private static final String RCS_UCE_COMMAND = "uce";
     private static final String UCE_GET_EAB_CONTACT = "get-eab-contact";
     private static final String UCE_REMOVE_EAB_CONTACT = "remove-eab-contact";
     private static final String UCE_GET_DEVICE_ENABLED = "get-device-enabled";
     private static final String UCE_SET_DEVICE_ENABLED = "set-device-enabled";
+    private static final String UCE_OVERRIDE_PUBLISH_CAPS = "override-published-caps";
+    private static final String UCE_GET_LAST_PIDF_XML = "get-last-publish-pidf";
+
+    // Check if a package has carrier privileges on any SIM, regardless of subId/phoneId.
+    private static final String HAS_CARRIER_PRIVILEGES_COMMAND = "has-carrier-privileges";
+
+    private static final String THERMAL_MITIGATION_COMMAND = "thermal-mitigation";
+    private static final String ALLOW_THERMAL_MITIGATION_PACKAGE_SUBCOMMAND = "allow-package";
+    private static final String DISALLOW_THERMAL_MITIGATION_PACKAGE_SUBCOMMAND = "disallow-package";
 
     // Take advantage of existing methods that already contain permissions checks when possible.
     private final ITelephony mInterface;
@@ -170,6 +195,48 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         }
     };
 
+    /**
+     * Map from a shorthand string to the feature tags required in registration required in order
+     * for the RCS feature to be considered "capable".
+     */
+    private static final Map<String, Set<String>> TEST_FEATURE_TAG_MAP;
+    static {
+        ArrayMap<String, Set<String>> map = new ArrayMap<>(18);
+        map.put("chat_v1", Collections.singleton(FeatureTags.FEATURE_TAG_CHAT_IM));
+        map.put("chat_v2", Collections.singleton(FeatureTags.FEATURE_TAG_CHAT_SESSION));
+        map.put("ft", Collections.singleton(FeatureTags.FEATURE_TAG_FILE_TRANSFER));
+        map.put("ft_sms", Collections.singleton(FeatureTags.FEATURE_TAG_FILE_TRANSFER_VIA_SMS));
+        map.put("mmtel", Collections.singleton(FeatureTags.FEATURE_TAG_MMTEL));
+        map.put("mmtel_vt", new ArraySet<>(Arrays.asList(FeatureTags.FEATURE_TAG_MMTEL,
+                FeatureTags.FEATURE_TAG_VIDEO)));
+        map.put("geo_push", Collections.singleton(FeatureTags.FEATURE_TAG_GEO_PUSH));
+        map.put("geo_push_sms", Collections.singleton(FeatureTags.FEATURE_TAG_GEO_PUSH_VIA_SMS));
+        map.put("call_comp",
+                Collections.singleton(FeatureTags.FEATURE_TAG_CALL_COMPOSER_ENRICHED_CALLING));
+        map.put("call_comp_mmtel",
+                Collections.singleton(FeatureTags.FEATURE_TAG_CALL_COMPOSER_VIA_TELEPHONY));
+        map.put("call_post", Collections.singleton(FeatureTags.FEATURE_TAG_POST_CALL));
+        map.put("map", Collections.singleton(FeatureTags.FEATURE_TAG_SHARED_MAP));
+        map.put("sketch", Collections.singleton(FeatureTags.FEATURE_TAG_SHARED_SKETCH));
+        // Feature tags defined twice for chatbot session because we want v1 and v2 based on bot
+        // version
+        map.put("chatbot", new ArraySet<>(Arrays.asList(
+                FeatureTags.FEATURE_TAG_CHATBOT_COMMUNICATION_USING_SESSION,
+                FeatureTags.FEATURE_TAG_CHATBOT_VERSION_SUPPORTED)));
+        map.put("chatbot_v2", new ArraySet<>(Arrays.asList(
+                FeatureTags.FEATURE_TAG_CHATBOT_COMMUNICATION_USING_SESSION,
+                FeatureTags.FEATURE_TAG_CHATBOT_VERSION_SUPPORTED)));
+        map.put("chatbot_sa", new ArraySet<>(Arrays.asList(
+                FeatureTags.FEATURE_TAG_CHATBOT_COMMUNICATION_USING_STANDALONE_MSG,
+                FeatureTags.FEATURE_TAG_CHATBOT_VERSION_SUPPORTED)));
+        map.put("chatbot_sa_v2", new ArraySet<>(Arrays.asList(
+                FeatureTags.FEATURE_TAG_CHATBOT_COMMUNICATION_USING_STANDALONE_MSG,
+                FeatureTags.FEATURE_TAG_CHATBOT_VERSION_SUPPORTED)));
+        map.put("chatbot_role", Collections.singleton(FeatureTags.FEATURE_TAG_CHATBOT_ROLE));
+        TEST_FEATURE_TAG_MAP = Collections.unmodifiableMap(map);
+    }
+
+
     public TelephonyShellCommand(ITelephony binder, Context context) {
         mInterface = binder;
         mCarrierConfigManager =
@@ -193,6 +260,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleRcsUceCommand();
             case NUMBER_VERIFICATION_SUBCOMMAND:
                 return handleNumberVerificationCommand();
+            case EMERGENCY_CALLBACK_MODE:
+                return handleEmergencyCallbackModeCommand();
             case EMERGENCY_NUMBER_TEST_MODE:
                 return handleEmergencyNumberTestModeCommand();
             case CARRIER_CONFIG_SUBCOMMAND: {
@@ -214,6 +283,10 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleCallComposerCommand();
             case UNATTENDED_REBOOT:
                 return handleUnattendedReboot();
+            case HAS_CARRIER_PRIVILEGES_COMMAND:
+                return handleHasCarrierPrivilegesCommand();
+            case THERMAL_MITIGATION_COMMAND:
+                return handleThermalMitigationCommand();
             default: {
                 return handleDefaultCommands(cmd);
             }
@@ -246,6 +319,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("    Restart modem command.");
         pw.println("  unattended-reboot");
         pw.println("    Prepare for unattended reboot.");
+        pw.println("  has-carrier-privileges [package]");
+        pw.println("    Query carrier privilege status for a package. Prints true or false.");
         onHelpIms();
         onHelpUce();
         onHelpEmergencyNumber();
@@ -271,6 +346,9 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                         MESSAGE_DEVICE_BATTERY_STATE));
         pw.println("    Type: " + MESSAGE_DEVICE_NETWORK_COVERAGE + " - "
                 + Communicator.messageToString(MESSAGE_DEVICE_NETWORK_COVERAGE));
+        pw.println("  d2d transport TYPE");
+        pw.println("    Forces the specified D2D transport TYPE to be active.  Use the");
+        pw.println("    short class name of the transport; i.e. DtmfTransport or RtpTransport.");
     }
 
     private void onHelpIms() {
@@ -329,6 +407,22 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("  uce set-device-enabled true|false");
         pw.println("    Set the device config for RCS User Capability Exchange to the value.");
         pw.println("    The value could be true, false.");
+        pw.println("  uce override-published-caps [-s SLOT_ID] add|remove|clear [CAPABILITIES]");
+        pw.println("    Override the existing SIP PUBLISH with different capabilities.");
+        pw.println("    Options are:");
+        pw.println("      -s: The SIM slot ID to read carrier config value for. If no option");
+        pw.println("          is specified, it will choose the default voice SIM slot.");
+        pw.println("      add [CAPABILITY]: add a new capability");
+        pw.println("      remove [CAPABILITY]: remove a capability");
+        pw.println("      clear: clear all capability overrides");
+        pw.println("      CAPABILITY: \":\" separated list of capabilities.");
+        pw.println("          Valid options are: [mmtel(_vt), chat_v1, chat_v2, ft, ft_sms,");
+        pw.println("          geo_push, geo_push_sms, call_comp, call_post, map, sketch, chatbot,");
+        pw.println("          chatbot_sa, chatbot_role] as well as full length");
+        pw.println("          featureTag=\"featureValue\" feature tags that are not defined here.");
+        pw.println("  uce get-last-publish-pidf [-s SLOT_ID]");
+        pw.println("    Get the PIDF XML included in the last SIP PUBLISH, or \"none\" if no ");
+        pw.println("    PUBLISH is active");
     }
 
     private void onHelpNumberVerification() {
@@ -340,6 +434,16 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("  numverify fake-call NUMBER;");
         pw.println("    Fake an incoming call from NUMBER. This is for testing. Output will be");
         pw.println("    1 if the call would have been intercepted, 0 otherwise.");
+    }
+
+    private void onHelpThermalMitigation() {
+        PrintWriter pw = getOutPrintWriter();
+        pw.println("Thermal mitigation commands");
+        pw.println("  thermal-mitigation allow-package PACKAGE_NAME");
+        pw.println("    Set the package as one of authorized packages for thermal mitigation.");
+        pw.println("  thermal-mitigation disallow-package PACKAGE_NAME");
+        pw.println("    Remove the package from one of the authorized packages for thermal "
+                + "mitigation.");
     }
 
     private void onHelpDataTestMode() {
@@ -427,6 +531,11 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private void onHelpSrc() {
         PrintWriter pw = getOutPrintWriter();
         pw.println("RCS VoLTE Single Registration Config Commands:");
+        pw.println("  src set-test-enabled true|false");
+        pw.println("    Sets the test mode enabled for RCS VoLTE single registration.");
+        pw.println("    The value could be true, false, or null(undefined).");
+        pw.println("  src get-test-enabled");
+        pw.println("    Gets the test mode for RCS VoLTE single registration.");
         pw.println("  src set-device-enabled true|false|null");
         pw.println("    Sets the device config for RCS VoLTE single registration to the value.");
         pw.println("    The value could be true, false, or null(undefined).");
@@ -440,6 +549,17 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("          is specified, it will choose the default voice SIM slot.");
         pw.println("  src get-carrier-enabled [-s SLOT_ID]");
         pw.println("    Gets the carrier config for RCS VoLTE single registration.");
+        pw.println("    Options are:");
+        pw.println("      -s: The SIM slot ID to read the config value for. If no option");
+        pw.println("          is specified, it will choose the default voice SIM slot.");
+        pw.println("  src set-feature-validation [-s SLOT_ID] true|false|null");
+        pw.println("    Sets ims feature validation result.");
+        pw.println("    The value could be true, false, or null(undefined).");
+        pw.println("    Options are:");
+        pw.println("      -s: The SIM slot ID to set the config value for. If no option");
+        pw.println("          is specified, it will choose the default voice SIM slot.");
+        pw.println("  src get-feature-validation [-s SLOT_ID]");
+        pw.println("    Gets ims feature validation override value.");
         pw.println("    Options are:");
         pw.println("      -s: The SIM slot ID to read the config value for. If no option");
         pw.println("          is specified, it will choose the default voice SIM slot.");
@@ -507,6 +627,19 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             default:
                 onHelpDataTestMode();
                 break;
+        }
+        return 0;
+    }
+
+    private int handleEmergencyCallbackModeCommand() {
+        PrintWriter errPw = getErrPrintWriter();
+        try {
+            mInterface.startEmergencyCallbackMode();
+            Log.d(LOG_TAG, "handleEmergencyCallbackModeCommand: triggered");
+        } catch (RemoteException ex) {
+            Log.w(LOG_TAG, "emergency-callback-mode error: " + ex.getMessage());
+            errPw.println("Exception: " + ex.getMessage());
+            return -1;
         }
         return 0;
     }
@@ -623,6 +756,36 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         return -1;
     }
 
+    private int handleThermalMitigationCommand() {
+        String arg = getNextArg();
+        String packageName = getNextArg();
+        if (arg == null || packageName == null) {
+            onHelpThermalMitigation();
+            return 0;
+        }
+
+        if (!checkShellUid()) {
+            return -1;
+        }
+
+        switch (arg) {
+            case ALLOW_THERMAL_MITIGATION_PACKAGE_SUBCOMMAND: {
+                PhoneInterfaceManager.addPackageToThermalMitigationAllowlist(packageName, mContext);
+                return 0;
+            }
+            case DISALLOW_THERMAL_MITIGATION_PACKAGE_SUBCOMMAND: {
+                PhoneInterfaceManager.removePackageFromThermalMitigationAllowlist(packageName,
+                        mContext);
+                return 0;
+            }
+            default:
+                onHelpThermalMitigation();
+        }
+
+        return -1;
+
+    }
+
     private int handleD2dCommand() {
         String arg = getNextArg();
         if (arg == null) {
@@ -634,6 +797,9 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             case D2D_SEND: {
                 return handleD2dSendCommand();
             }
+            case D2D_TRANSPORT: {
+                return handleD2dTransportCommand();
+            }
         }
 
         return -1;
@@ -641,10 +807,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
 
     private int handleD2dSendCommand() {
         PrintWriter errPw = getErrPrintWriter();
-        String opt;
         int messageType = -1;
         int messageValue = -1;
-
 
         String arg = getNextArg();
         if (arg == null) {
@@ -669,7 +833,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             errPw.println("message value must be a valid integer");
             return -1;
         }
-        
+
         try {
             mInterface.sendDeviceToDeviceMessage(messageType, messageValue);
         } catch (RemoteException e) {
@@ -678,6 +842,25 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             return -1;
         }
 
+        return 0;
+    }
+
+    private int handleD2dTransportCommand() {
+        PrintWriter errPw = getErrPrintWriter();
+
+        String arg = getNextArg();
+        if (arg == null) {
+            onHelpD2D();
+            return 0;
+        }
+
+        try {
+            mInterface.setActiveDeviceToDeviceTransport(arg);
+        } catch (RemoteException e) {
+            Log.w(LOG_TAG, "d2d transport error: " + e.getMessage());
+            errPw.println("Exception: " + e.getMessage());
+            return -1;
+        }
         return 0;
     }
 
@@ -1628,6 +1811,12 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         }
 
         switch (arg) {
+            case SRC_SET_TEST_ENABLED: {
+                return handleSrcSetTestEnabledCommand();
+            }
+            case SRC_GET_TEST_ENABLED: {
+                return handleSrcGetTestEnabledCommand();
+            }
             case SRC_SET_DEVICE_ENABLED: {
                 return handleSrcSetDeviceEnabledCommand();
             }
@@ -1640,6 +1829,12 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             case SRC_GET_CARRIER_ENABLED: {
                 return handleSrcGetCarrierEnabledCommand();
             }
+            case SRC_SET_FEATURE_ENABLED: {
+                return handleSrcSetFeatureValidationCommand();
+            }
+            case SRC_GET_FEATURE_ENABLED: {
+                return handleSrcGetFeatureValidationCommand();
+            }
         }
 
         return -1;
@@ -1648,8 +1843,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private int handleRcsUceCommand() {
         String arg = getNextArg();
         if (arg == null) {
-            Log.w(LOG_TAG, "cannot get uce parameter");
-            return -1;
+            onHelpUce();
+            return 0;
         }
 
         switch (arg) {
@@ -1661,6 +1856,10 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleUceGetDeviceEnabledCommand();
             case UCE_SET_DEVICE_ENABLED:
                 return handleUceSetDeviceEnabledCommand();
+            case UCE_OVERRIDE_PUBLISH_CAPS:
+                return handleUceOverridePublishCaps();
+            case UCE_GET_LAST_PIDF_XML:
+                return handleUceGetPidfXml();
         }
         return -1;
     }
@@ -1747,6 +1946,135 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         return 0;
     }
 
+    private int handleSrcSetTestEnabledCommand() {
+        String enabledStr = getNextArg();
+        if (enabledStr == null) {
+            return -1;
+        }
+
+        try {
+            mInterface.setRcsSingleRegistrationTestModeEnabled(Boolean.parseBoolean(enabledStr));
+            if (VDBG) {
+                Log.v(LOG_TAG, "src set-test-enabled " + enabledStr + ", done");
+            }
+            getOutPrintWriter().println("Done");
+        } catch (NumberFormatException | RemoteException e) {
+            Log.w(LOG_TAG, "src set-test-enabled " + enabledStr + ", error" + e.getMessage());
+            getErrPrintWriter().println("Exception: " + e.getMessage());
+            return -1;
+        }
+        return 0;
+    }
+
+    private int handleSrcGetTestEnabledCommand() {
+        boolean result = false;
+        try {
+            result = mInterface.getRcsSingleRegistrationTestModeEnabled();
+        } catch (RemoteException e) {
+            return -1;
+        }
+        if (VDBG) {
+            Log.v(LOG_TAG, "src get-test-enabled, returned: " + result);
+        }
+        getOutPrintWriter().println(result);
+        return 0;
+    }
+
+    private int handleUceOverridePublishCaps() {
+        int subId = getSubId("uce override-published-caps");
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            return -1;
+        }
+        //uce override-published-caps [-s SLOT_ID] add|remove|clear|list [CAPABILITIES]
+        String operation = getNextArgRequired();
+        String caps = getNextArg();
+        if (!"add".equals(operation) && !"remove".equals(operation) && !"clear".equals(operation)
+                && !"list".equals(operation)) {
+            getErrPrintWriter().println("Invalid operation: " + operation);
+            return -1;
+        }
+
+        // add/remove requires capabilities to be specified.
+        if ((!"clear".equals(operation) && !"list".equals(operation)) && TextUtils.isEmpty(caps)) {
+            getErrPrintWriter().println("\"" + operation + "\" requires capabilities to be "
+                    + "specified");
+            return -1;
+        }
+
+        ArraySet<String> capSet = new ArraySet<>();
+        if (!TextUtils.isEmpty(caps)) {
+            String[] capArray = caps.split(":");
+            for (String cap : capArray) {
+                // Allow unknown tags to be passed in as well.
+                capSet.addAll(TEST_FEATURE_TAG_MAP.getOrDefault(cap, Collections.singleton(cap)));
+            }
+        }
+
+        RcsContactUceCapability result = null;
+        try {
+            switch (operation) {
+                case "add":
+                    result = mInterface.addUceRegistrationOverrideShell(subId,
+                            new ArrayList<>(capSet));
+                    break;
+                case "remove":
+                    result = mInterface.removeUceRegistrationOverrideShell(subId,
+                            new ArrayList<>(capSet));
+                    break;
+                case "clear":
+                    result = mInterface.clearUceRegistrationOverrideShell(subId);
+                    break;
+                case "list":
+                    result = mInterface.getLatestRcsContactUceCapabilityShell(subId);
+                    break;
+            }
+        } catch (RemoteException e) {
+            Log.w(LOG_TAG, "uce override-published-caps, error " + e.getMessage());
+            getErrPrintWriter().println("Exception: " + e.getMessage());
+            return -1;
+        } catch (ServiceSpecificException sse) {
+            // Reconstruct ImsException
+            ImsException imsException = new ImsException(sse.getMessage(), sse.errorCode);
+            Log.w(LOG_TAG, "uce override-published-caps, error " + imsException);
+            getErrPrintWriter().println("Exception: " + imsException);
+            return -1;
+        }
+        if (result == null) {
+            getErrPrintWriter().println("Service not available");
+            return -1;
+        }
+        getOutPrintWriter().println(result);
+        return 0;
+    }
+
+    private int handleUceGetPidfXml() {
+        int subId = getSubId("uce get-last-publish-pidf");
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            return -1;
+        }
+
+        String result;
+        try {
+            result = mInterface.getLastUcePidfXmlShell(subId);
+        } catch (RemoteException e) {
+            Log.w(LOG_TAG, "uce get-last-publish-pidf, error " + e.getMessage());
+            getErrPrintWriter().println("Exception: " + e.getMessage());
+            return -1;
+        } catch (ServiceSpecificException sse) {
+            // Reconstruct ImsException
+            ImsException imsException = new ImsException(sse.getMessage(), sse.errorCode);
+            Log.w(LOG_TAG, "uce get-last-publish-pidf error " + imsException);
+            getErrPrintWriter().println("Exception: " + imsException);
+            return -1;
+        }
+        if (result == null) {
+            getErrPrintWriter().println("Service not available");
+            return -1;
+        }
+        getOutPrintWriter().println(result);
+        return 0;
+    }
+
     private int handleSrcSetDeviceEnabledCommand() {
         String enabledStr = getNextArg();
         if (enabledStr == null) {
@@ -1830,6 +2158,56 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         return 0;
     }
 
+    private int handleSrcSetFeatureValidationCommand() {
+        //the release time value could be -1
+        int subId = getRemainingArgsCount() > 1 ? getSubId("src set-feature-validation")
+                : SubscriptionManager.getDefaultSubscriptionId();
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            return -1;
+        }
+
+        String enabledStr = getNextArg();
+        if (enabledStr == null) {
+            return -1;
+        }
+
+        try {
+            boolean result =
+                    mInterface.setImsFeatureValidationOverride(subId, enabledStr);
+            if (VDBG) {
+                Log.v(LOG_TAG, "src set-feature-validation -s " + subId + " "
+                        + enabledStr + ", result=" + result);
+            }
+            getOutPrintWriter().println(result);
+        } catch (NumberFormatException | RemoteException e) {
+            Log.w(LOG_TAG, "src set-feature-validation -s " + subId + " "
+                    + enabledStr + ", error" + e.getMessage());
+            getErrPrintWriter().println("Exception: " + e.getMessage());
+            return -1;
+        }
+        return 0;
+    }
+
+    private int handleSrcGetFeatureValidationCommand() {
+        int subId = getSubId("src get-feature-validation");
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            return -1;
+        }
+
+        Boolean result = false;
+        try {
+            result = mInterface.getImsFeatureValidationOverride(subId);
+        } catch (RemoteException e) {
+            return -1;
+        }
+        if (VDBG) {
+            Log.v(LOG_TAG, "src get-feature-validation -s " + subId + ", returned: " + result);
+        }
+        getOutPrintWriter().println(result);
+        return 0;
+    }
+
+
     private void onHelpCallComposer() {
         PrintWriter pw = getOutPrintWriter();
         pw.println("Call composer commands");
@@ -1840,6 +2218,9 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("  callcomposer simulate-outgoing-call [subId] [UUID]");
         pw.println("    Simulates an outgoing call being placed with the picture ID as");
         pw.println("    the provided UUID. This triggers storage to the call log.");
+        pw.println("  callcomposer user-setting [subId] enable|disable|query");
+        pw.println("    Enables or disables the user setting for call composer, as set by");
+        pw.println("    TelephonyManager#setCallComposerStatus.");
     }
 
     private int handleCallComposerCommand() {
@@ -1883,8 +2264,48 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 }
                 break;
             }
+            case CALL_COMPOSER_USER_SETTING: {
+                try {
+                    int subscriptionId = Integer.valueOf(getNextArg());
+                    String enabledStr = getNextArg();
+                    if (ENABLE.equals(enabledStr)) {
+                        mInterface.setCallComposerStatus(subscriptionId,
+                                TelephonyManager.CALL_COMPOSER_STATUS_ON);
+                    } else if (DISABLE.equals(enabledStr)) {
+                        mInterface.setCallComposerStatus(subscriptionId,
+                                TelephonyManager.CALL_COMPOSER_STATUS_OFF);
+                    } else if (QUERY.equals(enabledStr)) {
+                        getOutPrintWriter().println(mInterface.getCallComposerStatus(subscriptionId)
+                                == TelephonyManager.CALL_COMPOSER_STATUS_ON);
+                    } else {
+                        onHelpCallComposer();
+                        return 1;
+                    }
+                } catch (RemoteException e) {
+                    e.printStackTrace(getOutPrintWriter());
+                    return 1;
+                }
+                break;
+            }
+        }
+        return 0;
+    }
+
+    private int handleHasCarrierPrivilegesCommand() {
+        String packageName = getNextArgRequired();
+
+        boolean hasCarrierPrivileges;
+        try {
+            hasCarrierPrivileges =
+                    mInterface.checkCarrierPrivilegesForPackageAnyPhone(packageName)
+                            == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
+        } catch (RemoteException e) {
+            Log.w(LOG_TAG, HAS_CARRIER_PRIVILEGES_COMMAND + " exception", e);
+            getErrPrintWriter().println("Exception: " + e.getMessage());
+            return -1;
         }
 
+        getOutPrintWriter().println(hasCarrierPrivileges);
         return 0;
     }
 }

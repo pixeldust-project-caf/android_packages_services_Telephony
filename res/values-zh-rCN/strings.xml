@@ -921,7 +921,7 @@
     <string name="phone_info_label" product="default" msgid="1784175881556791433">"手机信息"</string>
     <string name="carrier_provisioning" msgid="2668065041869578376">"运营商配置信息"</string>
     <string name="trigger_carrier_provisioning" msgid="1301829588620638234">"触发运营商配置"</string>
-    <string name="call_quality_notification_bluetooth_details" msgid="219073466476340435">"建议：改善蓝牙连接"</string>
+    <string name="call_quality_notification_bluetooth_details" msgid="8348950331707346711">"您的蓝牙信号较弱。请尝试切换为扬声器模式。"</string>
     <string name="call_quality_notification_name" msgid="3476828289553948830">"通话质量通知"</string>
     <string name="srvcc_video_message">"4G网络不可用，视频电话降级到2G/3G语音电话."</string>
     <string name="srvcc_message">"4G网络不可用，4G语音电话降级到2G/3G语音电话."</string>

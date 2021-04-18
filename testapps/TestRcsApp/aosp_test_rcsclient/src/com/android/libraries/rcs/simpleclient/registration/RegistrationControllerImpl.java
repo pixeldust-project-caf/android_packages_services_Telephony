@@ -47,6 +47,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
 import java.text.ParseException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -67,6 +68,7 @@ public class RegistrationControllerImpl implements RegistrationController {
     private final int subscriptionId;
     private SipDelegateManager sipDelegateManager;
     private RegistrationContext context;
+    private RegistrationStateChangeCallback callback;
 
     public RegistrationControllerImpl(int subscriptionId, Executor executor,
             ImsManager imsManager) {
@@ -76,11 +78,11 @@ public class RegistrationControllerImpl implements RegistrationController {
     }
 
     @Override
-    public ListenableFuture<SipSession> register(ImsService imsService) {
+    public void register(ImsService imsService, RegistrationStateChangeCallback callback) {
         Log.i(TAG, "register");
+        this.callback = callback;
         context = new RegistrationContext(this, imsService);
         context.register();
-        return context.getFuture();
     }
 
     @Override
@@ -100,7 +102,7 @@ public class RegistrationControllerImpl implements RegistrationController {
     /**
      * Envelopes the registration data for a single ImsService instance.
      */
-    private static class RegistrationContext implements SipSession, SipSessionConfiguration {
+    private class RegistrationContext implements SipSession, SipSessionConfiguration {
 
         private final RegistrationControllerImpl controller;
         private final ImsService imsService;
@@ -138,12 +140,17 @@ public class RegistrationControllerImpl implements RegistrationController {
                                 .getRegisteredFeatureTags()
                                 .containsAll(imsService.getFeatureTags())) {
                             // registered;
-                            sessionFuture.set(RegistrationContext.this);
+                            callback.onSuccess(RegistrationContext.this);
+                        } else {
+                            callback.onFailure("feature tag not registered");
                         }
                     }
 
                     @Override
                     public void onDestroyed(int reason) {
+                        Log.d(TAG, "onDestroyed:" + reason);
+                        callback.onFailure("delegate destroyed");
+
                     }
                 };
         private SipSessionListener sipSessionListener;
@@ -152,6 +159,7 @@ public class RegistrationControllerImpl implements RegistrationController {
                 new DelegateConnectionMessageCallback() {
                     @Override
                     public void onMessageReceived(@NonNull SipMessage message) {
+                        message = repairHeaderSection(message);
                         SipSessionListener listener = sipSessionListener;
                         if (listener != null) {
                             try {
@@ -165,10 +173,13 @@ public class RegistrationControllerImpl implements RegistrationController {
 
                     @Override
                     public void onMessageSendFailure(@NonNull String viaTransactionId, int reason) {
+                        Log.i(TAG, "onMessageSendFailure: viaTransactionId:"
+                                + viaTransactionId + ", reason:" + reason);
                     }
 
                     @Override
                     public void onMessageSent(@NonNull String viaTransactionId) {
+                        Log.i(TAG, "onMessageSent: viaTransactionId:" + viaTransactionId);
                     }
 
                 };
@@ -386,6 +397,9 @@ public class RegistrationControllerImpl implements RegistrationController {
             String serviceRoutes =
                     configuration.getString(
                             SipDelegateImsConfiguration.KEY_SIP_CONFIG_SERVICE_ROUTE_HEADER_STRING);
+            if (TextUtils.isEmpty(serviceRoutes)) {
+                return Collections.emptyList();
+            }
             return Splitter.on(',').trimResults().splitToList(serviceRoutes);
         }
 
@@ -423,6 +437,23 @@ public class RegistrationControllerImpl implements RegistrationController {
         public int getMaxPayloadSizeOnUdp() {
             return configuration.getInt(
                     SipDelegateImsConfiguration.KEY_SIP_CONFIG_MAX_PAYLOAD_SIZE_ON_UDP_INT, 1500);
+        }
+
+        /**
+         * There is a modem issue where "ia:" is returned back instead of "Via:". Fix that locally
+         * for now.
+         * @return A SipMessage with the corrected header section.
+         */
+        private SipMessage repairHeaderSection(SipMessage message) {
+            String headers = message.getHeaderSection();
+
+            if (headers.startsWith("ia:")) {
+                headers = "V" + headers;
+                Log.i(TAG, "repairHeaderSection: detected malformed via: "
+                        + message.getHeaderSection().substring(0, 10) + "->"
+                        + headers.substring(0, 10));
+            }
+            return new SipMessage(message.getStartLine(), headers, message.getContent());
         }
     }
 }
