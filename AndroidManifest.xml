@@ -89,8 +89,6 @@
     <protected-broadcast android:name= "android.telephony.action.SIM_CARD_STATE_CHANGED" />
     <protected-broadcast android:name= "android.telephony.action.SIM_APPLICATION_STATE_CHANGED" />
     <protected-broadcast android:name= "android.telephony.action.SIM_SLOT_STATUS_CHANGED" />
-    <protected-broadcast android:name= "codeaurora.intent.action.ACTION_MANAGED_ROAMING_IND" />
-    <protected-broadcast android:name= "com.android.internal.telephony.ACTION_MANAGED_ROAMING_IND" />
     <protected-broadcast android:name= "org.codeaurora.intent.action.SUBSCRIPTION_INFO_RECORD_ADDED" />
     <protected-broadcast android:name= "org.codeaurora.intent.action.PRIMARY_CARD_CHANGED_IN_SERVICE" />
     <protected-broadcast android:name= "org.codeaurora.intent.action.ACTION_SET_PRIMARY_CARD_DONE" />
@@ -120,7 +118,6 @@
     <protected-broadcast android:name="android.telephony.action.ANOMALY_REPORTED" />
 
     <protected-broadcast android:name= "android.intent.action.SUBSCRIPTION_INFO_RECORD_ADDED" />
-    <protected-broadcast android:name= "android.intent.action.ACTION_MANAGED_ROAMING_IND" />
     <protected-broadcast android:name= "android.telephony.ims.action.RCS_SINGLE_REGISTRATION_CAPABILITY_UPDATE" />
 
     <!-- Allows granting runtime permissions to telephony related components. -->
