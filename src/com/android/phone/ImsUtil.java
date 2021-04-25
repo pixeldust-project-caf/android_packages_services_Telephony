@@ -161,7 +161,7 @@ public class ImsUtil {
     private static boolean getLastKnownRoamingState(int phoneId) {
         try {
             ImsPhone imsPhone = (ImsPhone) (PhoneFactory.getPhone(phoneId).getImsPhone());
-            return imsPhone.getRoamingState();
+            return imsPhone.getLastKnownRoamingState();
         } catch (NullPointerException | ClassCastException e) {
             return false;
         }

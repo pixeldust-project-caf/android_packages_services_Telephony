@@ -515,6 +515,7 @@
     <string name="puk2_requested" msgid="6992374450720307514">"പാസ്‌വേഡ് തെറ്റാണ്. SIM ഇപ്പോൾ ലോക്കുചെയ്‌തിരിക്കുന്നു. PUK2 നൽകുക."</string>
     <string name="puk2_blocked" msgid="3131139031779319911">"PUK2 ശാശ്വതമായി തടഞ്ഞിരിക്കുന്നു."</string>
     <string name="pin2_attempts" msgid="5625178102026453023">\n"നിങ്ങൾക്ക് <xliff:g id="NUMBER">%d</xliff:g> ശ്രമങ്ങൾ ശേഷിക്കുന്നു."</string>
+    <string name="puk2_locked" msgid="6497760825455461057">"PUK2 ലോക്ക് ആണ്. അൺലോക്ക് ചെയ്യാൻ സേവന ദാതാവിനെ ബന്ധപ്പെടുക."</string>
     <string name="pin2_unblocked" msgid="4481107908727789303">"PIN2 ഇനി തടയില്ല"</string>
     <string name="pin2_error_exception" msgid="8116103864600823641">"നെറ്റ്‌വർക്ക് അല്ലെങ്കിൽ സിം കാർഡ് പിശക്"</string>
     <string name="doneButton" msgid="7371209609238460207">"പൂർത്തിയായി"</string>
@@ -913,6 +914,8 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"NR ലഭ്യം:"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"NR നില:"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"NR ഫ്രീക്വൻസി:"</string>
+    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
+    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"റേഡിയോ ബാൻഡ് മോഡ് സജ്ജീകരിക്കുക"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"ബാൻഡ് ലിസ്‌റ്റ് ലോഡ് ചെയ്യുന്നു…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"സജ്ജീകരിക്കുക"</string>

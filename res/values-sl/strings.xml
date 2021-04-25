@@ -515,6 +515,7 @@
     <string name="puk2_requested" msgid="6992374450720307514">"Geslo je napačno. Kartica SIM je zaklenjena. Vnesite kodo PUK 2."</string>
     <string name="puk2_blocked" msgid="3131139031779319911">"Koda PUK2 je trajno blokirana."</string>
     <string name="pin2_attempts" msgid="5625178102026453023">\n"Imate še toliko poskusov: <xliff:g id="NUMBER">%d</xliff:g>."</string>
+    <string name="puk2_locked" msgid="6497760825455461057">"Zaklenjeno s kodo PUK2. Za odklepanje se obrnite na ponudnika storitev."</string>
     <string name="pin2_unblocked" msgid="4481107908727789303">"Koda PIN 2 ni več blokirana"</string>
     <string name="pin2_error_exception" msgid="8116103864600823641">"Napaka omrežja ali kartice SIM"</string>
     <string name="doneButton" msgid="7371209609238460207">"Dokončano"</string>
@@ -919,6 +920,8 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"Razpoložljivo za NR:"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"Stanje NR:"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"Frekvenca NR:"</string>
+    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
+    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"Nastavljanje načina radijskega območja"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"Nalaganje seznama frekvenčnih pasov …"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"Nastavi"</string>

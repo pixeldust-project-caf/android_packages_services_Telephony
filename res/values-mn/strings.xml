@@ -515,6 +515,7 @@
     <string name="puk2_requested" msgid="6992374450720307514">"Нууц үг буруу байна. SIM карт одоо түгжигдсэн. PUK2 кодыг оруулна уу."</string>
     <string name="puk2_blocked" msgid="3131139031779319911">"ПҮК2 бүрмөсөн түгжигдсэн."</string>
     <string name="pin2_attempts" msgid="5625178102026453023">\n"Танд <xliff:g id="NUMBER">%d</xliff:g> оролдлого үлдлээ."</string>
+    <string name="puk2_locked" msgid="6497760825455461057">"PUK2-г түгжсэн. Түгжээг тайлахын тулд үйлчилгээ үзүүлэгчтэй холбогдоно уу."</string>
     <string name="pin2_unblocked" msgid="4481107908727789303">"PIN2 түгжээгүй болсон"</string>
     <string name="pin2_error_exception" msgid="8116103864600823641">"Сүлжээ болон SIM картын алдаа"</string>
     <string name="doneButton" msgid="7371209609238460207">"Дууссан"</string>
@@ -913,6 +914,8 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"NR боломжтой:"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"NR төлөв:"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"NR давтамж:"</string>
+    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
+    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"Радио мессежийн горимыг тохируулах"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"Мессежийн жагсаалтыг ачаалж байна…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"Тохируулах"</string>
