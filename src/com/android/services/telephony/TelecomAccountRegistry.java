@@ -36,9 +36,6 @@ import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.PersistableBundle;
-import android.os.RemoteException;
-import android.os.ServiceManager;
-import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.provider.Settings;
 import android.provider.Telephony;
@@ -80,8 +77,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
-
-import org.codeaurora.internal.IExtTelephony;
 
 /**
  * Owns all data we have registered with Telecom including handling dynamic addition and
@@ -1558,50 +1553,18 @@ public class TelecomAccountRegistry {
                 R.bool.config_pstn_phone_accounts_enabled);
         int activeCount = 0;
         int activeSubscriptionId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
-        boolean isAnyProvisionInfoPending = false;
 
         synchronized (mAccountsLock) {
             try {
                 if (phoneAccountsEnabled) {
-                    // states we are interested in from what
-                    // IExtTelephony.getCurrentUiccCardProvisioningStatus()can return
-                    final int PROVISIONED = 1;
-                    final int INVALID_STATE = -1;
-                    final int CARD_NOT_PRESENT = -2;
 
                     for (Phone phone : phones) {
-                        int provisionStatus = PROVISIONED;
                         int subscriptionId = phone.getSubId();
                         int slotId = phone.getPhoneId();
                         boolean isAccountAdded = false;
 
-                        if (mTelephonyManager.getPhoneCount() > 1) {
-                            IExtTelephony mExtTelephony = IExtTelephony.Stub
-                                    .asInterface(ServiceManager.getService("qti.radio.extphone"));
-                            try {
-                                //get current provision state of the SIM.
-                                provisionStatus =
-                                        mExtTelephony.getCurrentUiccCardProvisioningStatus(slotId);
-                            } catch (RemoteException ex) {
-                                provisionStatus = INVALID_STATE;
-                                Log.w(this, "Failed to get status , slotId: "+ slotId +" Exception: "
-                                        + ex);
-                            } catch (NullPointerException ex) {
-                                provisionStatus = INVALID_STATE;
-                                Log.w(this, "Failed to get status , slotId: "+ slotId +" Exception: "
-                                        + ex);
-                            }
-                        }
-
-                        // In SSR case, UiccCard's would be disposed hence the provision state received as
-                        // CARD_NOT_PRESENT but valid subId present in SubscriptionInfo record.
-                        if (provisionStatus == INVALID_STATE || ((provisionStatus == CARD_NOT_PRESENT)
-                                && mSubscriptionManager.isActiveSubId(subscriptionId))) {
-                            isAnyProvisionInfoPending = true;
-                        }
-
                         Log.i(this, "setupAccounts: Phone with subscription id: " + subscriptionId +
-                                " slotId: " + slotId + " provisionStatus: " + provisionStatus);
+                                " slotId: " + slotId);
                         // setupAccounts can be called multiple times during service changes.
                         // Don't add an account if the Icc has not been set yet.
                         if (!SubscriptionManager.isValidSubscriptionId(subscriptionId)
@@ -1630,8 +1593,7 @@ public class TelecomAccountRegistry {
                             continue;
                         }
 
-                        if (subscriptionId >= 0  && (provisionStatus == PROVISIONED)
-                                && (mSubscriptionManager.isActiveSubId(subscriptionId))) {
+                        if (mSubscriptionManager.isActiveSubId(subscriptionId)) {
                             activeCount++;
                             activeSubscriptionId = subscriptionId;
                             mAccounts.add(new AccountEntry(phone, false /* emergency */,
@@ -1680,15 +1642,15 @@ public class TelecomAccountRegistry {
 
         if ((defaultPhoneAccount == null)
                     && (mTelephonyManager.getActiveModemCount() > Count.ONE.ordinal())
-                    && (activeCount == Count.ONE.ordinal()) && !isAnyProvisionInfoPending
+                    && (activeCount == Count.ONE.ordinal())
                     && (areAllSimAccountsFound()) && (isRadioInValidState(phones))) {
             PhoneAccountHandle phoneAccountHandle =
                     subscriptionIdToPhoneAccountHandle(activeSubscriptionId);
             if (phoneAccountHandle != null) {
+                Log.i(this, "setting default phone account, subId " + activeSubscriptionId);
                 mTelecomManager.setUserSelectedOutgoingPhoneAccount(phoneAccountHandle);
             }
         }
-
     }
 
     private boolean areAllSimAccountsFound() {
@@ -1708,13 +1670,12 @@ public class TelecomAccountRegistry {
     private boolean isRadioInValidState(Phone[] phones) {
         boolean isApmSimNotPwrDown = false;
         try {
-            IExtTelephony extTelephony = IExtTelephony.Stub
-                 .asInterface(ServiceManager.getService("extphone"));
-            int propVal = extTelephony.getPropertyValueInt(APM_SIM_NOT_PWDN_PROPERTY, 0);
+            int propVal = PhoneUtils.getExtTelManager().
+                    getPropertyValueInt(APM_SIM_NOT_PWDN_PROPERTY, 0);
             isApmSimNotPwrDown = (propVal == 1);
             Log.d(this, "isRadioInValidState, propVal = " + propVal +
                     " isApmSimNotPwrDown = " + isApmSimNotPwrDown);
-        } catch (RemoteException|NullPointerException ex) {
+        } catch (NullPointerException ex) {
             Log.w(this, "Failed to get property: + " + APM_SIM_NOT_PWDN_PROPERTY +
                     " , Exception: " + ex);
         }
