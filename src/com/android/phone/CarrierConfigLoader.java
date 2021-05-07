@@ -321,13 +321,13 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
                                 @Override
                                 public void onReceiveResult(int resultCode, Bundle resultData) {
                                     unbindIfBound(mContext, conn, phoneId);
+                                    removeMessages(EVENT_FETCH_DEFAULT_TIMEOUT,
+                                            getMessageToken(phoneId));
                                     // If new service connection has been created, this is stale.
                                     if (mServiceConnection[phoneId] != conn) {
                                         loge("Received response for stale request.");
                                         return;
                                     }
-                                    removeMessages(EVENT_FETCH_DEFAULT_TIMEOUT,
-                                            getMessageToken(phoneId));
                                     if (resultCode == RESULT_ERROR || resultData == null) {
                                         // On error, abort config fetching.
                                         loge("Failed to get carrier config");
@@ -451,13 +451,13 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
                                 @Override
                                 public void onReceiveResult(int resultCode, Bundle resultData) {
                                     unbindIfBound(mContext, conn, phoneId);
+                                    removeMessages(EVENT_FETCH_CARRIER_TIMEOUT,
+                                            getMessageToken(phoneId));
                                     // If new service connection has been created, this is stale.
                                     if (mServiceConnection[phoneId] != conn) {
                                         loge("Received response for stale request.");
                                         return;
                                     }
-                                    removeMessages(EVENT_FETCH_CARRIER_TIMEOUT,
-                                            getMessageToken(phoneId));
                                     if (resultCode == RESULT_ERROR || resultData == null) {
                                         // On error, abort config fetching.
                                         loge("Failed to get carrier config from carrier app: "
@@ -882,9 +882,15 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
     /** Returns the package name of a priveleged carrier app, or null if there is none. */
     @Nullable
     private String getCarrierPackageForPhoneId(int phoneId) {
-        List<String> carrierPackageNames = TelephonyManager.from(mContext)
+        List<String> carrierPackageNames;
+        final long token = Binder.clearCallingIdentity();
+        try {
+            carrierPackageNames = TelephonyManager.from(mContext)
                 .getCarrierPackageNamesForIntentAndPhone(
-                        new Intent(CarrierService.CARRIER_SERVICE_INTERFACE), phoneId);
+                    new Intent(CarrierService.CARRIER_SERVICE_INTERFACE), phoneId);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
         if (carrierPackageNames != null && carrierPackageNames.size() > 0) {
             return carrierPackageNames.get(0);
         } else {
@@ -1193,6 +1199,8 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
         int phoneId = SubscriptionManager.getPhoneId(subscriptionId);
         PersistableBundle retConfig = CarrierConfigManager.getDefaultConfig();
         if (SubscriptionManager.isValidPhoneId(phoneId)) {
+            logd("getConfigForSubIdWithFeature: subscriptionId=" + subscriptionId
+                    + ", phoneId=" + phoneId);
             PersistableBundle config = mConfigFromDefaultApp[phoneId];
             if (config != null) {
                 retConfig.putAll(config);

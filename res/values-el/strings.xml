@@ -515,6 +515,7 @@
     <string name="puk2_requested" msgid="6992374450720307514">"Ο κωδικός πρόσβασης είναι λανθασμένος. Η SIM κλειδώθηκε. Καταχωρίστε το PUK2."</string>
     <string name="puk2_blocked" msgid="3131139031779319911">"Ο κωδικός PUK2 έχει μπλοκαριστεί οριστικά."</string>
     <string name="pin2_attempts" msgid="5625178102026453023">\n"Απομένουν <xliff:g id="NUMBER">%d</xliff:g> προσπάθειες."</string>
+    <string name="puk2_locked" msgid="6497760825455461057">"Το PUK2 κλειδώθηκε. Επικοινωνήστε με τον πάροχο υπηρεσιών για ξεκλείδωμα."</string>
     <string name="pin2_unblocked" msgid="4481107908727789303">"Το PIN2 δεν είναι πλέον αποκλεισμένο"</string>
     <string name="pin2_error_exception" msgid="8116103864600823641">"Σφάλμα δικτύου ή κάρτας SIM"</string>
     <string name="doneButton" msgid="7371209609238460207">"Τέλος"</string>
@@ -913,6 +914,8 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"NR διαθέσιμο:"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"Κατάσταση NR:"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"Συχνότητα NR:"</string>
+    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
+    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"Ρύθμιση λειτουργίας ζώνης συχνοτήτων πομπού"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"Φόρτωση λίστας ζωνών…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"Ορισμός"</string>
