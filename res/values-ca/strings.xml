@@ -575,7 +575,7 @@
     <string name="description_concat_format" msgid="2014471565101724088">"%1$s, %2$s"</string>
     <string name="dialerKeyboardHintText" msgid="1115266533703764049">"Utilitzeu el teclat per marcar"</string>
     <string name="onscreenHoldText" msgid="4025348842151665191">"Posa en espera"</string>
-    <string name="onscreenEndCallText" msgid="6138725377654842757">"Final"</string>
+    <string name="onscreenEndCallText" msgid="6138725377654842757">"Finalitza"</string>
     <string name="onscreenShowDialpadText" msgid="658465753816164079">"Teclat"</string>
     <string name="onscreenMuteText" msgid="5470306116733843621">"Silencia"</string>
     <string name="onscreenAddCallText" msgid="9075675082903611677">"Afegeix una trucada"</string>
@@ -914,8 +914,6 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"NR disponible:"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"Estat d\'NR:"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"Freqüència d\'NR:"</string>
-    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
-    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"Configura el mode de banda de senyal mòbil"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"S\'està carregant la llista de bandes…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"Defineix"</string>

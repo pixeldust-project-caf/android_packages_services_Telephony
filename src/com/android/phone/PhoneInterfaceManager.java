@@ -3256,8 +3256,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     private void enforceCallingPackage(String callingPackage, int callingUid, String message) {
         int packageUid = -1;
+        PackageManager pm = mApp.getBaseContext().createContextAsUser(
+                UserHandle.getUserHandleForUid(callingUid), 0).getPackageManager();
         try {
-            packageUid = mPm.getPackageUid(callingPackage, 0);
+            packageUid = pm.getPackageUid(callingPackage, 0);
         } catch (PackageManager.NameNotFoundException e) {
             // packageUid is -1
         }
@@ -6720,7 +6722,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
     @Override
     public int checkCarrierPrivilegesForPackageAnyPhone(String pkgName) {
-        enforceReadPrivilegedPermission("checkCarrierPrivilegesForPackageAnyPhone");
+        // TODO(b/186774706): Remove @RequiresPermission from TelephonyManager API
         if (TextUtils.isEmpty(pkgName))
             return TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS;
         int result = TelephonyManager.CARRIER_PRIVILEGE_STATUS_RULES_NOT_LOADED;
@@ -10480,6 +10482,23 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         final long identity = Binder.clearCallingIdentity();
         try {
             return mApp.imsRcsController.getLastUcePidfXmlShell(subId);
+        } catch (ImsException e) {
+            throw new ServiceSpecificException(e.getCode(), e.getMessage());
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Remove UCE requests cannot be sent to the network status.
+     */
+    // Used for SHELL command only right now.
+    @Override
+    public boolean removeUceRequestDisallowedStatus(int subId) {
+        TelephonyPermissions.enforceShellOnly(Binder.getCallingUid(), "uceRemoveDisallowedStatus");
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            return mApp.imsRcsController.removeUceRequestDisallowedStatus(subId);
         } catch (ImsException e) {
             throw new ServiceSpecificException(e.getCode(), e.getMessage());
         } finally {

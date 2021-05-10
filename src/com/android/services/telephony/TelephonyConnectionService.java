@@ -86,6 +86,7 @@ import java.util.LinkedList;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -1340,10 +1341,15 @@ public class TelephonyConnectionService extends ConnectionService {
                 createConnectionFor(phone, originalConnection, false /* isOutgoing */,
                         request.getAccountHandle(), request.getTelecomCallId(),
                         request.isAdhocConferenceCall());
+
         handleIncomingRtt(request, originalConnection);
         if (connection == null) {
             return Connection.createCanceledConnection();
         } else {
+            // Add extra to call if answering this incoming call would cause an in progress call on
+            // another subscription to be disconnected.
+            maybeIndicateAnsweringWillDisconnect(connection, request.getAccountHandle());
+
             connection.setTtyEnabled(mDeviceState.isTtyModeEnabled(getApplicationContext()));
             return connection;
         }
@@ -2667,18 +2673,22 @@ public class TelephonyConnectionService extends ConnectionService {
        getAllConnections().stream()
                .filter(f -> f instanceof TelephonyConnection)
                .forEach(t -> {
-                        TelephonyConnection tc = (TelephonyConnection) t;
-                        Communicator c = tc.getCommunicator();
-                        if (c == null) {
-                            Log.w(this, "sendTestDeviceToDeviceMessage: D2D not enabled");
-                            return;
-                        }
+                   TelephonyConnection tc = (TelephonyConnection) t;
+                   if (!tc.isImsConnection()) {
+                       Log.w(this, "sendTestDeviceToDeviceMessage: not an IMS connection");
+                       return;
+                   }
+                   Communicator c = tc.getCommunicator();
+                   if (c == null) {
+                       Log.w(this, "sendTestDeviceToDeviceMessage: D2D not enabled");
+                       return;
+                   }
 
-                        c.sendMessages(new HashSet<Communicator.Message>() {{
-                            add(new Communicator.Message(message, value));
-                        }});
+                   c.sendMessages(new HashSet<Communicator.Message>() {{
+                       add(new Communicator.Message(message, value));
+                   }});
 
-       });
+               });
     }
 
     /**
@@ -2715,5 +2725,41 @@ public class TelephonyConnectionService extends ConnectionService {
             }
         }
         return origAccountHandle;
+    }
+
+    /**
+     * For the passed in incoming {@link TelephonyConnection}, add
+     * {@link Connection#EXTRA_ANSWERING_DROPS_FG_CALL} if there are ongoing calls on another
+     * subscription (ie phone account handle) than the one passed in.
+     * @param connection The connection.
+     * @param phoneAccountHandle The {@link PhoneAccountHandle} the incoming call originated on;
+     *                           this is passed in because
+     *                           {@link Connection#getPhoneAccountHandle()} is not set until after
+     *                           {@link ConnectionService#onCreateIncomingConnection(
+     *                           PhoneAccountHandle, ConnectionRequest)} returns.
+     */
+    public void maybeIndicateAnsweringWillDisconnect(@NonNull TelephonyConnection connection,
+            @NonNull PhoneAccountHandle phoneAccountHandle) {
+        if (isCallPresentOnOtherSub(phoneAccountHandle)) {
+            Log.i(this, "maybeIndicateAnsweringWillDisconnect; answering call %s will cause a call "
+                    + "on another subscription to drop.", connection.getTelecomCallId());
+            Bundle extras = new Bundle();
+            extras.putBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL, true);
+            connection.putExtras(extras);
+        }
+    }
+
+    /**
+     * Checks to see if there are calls present on a sub other than the one passed in.
+     * @param incomingHandle The new incoming connection {@link PhoneAccountHandle}
+     */
+    private boolean isCallPresentOnOtherSub(@NonNull PhoneAccountHandle incomingHandle) {
+        return getAllConnections().stream()
+                .filter(c ->
+                        // Exclude multiendpoint calls as they're not on this device.
+                        (c.getConnectionProperties() & Connection.PROPERTY_IS_EXTERNAL_CALL) == 0
+                        // Include any calls not on same sub as current connection.
+                        && !Objects.equals(c.getPhoneAccountHandle(), incomingHandle))
+                .count() > 0;
     }
 }
