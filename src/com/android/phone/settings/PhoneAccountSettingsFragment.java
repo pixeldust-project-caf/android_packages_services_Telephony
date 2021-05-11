@@ -373,15 +373,16 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
             // then don't show enable/disable dialog.
             if (!allNonSimAccounts.isEmpty()) {
                 mAccountList.addPreference(mAllCallingAccounts);
-                if (isXdivertAvailable) {
-                    if (mSmartDivertPref != null) {
-                        Log.d(LOG_TAG, "Add smart divert preference");
-                        mAccountList.addPreference(mSmartDivertPref);
-                    }
-                }
             } else {
                 mAccountList.removePreference(mAllCallingAccounts);
                 mMakeAndReceiveCallsCategory.removePreference(mDefaultOutgoingAccount);
+            }
+
+            if (isXdivertAvailable) {
+                if (mSmartDivertPref != null) {
+                    Log.d(LOG_TAG, "Add smart divert preference");
+                    mAccountList.addPreference(mSmartDivertPref);
+                }
             }
         }
     }
