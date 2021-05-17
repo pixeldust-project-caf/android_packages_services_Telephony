@@ -85,25 +85,56 @@ import java.util.concurrent.Executor;
  */
 public class RcsProvisioningMonitorTest {
     private static final String TAG = "RcsProvisioningMonitorTest";
-    private static final String SAMPLE_CONFIG = "<RCSConfig>\n"
-            + "\t<rcsVolteSingleRegistration>1</rcsVolteSingleRegistration>\n"
-            + "\t<SERVICES>\n"
-            + "\t\t<SupportedRCSProfileVersions>UP_2.0</SupportedRCSProfileVersions>\n"
-            + "\t\t<ChatAuth>1</ChatAuth>\n"
-            + "\t\t<GroupChatAuth>1</GroupChatAuth>\n"
-            + "\t\t<ftAuth>1</ftAuth>\n"
-            + "\t\t<standaloneMsgAuth>1</standaloneMsgAuth>\n"
-            + "\t\t<geolocPushAuth>1</geolocPushAuth>\n"
-            + "\t\t<Ext>\n"
-            + "\t\t\t<DataOff>\n"
-            + "\t\t\t\t<rcsMessagingDataOff>1</rcsMessagingDataOff>\n"
-            + "\t\t\t\t<fileTransferDataOff>1</fileTransferDataOff>\n"
-            + "\t\t\t\t<mmsDataOff>1</mmsDataOff>\n"
-            + "\t\t\t\t<syncDataOff>1</syncDataOff>\n"
-            + "\t\t\t</DataOff>\n"
-            + "\t\t</Ext>\n"
-            + "\t</SERVICES>\n"
-            + "</RCSConfig>";
+    private static final String CONFIG_DEFAULT = "<?xml version=\"1.0\"?>\n"
+            + "<wap-provisioningdoc version=\"1.1\">\n"
+            + "\t<characteristic type=\"APPLICATION\">\n"
+            + "\t\t<parm name=\"AppID\" value=\"urn:oma:mo:ext-3gpp-ims:1.0\"/>\n"
+            + "\t\t<characteristic type=\"3GPP_IMS\">\n"
+            + "\t\t\t<parm name=\"AppID\" value=\"ap2001\"/>\n"
+            + "\t\t\t<parm name=\"Name\" value=\"RCS IMS Settings\"/>\n"
+            + "\t\t\t<characteristic type=\"Ext\">\n"
+            + "\t\t\t\t<characteristic type=\"GSMA\">\n"
+            + "\t\t\t\t\t<parm name=\"AppRef\" value=\"IMS-Setting\"/>\n"
+            + "\t\t\t\t\t<parm name=\"rcsVolteSingleRegistration\" value=\"1\"/>\n"
+            + "\t\t\t\t</characteristic>\n"
+            + "\t\t\t</characteristic>\n"
+            + "\t\t</characteristic>\n"
+            + "\t\t<characteristic type=\"SERVICES\">\n"
+            + "\t\t\t<parm name=\"SupportedRCSProfileVersions\" value=\"UP2.3\"/>\n"
+            + "\t\t\t<parm name=\"ChatAuth\" value=\"1\"/>\n"
+            + "\t\t\t<parm name=\"GroupChatAuth\" value=\"1\"/>\n"
+            + "\t\t\t<parm name=\"ftAuth\" value=\"1\"/>\n"
+            + "\t\t\t<parm name=\"standaloneMsgAuth\" value=\"1\"/>\n"
+            + "\t\t\t<parm name=\"geolocPushAuth\" value=\"1\"/>\n"
+            + "\t\t\t<characteristic type=\"Ext\">\n"
+            + "\t\t\t\t<characteristic type=\"DataOff\">\n"
+            + "\t\t\t\t\t<parm name=\"rcsMessagingDataOff\" value=\"1\"/>\n"
+            + "\t\t\t\t\t<parm name=\"fileTransferDataOff\" value=\"1\"/>\n"
+            + "\t\t\t\t\t<parm name=\"mmsDataOff\" value=\"1\"/>\n"
+            + "\t\t\t\t\t<parm name=\"syncDataOff\" value=\"1\"/>\n"
+            + "\t\t\t\t\t<characteristic type=\"Ext\"/>\n"
+            + "\t\t\t\t</characteristic>\n"
+            + "\t\t\t</characteristic>\n"
+            + "\t\t</characteristic>\n"
+            + "\t</characteristic>\n"
+            + "</wap-provisioningdoc>\n";
+
+    private static final String CONFIG_SINGLE_REGISTRATION_DISABLED = "<?xml version=\"1.0\"?>\n"
+            + "<wap-provisioningdoc version=\"1.1\">\n"
+            + "\t<characteristic type=\"APPLICATION\">\n"
+            + "\t\t<parm name=\"AppID\" value=\"urn:oma:mo:ext-3gpp-ims:1.0\"/>\n"
+            + "\t\t<characteristic type=\"3GPP_IMS\">\n"
+            + "\t\t\t<parm name=\"AppID\" value=\"ap2001\"/>\n"
+            + "\t\t\t<parm name=\"Name\" value=\"RCS IMS Settings\"/>\n"
+            + "\t\t\t<characteristic type=\"Ext\">\n"
+            + "\t\t\t\t<characteristic type=\"GSMA\">\n"
+            + "\t\t\t\t\t<parm name=\"AppRef\" value=\"IMS-Setting\"/>\n"
+            + "\t\t\t\t\t<parm name=\"rcsVolteSingleRegistration\" value=\"0\"/>\n"
+            + "\t\t\t\t</characteristic>\n"
+            + "\t\t\t</characteristic>\n"
+            + "\t\t</characteristic>\n"
+            + "\t</characteristic>\n"
+            + "</wap-provisioningdoc>\n";
     private static final int FAKE_SUB_ID_BASE = 0x0FFFFFF0;
     private static final String DEFAULT_MESSAGING_APP1 = "DMA1";
     private static final String DEFAULT_MESSAGING_APP2 = "DMA2";
@@ -252,7 +283,7 @@ public class RcsProvisioningMonitorTest {
         when(mCursor.moveToFirst()).thenReturn(true);
         when(mCursor.getColumnIndexOrThrow(any())).thenReturn(1);
         when(mCursor.getBlob(anyInt())).thenReturn(
-                RcsConfig.compressGzip(SAMPLE_CONFIG.getBytes()));
+                RcsConfig.compressGzip(CONFIG_DEFAULT.getBytes()));
 
         mHandlerThread = new HandlerThread("RcsProvisioningMonitorTest");
         mHandlerThread.start();
@@ -278,7 +309,7 @@ public class RcsProvisioningMonitorTest {
         createMonitor(3);
 
         for (int i = 0; i < 3; i++) {
-            assertTrue(Arrays.equals(SAMPLE_CONFIG.getBytes(),
+            assertTrue(Arrays.equals(CONFIG_DEFAULT.getBytes(),
                     mRcsProvisioningMonitor.getConfig(FAKE_SUB_ID_BASE + i)));
         }
 
@@ -312,7 +343,7 @@ public class RcsProvisioningMonitorTest {
         ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
 
         for (int i = 0; i < 3; i++) {
-            assertTrue(Arrays.equals(SAMPLE_CONFIG.getBytes(),
+            assertTrue(Arrays.equals(CONFIG_DEFAULT.getBytes(),
                     mRcsProvisioningMonitor.getConfig(FAKE_SUB_ID_BASE + i)));
         }
         verify(mPhone, times(3)).sendBroadcast(captorIntent.capture(), any());
@@ -358,7 +389,7 @@ public class RcsProvisioningMonitorTest {
         processAllMessages();
         byte[] configCached = mRcsProvisioningMonitor.getConfig(FAKE_SUB_ID_BASE);
 
-        assertTrue(Arrays.equals(SAMPLE_CONFIG.getBytes(), configCached));
+        assertTrue(Arrays.equals(CONFIG_DEFAULT.getBytes(), configCached));
         verify(mIImsConfig, times(1)).notifyRcsAutoConfigurationRemoved();
         // The api should be called 2 times, one happens when monitor is initilized,
         // Another happens when DMS is changed.
@@ -421,12 +452,12 @@ public class RcsProvisioningMonitorTest {
         createMonitor(1);
         final ArgumentCaptor<byte[]> argumentBytes = ArgumentCaptor.forClass(byte[].class);
 
-        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE, SAMPLE_CONFIG.getBytes(), false);
+        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE, CONFIG_DEFAULT.getBytes(), false);
         processAllMessages();
 
         verify(mIImsConfig, atLeastOnce()).notifyRcsAutoConfigurationReceived(
                 argumentBytes.capture(), eq(false));
-        assertTrue(Arrays.equals(SAMPLE_CONFIG.getBytes(), argumentBytes.getValue()));
+        assertTrue(Arrays.equals(CONFIG_DEFAULT.getBytes(), argumentBytes.getValue()));
     }
 
     @Test
@@ -447,13 +478,15 @@ public class RcsProvisioningMonitorTest {
         createMonitor(1);
 
         when(mPackageManager.hasSystemFeature(
-                eq(PackageManager.FEATURE_TELEPHONY_IMS_SINGLE_REGISTRATION))).thenReturn(true);
+                eq(PackageManager.FEATURE_TELEPHONY_IMS_SINGLE_REGISTRATION))).thenReturn(false);
         mBundle.putBoolean(
-                CarrierConfigManager.Ims.KEY_IMS_SINGLE_REGISTRATION_REQUIRED_BOOL, true);
+                CarrierConfigManager.Ims.KEY_IMS_SINGLE_REGISTRATION_REQUIRED_BOOL, false);
         broadcastCarrierConfigChange(FAKE_SUB_ID_BASE);
         processAllMessages();
-        assertTrue(mRcsProvisioningMonitor.isRcsVolteSingleRegistrationEnabled(FAKE_SUB_ID_BASE));
+        assertFalse(mRcsProvisioningMonitor.isRcsVolteSingleRegistrationEnabled(FAKE_SUB_ID_BASE));
 
+        when(mPackageManager.hasSystemFeature(
+                eq(PackageManager.FEATURE_TELEPHONY_IMS_SINGLE_REGISTRATION))).thenReturn(true);
         mBundle.putBoolean(
                 CarrierConfigManager.Ims.KEY_IMS_SINGLE_REGISTRATION_REQUIRED_BOOL, false);
         broadcastCarrierConfigChange(FAKE_SUB_ID_BASE);
@@ -466,6 +499,27 @@ public class RcsProvisioningMonitorTest {
         mBundle.putBoolean(
                 CarrierConfigManager.Ims.KEY_IMS_SINGLE_REGISTRATION_REQUIRED_BOOL, true);
         broadcastCarrierConfigChange(FAKE_SUB_ID_BASE);
+        processAllMessages();
+        assertFalse(mRcsProvisioningMonitor.isRcsVolteSingleRegistrationEnabled(FAKE_SUB_ID_BASE));
+
+        when(mPackageManager.hasSystemFeature(
+                eq(PackageManager.FEATURE_TELEPHONY_IMS_SINGLE_REGISTRATION))).thenReturn(true);
+        mBundle.putBoolean(
+                CarrierConfigManager.Ims.KEY_IMS_SINGLE_REGISTRATION_REQUIRED_BOOL, true);
+        broadcastCarrierConfigChange(FAKE_SUB_ID_BASE);
+        processAllMessages();
+        assertTrue(mRcsProvisioningMonitor.isRcsVolteSingleRegistrationEnabled(FAKE_SUB_ID_BASE));
+
+        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE, null, false);
+        processAllMessages();
+        assertFalse(mRcsProvisioningMonitor.isRcsVolteSingleRegistrationEnabled(FAKE_SUB_ID_BASE));
+
+        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE, CONFIG_DEFAULT.getBytes(), false);
+        processAllMessages();
+        assertTrue(mRcsProvisioningMonitor.isRcsVolteSingleRegistrationEnabled(FAKE_SUB_ID_BASE));
+
+        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE,
+                CONFIG_SINGLE_REGISTRATION_DISABLED.getBytes(), false);
         processAllMessages();
         assertFalse(mRcsProvisioningMonitor.isRcsVolteSingleRegistrationEnabled(FAKE_SUB_ID_BASE));
     }
@@ -594,12 +648,12 @@ public class RcsProvisioningMonitorTest {
         verify(mCursor, times(1)).getBlob(anyInt());
         assertNull(mRcsProvisioningMonitor.getConfig(FAKE_SUB_ID_BASE));
 
-        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE, SAMPLE_CONFIG.getBytes(), false);
+        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE, CONFIG_DEFAULT.getBytes(), false);
         processAllMessages();
 
         //config cahced in monitor should be updated, but db should not
         assertNull(mProvider.getContentValues());
-        assertTrue(Arrays.equals(SAMPLE_CONFIG.getBytes(),
+        assertTrue(Arrays.equals(CONFIG_DEFAULT.getBytes(),
                 mRcsProvisioningMonitor.getConfig(FAKE_SUB_ID_BASE)));
 
         //verify if monitor goes back to normal mode
@@ -609,12 +663,12 @@ public class RcsProvisioningMonitorTest {
         verify(mCursor, times(2)).getBlob(anyInt());
         assertNull(mRcsProvisioningMonitor.getConfig(FAKE_SUB_ID_BASE));
 
-        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE, SAMPLE_CONFIG.getBytes(), false);
+        mRcsProvisioningMonitor.updateConfig(FAKE_SUB_ID_BASE, CONFIG_DEFAULT.getBytes(), false);
         processAllMessages();
 
-        assertTrue(Arrays.equals(SAMPLE_CONFIG.getBytes(),
+        assertTrue(Arrays.equals(CONFIG_DEFAULT.getBytes(),
                 mRcsProvisioningMonitor.getConfig(FAKE_SUB_ID_BASE)));
-        assertTrue(Arrays.equals(RcsConfig.compressGzip(SAMPLE_CONFIG.getBytes()),
+        assertTrue(Arrays.equals(RcsConfig.compressGzip(CONFIG_DEFAULT.getBytes()),
                 (byte[]) mProvider.getContentValues().get(SimInfo.COLUMN_RCS_CONFIG)));
     }
 

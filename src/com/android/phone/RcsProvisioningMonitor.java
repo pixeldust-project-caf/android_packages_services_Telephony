@@ -539,8 +539,15 @@ public class RcsProvisioningMonitor {
      */
     public boolean isRcsVolteSingleRegistrationEnabled(int subId) {
         if (mRcsProvisioningInfos.containsKey(subId)) {
-            return mRcsProvisioningInfos.get(subId).getSingleRegistrationCapability()
-                    == ProvisioningManager.STATUS_CAPABLE;
+            if (mRcsProvisioningInfos.get(subId).getSingleRegistrationCapability()
+                    == ProvisioningManager.STATUS_CAPABLE) {
+                try {
+                    RcsConfig rcsConfig = new RcsConfig(getConfig(subId));
+                    return rcsConfig.isRcsVolteSingleRegistrationSupported();
+                } catch (IllegalArgumentException e) {
+                    logd("fail to get rcs config for sub:" + subId);
+                }
+            }
         }
         return false;
     }
@@ -833,10 +840,9 @@ public class RcsProvisioningMonitor {
     }
 
     void unregisterRcsFeatureListener(RcsProvisioningInfo info) {
-        int slotId = SubscriptionManager.getSlotIndex(info.getSubId());
-        RcsFeatureListener cb = mRcsFeatureListeners.get(slotId);
-        if (cb != null) {
-            cb.removeRcsProvisioningInfo(info);
+        // make sure the info to be removed in any case, even the slotId changed or invalid.
+        for (int i  = 0; i < mRcsFeatureListeners.size(); i++) {
+            mRcsFeatureListeners.valueAt(i).removeRcsProvisioningInfo(info);
         }
     }
 

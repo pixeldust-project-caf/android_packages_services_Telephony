@@ -294,6 +294,9 @@
     <string name="limited_sim_function_notification_title" msgid="612715399099846281">"SIM ბარათის შეზღუდული ფუნქციონალობა"</string>
     <string name="limited_sim_function_with_phone_num_notification_message" msgid="5928988883403677610">"<xliff:g id="CARRIER_NAME">%1$s</xliff:g>-ის ზარებისა და მობილური ინტერნეტის სერვისები შეიძლება დაიბლოკოს <xliff:g id="PHONE_NUMBER">%2$s</xliff:g>-ის გამოყენებისას."</string>
     <string name="limited_sim_function_notification_message" msgid="5338638075496721160">"<xliff:g id="CARRIER_NAME">%1$s</xliff:g> ზარები და მობ.ინტ. სერვისები შეიძლება დაიბლოკოს სხვა SIM ბარათის გამოყენებისას."</string>
+    <string name="sip_accounts_removed_notification_title" msgid="3528076957535736095">"მოძველებული SIP ანგარიშები მოიძებნა და წაიშალა"</string>
+    <string name="sip_accounts_removed_notification_message" msgid="1916856744869791592">"SIP დარეკვა აღარ არის მხარდაჭერილი Android პლატფორმით.\nთქვენი არსებული SIP ანგარიშები <xliff:g id="REMOVED_SIP_ACCOUNTS">%s</xliff:g> წაშლილია.\nგთხოვთ, დაადასტუროთ თქვენი დარეკვის ნაგულისხმევი ანგარიშის პარამეტრი."</string>
+    <string name="sip_accounts_removed_notification_action" msgid="3772778402370555562">"პარამეტრებზე გადასვლა"</string>
     <string name="data_usage_title" msgid="8438592133893837464">"აპის მონაცემთა გამოყენება"</string>
     <string name="data_usage_template" msgid="6287906680674061783">"<xliff:g id="ID_1">%1$s</xliff:g> მობილური ინტერნეტი გამოყენებულია: <xliff:g id="ID_2">%2$s</xliff:g>"</string>
     <string name="advanced_options_title" msgid="9208195294513520934">"გაფართოებული"</string>
@@ -512,6 +515,7 @@
     <string name="puk2_requested" msgid="6992374450720307514">"პაროლი არასწორია. SIM ახლა დაბლოკილია. შეიყვანეთ PUK2."</string>
     <string name="puk2_blocked" msgid="3131139031779319911">"PUK2 სამუდამოდ დაიბლოკა."</string>
     <string name="pin2_attempts" msgid="5625178102026453023">\n" თქვენ გაქვთ <xliff:g id="NUMBER">%d</xliff:g> დარჩენილი მცდელობა."</string>
+    <string name="puk2_locked" msgid="6497760825455461057">"PUK2 ჩაკეტილია. განსაბლოკად დაუკავშირდით სერვისის პროვაიდერს."</string>
     <string name="pin2_unblocked" msgid="4481107908727789303">"PIN2 აღარ არის დაბლოკილი"</string>
     <string name="pin2_error_exception" msgid="8116103864600823641">"ქსელის ან SIM ბარათის შეცდომა"</string>
     <string name="doneButton" msgid="7371209609238460207">"დასრულდა"</string>
@@ -910,6 +914,8 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"NR ხელმისაწვდომია:"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"NR-ის მდგომარეობა:"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"NR-ის სიხშირე:"</string>
+    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
+    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"რადიოდიაპაზონის რეჟიმის დაყენება"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"მიმდინარეობს დიაპაზონთა სიის ჩატვირთვა…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"დაყენება"</string>
@@ -921,4 +927,5 @@
     <string name="trigger_carrier_provisioning" msgid="1301829588620638234">"ოპერატორის უზრუნველყოფის გააქტიურება"</string>
     <string name="call_quality_notification_bluetooth_details" msgid="8348950331707346711">"თქვენი Bluetooth სიგნალი სუსტია. სცადეთ სპიკერფონზე გადართვა."</string>
     <string name="call_quality_notification_name" msgid="3476828289553948830">"შეტყობინება ზარის ხარისხის შესახებ"</string>
+    <string name="notification_channel_sip_account" msgid="1261816025156179637">"მოძველებული SIP ანგარიშები"</string>
 </resources>

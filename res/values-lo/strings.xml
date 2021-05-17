@@ -294,6 +294,9 @@
     <string name="limited_sim_function_notification_title" msgid="612715399099846281">"ຈຳກັດການເຮັດວຽກຂອງຊິມ"</string>
     <string name="limited_sim_function_with_phone_num_notification_message" msgid="5928988883403677610">"ບໍລິການໂທ ແລະ ອິນເຕີເນັດ <xliff:g id="CARRIER_NAME">%1$s</xliff:g> ອາດຖືກບລັອກໄວ້ເມື່ອໃຊ້ເບີໂທ <xliff:g id="PHONE_NUMBER">%2$s</xliff:g>."</string>
     <string name="limited_sim_function_notification_message" msgid="5338638075496721160">"ບໍລິການໂທ ແລະ ອິນເຕີເນັດ <xliff:g id="CARRIER_NAME">%1$s</xliff:g> ອາດຖືກບລັອກໄວ້ເມື່ອໃຊ້ຊິມອື່ນ."</string>
+    <string name="sip_accounts_removed_notification_title" msgid="3528076957535736095">"ພົບ ແລະ ລຶບບັນຊີ SIP ທີ່ເຊົາສະໜັບສະໜູນອອກແລ້ວ"</string>
+    <string name="sip_accounts_removed_notification_message" msgid="1916856744869791592">"ແພລດຟອມ Android ບໍ່ຮອງຮັບການໂທ SIP ອີກຕໍ່ໄປ.\nບັນຊີ SIP ທີ່ທ່ານມີຢູ່ <xliff:g id="REMOVED_SIP_ACCOUNTS">%s</xliff:g> ໄດ້ຖືກລຶບອອກແລ້ວ.\nກະລຸນາຢັ້ງຢືນການຕັ້ງຄ່າບັນຊີການໂທເລີ່ມຕົ້ນຂອງທ່ານ."</string>
+    <string name="sip_accounts_removed_notification_action" msgid="3772778402370555562">"ໄປທີ່ການຕັ້ງຄ່າ"</string>
     <string name="data_usage_title" msgid="8438592133893837464">"ການໃຊ້ຂໍ້ມູນແອັບ"</string>
     <string name="data_usage_template" msgid="6287906680674061783">"ໃຊ້ອິນເຕີເນັດໄປແລ້ວ <xliff:g id="ID_1">%1$s</xliff:g> ລະຫວ່າງ <xliff:g id="ID_2">%2$s</xliff:g>"</string>
     <string name="advanced_options_title" msgid="9208195294513520934">"ຂັ້ນສູງ"</string>
@@ -512,6 +515,7 @@
     <string name="puk2_requested" msgid="6992374450720307514">"ລະ​ຫັດ​ຜ່ານ​ບໍ່​ຖືກ​ຕ້ອງ​. SIM ຖືກ​ລັອກ​ແລ້ວ​ດຽວ​ນີ້​. ປ້ອນ PUK2 ເຂົ້າ​ໄປ​."</string>
     <string name="puk2_blocked" msgid="3131139031779319911">"PUK2 ຖືກບລັອກຢ່າງຖາວອນແລ້ວ."</string>
     <string name="pin2_attempts" msgid="5625178102026453023">\n"ທ່ານ​ຍັງ​ພະ​ຍາ​ຍາມ​ໄດ້​ອີກ <xliff:g id="NUMBER">%d</xliff:g> ຄັ້ງ."</string>
+    <string name="puk2_locked" msgid="6497760825455461057">"ລັອກ PUK2 ແລ້ວ. ຕິດຕໍ່ຜູ້ໃຫ້ບໍລິການເພື່ອປົດລັອກ."</string>
     <string name="pin2_unblocked" msgid="4481107908727789303">"PIN2 ບໍ່​ຖືກ​ບ​ລັອກ​ອີກ"</string>
     <string name="pin2_error_exception" msgid="8116103864600823641">"ເຄືອຂ່າຍ ຫຼື SIM card ຜິດພາດ"</string>
     <string name="doneButton" msgid="7371209609238460207">"ແລ້ວໆ"</string>
@@ -910,6 +914,8 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"ມີ NR:"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"ສະຖານະ NR:"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"ຄວາມຖີ່ NR:"</string>
+    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
+    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"ຕັ້ງໂໝດແຖບຄວາມຖີ່ວິທະຍຸ"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"ກຳລັງດາວໂຫລດລາຍຊື່ແຖບຄວາມຖີ່..."</string>
     <string name="band_mode_set" msgid="6657819412803771421">"ກຳນົດ"</string>
@@ -921,4 +927,5 @@
     <string name="trigger_carrier_provisioning" msgid="1301829588620638234">"ກະຕຸ້ນການຈັດຫາຜູ້ໃຫ້ບໍລິການ"</string>
     <string name="call_quality_notification_bluetooth_details" msgid="8348950331707346711">"ສັນຍານ Bluetooth ຂອງທ່ານອ່ອນ. ລອງສະຫຼັບລຳໂພງໂທລະສັບ."</string>
     <string name="call_quality_notification_name" msgid="3476828289553948830">"ການແຈ້ງເຕືອນຄຸນນະພາບການໂທ"</string>
+    <string name="notification_channel_sip_account" msgid="1261816025156179637">"ບັນຊີ SIP ທີ່ເຊົາສະໜັບສະໜູນ"</string>
 </resources>

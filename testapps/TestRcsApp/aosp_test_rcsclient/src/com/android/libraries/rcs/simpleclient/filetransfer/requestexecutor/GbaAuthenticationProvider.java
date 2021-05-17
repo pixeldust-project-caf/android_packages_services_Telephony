@@ -25,6 +25,7 @@ import android.telephony.gba.UaSecurityProtocolIdentifier;
 import android.util.Log;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.SettableFuture;
 
 import org.apache.http.auth.Credentials;
@@ -61,13 +62,14 @@ public class GbaAuthenticationProvider {
             int cipherSuite = carrierConfig.getInt(
                     CarrierConfigManager.KEY_GBA_UA_TLS_CIPHER_SUITE_INT);
             Log.i(TAG, "organization:" + organization + ", protocol:" + protocol + ", cipherSuite:"
-                    + cipherSuite);
+                    + cipherSuite + ", contentServerUrl:" + contentServerUrl);
 
-            builder.setOrg(UaSecurityProtocolIdentifier.ORG_3GPP)
-                    .setProtocol(
-                            UaSecurityProtocolIdentifier.UA_SECURITY_PROTOCOL_3GPP_TLS_DEFAULT);
+            builder.setOrg(organization)
+                    .setProtocol(protocol);
             if (cipherSuite == TlsParams.TLS_NULL_WITH_NULL_NULL) {
                 builder.setTlsCipherSuite(TlsParams.TLS_RSA_WITH_AES_128_CBC_SHA);
+            } else {
+                builder.setTlsCipherSuite(cipherSuite);
             }
         } catch (IllegalArgumentException e) {
             Log.e(TAG, e.getMessage());
@@ -79,7 +81,8 @@ public class GbaAuthenticationProvider {
                 new TelephonyManager.BootstrapAuthenticationCallback() {
                     @Override
                     public void onKeysAvailable(byte[] gbaKey, String btId) {
-                        Log.i(TAG, "onKeysAvailable: key:[" + new String(gbaKey) + "] btid:[" + btId
+                        Log.i(TAG, "onKeysAvailable: String key:[" + new String(gbaKey) + "] btid:["
+                                + btId + "]" + "Base64 key:[" + BaseEncoding.base64().encode(gbaKey)
                                 + "]");
                         credentialsFuture.set(GbaCredentials.create(btId, gbaKey));
                     }
@@ -108,7 +111,7 @@ public class GbaAuthenticationProvider {
 
         public static GbaCredentials create(String btId, byte[] gbaKey) {
             return new AutoValue_GbaAuthenticationProvider_GbaCredentials(
-                    GbaPrincipal.create(btId), new String(gbaKey));
+                    GbaPrincipal.create(btId), BaseEncoding.base64().encode(gbaKey));
         }
 
         @Override

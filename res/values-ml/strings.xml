@@ -294,6 +294,9 @@
     <string name="limited_sim_function_notification_title" msgid="612715399099846281">"പരിമിതമായ സിം പ്രവർത്തനം"</string>
     <string name="limited_sim_function_with_phone_num_notification_message" msgid="5928988883403677610">"<xliff:g id="PHONE_NUMBER">%2$s</xliff:g> ഉപയോഗിക്കുമ്പോൾ <xliff:g id="CARRIER_NAME">%1$s</xliff:g> കോളുകളും ഡാറ്റാ സേവനങ്ങളും ബ്ലോക്ക് ചെയ്‌തേക്കാം."</string>
     <string name="limited_sim_function_notification_message" msgid="5338638075496721160">"മറ്റൊരു SIM ഉപയോഗിക്കുമ്പോൾ <xliff:g id="CARRIER_NAME">%1$s</xliff:g> കോളുകളും ഡാറ്റാ സേവനവും ബ്ലോക്ക് ചെയ്‌തേക്കാം."</string>
+    <string name="sip_accounts_removed_notification_title" msgid="3528076957535736095">"അവസാനിപ്പിച്ച SIP അക്കൗണ്ടുകൾ കണ്ടെത്തി നീക്കം ചെയ്‌തു"</string>
+    <string name="sip_accounts_removed_notification_message" msgid="1916856744869791592">"SIP കോൾ ചെയ്യലിന് ഇനി Android പ്ലാറ്റ്‌ഫോമിൽ പിന്തുണയുണ്ടാകില്ല.\nനിലവിലെ നിങ്ങളുടെ SIP അക്കൗണ്ടുകളായ <xliff:g id="REMOVED_SIP_ACCOUNTS">%s</xliff:g> എന്നിവ നീക്കം ചെയ്‌തിരിക്കുന്നു.\nനിങ്ങളുടെ ഡിഫോൾട്ട് കോൾ ചെയ്യൽ അക്കൗണ്ട് ക്രമീകരണം സ്ഥിരീകരിക്കുക."</string>
+    <string name="sip_accounts_removed_notification_action" msgid="3772778402370555562">"ക്രമീകരണത്തിലേക്ക് പോകുക"</string>
     <string name="data_usage_title" msgid="8438592133893837464">"ആപ്പ് ഡാറ്റ ഉപയോഗം"</string>
     <string name="data_usage_template" msgid="6287906680674061783">"<xliff:g id="ID_2">%2$s</xliff:g> തീയതികൾക്കിടയിൽ <xliff:g id="ID_1">%1$s</xliff:g> മൊബൈൽ ഡാറ്റ ഉപയോഗിച്ചു"</string>
     <string name="advanced_options_title" msgid="9208195294513520934">"വിപുലമായത്"</string>
@@ -512,6 +515,7 @@
     <string name="puk2_requested" msgid="6992374450720307514">"പാസ്‌വേഡ് തെറ്റാണ്. SIM ഇപ്പോൾ ലോക്കുചെയ്‌തിരിക്കുന്നു. PUK2 നൽകുക."</string>
     <string name="puk2_blocked" msgid="3131139031779319911">"PUK2 ശാശ്വതമായി തടഞ്ഞിരിക്കുന്നു."</string>
     <string name="pin2_attempts" msgid="5625178102026453023">\n"നിങ്ങൾക്ക് <xliff:g id="NUMBER">%d</xliff:g> ശ്രമങ്ങൾ ശേഷിക്കുന്നു."</string>
+    <string name="puk2_locked" msgid="6497760825455461057">"PUK2 ലോക്ക് ആണ്. അൺലോക്ക് ചെയ്യാൻ സേവന ദാതാവിനെ ബന്ധപ്പെടുക."</string>
     <string name="pin2_unblocked" msgid="4481107908727789303">"PIN2 ഇനി തടയില്ല"</string>
     <string name="pin2_error_exception" msgid="8116103864600823641">"നെറ്റ്‌വർക്ക് അല്ലെങ്കിൽ സിം കാർഡ് പിശക്"</string>
     <string name="doneButton" msgid="7371209609238460207">"പൂർത്തിയായി"</string>
@@ -910,6 +914,8 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"NR ലഭ്യം:"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"NR നില:"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"NR ഫ്രീക്വൻസി:"</string>
+    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
+    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"റേഡിയോ ബാൻഡ് മോഡ് സജ്ജീകരിക്കുക"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"ബാൻഡ് ലിസ്‌റ്റ് ലോഡ് ചെയ്യുന്നു…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"സജ്ജീകരിക്കുക"</string>
@@ -921,4 +927,5 @@
     <string name="trigger_carrier_provisioning" msgid="1301829588620638234">"കാരിയർ പ്രൊവിഷനിംഗ് തുടങ്ങുക"</string>
     <string name="call_quality_notification_bluetooth_details" msgid="8348950331707346711">"നിങ്ങളുടെ Bluetooth സിഗ്നൽ ദുർബലമാണ്. സ്‌പീക്കർഫോണിലേക്ക് മാറ്റി നോക്കൂ."</string>
     <string name="call_quality_notification_name" msgid="3476828289553948830">"കോൾ നിലവാര അറിയിപ്പ്"</string>
+    <string name="notification_channel_sip_account" msgid="1261816025156179637">"അവസാനിപ്പിച്ച SIP അക്കൗണ്ടുകൾ"</string>
 </resources>

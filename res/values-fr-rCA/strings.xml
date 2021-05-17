@@ -294,6 +294,9 @@
     <string name="limited_sim_function_notification_title" msgid="612715399099846281">"Fonctionnalité de carte SIM limitée"</string>
     <string name="limited_sim_function_with_phone_num_notification_message" msgid="5928988883403677610">"Les services d\'appels et de données de <xliff:g id="CARRIER_NAME">%1$s</xliff:g> peuvent être bloqués lors de l\'utilisation du numéro <xliff:g id="PHONE_NUMBER">%2$s</xliff:g>."</string>
     <string name="limited_sim_function_notification_message" msgid="5338638075496721160">"Les données et appels de <xliff:g id="CARRIER_NAME">%1$s</xliff:g> peuvent être bloqués si vous utilisez une autre SIM."</string>
+    <string name="sip_accounts_removed_notification_title" msgid="3528076957535736095">"Comptes SIP obsolètes trouvés et retirés"</string>
+    <string name="sip_accounts_removed_notification_message" msgid="1916856744869791592">"Les appels SIP ne sont plus pris en charge par la plateforme Android.\nVos comptes SIP <xliff:g id="REMOVED_SIP_ACCOUNTS">%s</xliff:g> existants ont été retirés.\nVeuillez confirmer votre paramètre de compte d\'appel par défaut."</string>
+    <string name="sip_accounts_removed_notification_action" msgid="3772778402370555562">"Accéder aux paramètres"</string>
     <string name="data_usage_title" msgid="8438592133893837464">"Utilisation des données des applications"</string>
     <string name="data_usage_template" msgid="6287906680674061783">"<xliff:g id="ID_1">%1$s</xliff:g> de données mobiles utilisées pendant la période suivante : <xliff:g id="ID_2">%2$s</xliff:g>"</string>
     <string name="advanced_options_title" msgid="9208195294513520934">"Avancés"</string>
@@ -512,6 +515,7 @@
     <string name="puk2_requested" msgid="6992374450720307514">"Le mot de passe est erroné. La carte SIM a été verrouillée. Entrez  le code PUK2."</string>
     <string name="puk2_blocked" msgid="3131139031779319911">"Le code PUK2 est bloqué définitivement."</string>
     <string name="pin2_attempts" msgid="5625178102026453023">\n"Il vous reste <xliff:g id="NUMBER">%d</xliff:g> tentatives."</string>
+    <string name="puk2_locked" msgid="6497760825455461057">"Verrouillage PUK2. Communiquez avec le fournisseur de services pour procéder au déverrouillage."</string>
     <string name="pin2_unblocked" msgid="4481107908727789303">"Le NIP2 n\'est plus bloqué."</string>
     <string name="pin2_error_exception" msgid="8116103864600823641">"Erreur de réseau ou de carte SIM"</string>
     <string name="doneButton" msgid="7371209609238460207">"Terminé"</string>
@@ -910,6 +914,8 @@
     <string name="radio_info_nr_available" msgid="1321318331361249997">"NR disponible :"</string>
     <string name="radio_info_nr_state" msgid="1337571996788535356">"État NR :"</string>
     <string name="radio_info_nr_frequency" msgid="1201156032796584128">"Fréquence NR :"</string>
+    <!-- no translation found for radio_info_network_slicing_config (7675131833885031563) -->
+    <skip />
     <string name="band_mode_title" msgid="7988822920724576842">"Définir le mode de bande radio"</string>
     <string name="band_mode_loading" msgid="795923726636735967">"Chargement de la liste de bandes en cours…"</string>
     <string name="band_mode_set" msgid="6657819412803771421">"Définir"</string>
@@ -921,4 +927,5 @@
     <string name="trigger_carrier_provisioning" msgid="1301829588620638234">"Déclencher l\'approvisionnement du fournisseur de services"</string>
     <string name="call_quality_notification_bluetooth_details" msgid="8348950331707346711">"Votre signal Bluetooth est faible. Essayez de passer au haut-parleur mains libres."</string>
     <string name="call_quality_notification_name" msgid="3476828289553948830">"Notification de qualité d\'appel"</string>
+    <string name="notification_channel_sip_account" msgid="1261816025156179637">"Comptes SIP obsolètes"</string>
 </resources>

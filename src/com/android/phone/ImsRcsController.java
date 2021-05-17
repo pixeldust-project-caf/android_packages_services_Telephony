@@ -17,7 +17,6 @@
 package com.android.phone;
 
 import android.Manifest;
-import android.app.ActivityManager;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Binder;
@@ -104,7 +103,7 @@ public class ImsRcsController extends IImsRcsController.Stub {
      */
     @Override
     public void registerImsRegistrationCallback(int subId, IImsRegistrationCallback callback) {
-        TelephonyPermissions.enforeceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
+        TelephonyPermissions.enforceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
                 mApp, subId, "registerImsRegistrationCallback");
         final long token = Binder.clearCallingIdentity();
         try {
@@ -122,7 +121,7 @@ public class ImsRcsController extends IImsRcsController.Stub {
      */
     @Override
     public void unregisterImsRegistrationCallback(int subId, IImsRegistrationCallback callback) {
-        TelephonyPermissions.enforeceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
+        TelephonyPermissions.enforceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
                 mApp, subId, "unregisterImsRegistrationCallback");
         final long token = Binder.clearCallingIdentity();
         try {
@@ -139,7 +138,7 @@ public class ImsRcsController extends IImsRcsController.Stub {
      */
     @Override
     public void getImsRcsRegistrationState(int subId, IIntegerConsumer consumer) {
-        TelephonyPermissions.enforeceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
+        TelephonyPermissions.enforceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
                 mApp, subId, "getImsRcsRegistrationState");
         final long token = Binder.clearCallingIdentity();
         try {
@@ -161,7 +160,7 @@ public class ImsRcsController extends IImsRcsController.Stub {
      */
     @Override
     public void getImsRcsRegistrationTransportType(int subId, IIntegerConsumer consumer) {
-        TelephonyPermissions.enforeceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
+        TelephonyPermissions.enforceCallingOrSelfReadPrecisePhoneStatePermissionOrCarrierPrivilege(
                 mApp, subId, "getImsRcsRegistrationTransportType");
         final long token = Binder.clearCallingIdentity();
         try {
@@ -276,9 +275,6 @@ public class ImsRcsController extends IImsRcsController.Stub {
             List<Uri> contactNumbers, IRcsUceControllerCallback c) {
         enforceAccessUserCapabilityExchangePermission("requestCapabilities");
         enforceReadContactsPermission("requestCapabilities");
-        if (!isCallingProcessInForeground(Binder.getCallingUid())) {
-            throw new SecurityException("The caller is not in the foreground.");
-        }
         final long token = Binder.clearCallingIdentity();
         try {
             UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
@@ -300,9 +296,6 @@ public class ImsRcsController extends IImsRcsController.Stub {
             String callingFeatureId, Uri contactNumber, IRcsUceControllerCallback c) {
         enforceAccessUserCapabilityExchangePermission("requestAvailability");
         enforceReadContactsPermission("requestAvailability");
-        if (!isCallingProcessInForeground(Binder.getCallingUid())) {
-            throw new SecurityException("The caller is not in the foreground.");
-        }
         final long token = Binder.clearCallingIdentity();
         try {
             UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
@@ -665,19 +658,6 @@ public class ImsRcsController extends IImsRcsController.Stub {
     private void enforceReadContactsPermission(String message) {
         mApp.enforceCallingOrSelfPermission(
                 android.Manifest.permission.READ_CONTACTS, message);
-    }
-
-    /**
-     * Check if the calling process is in the foreground.
-     *
-     * @return true if the caller is in the foreground.
-     */
-    private boolean isCallingProcessInForeground(int uid) {
-        ActivityManager am = mApp.getSystemService(ActivityManager.class);
-        boolean isCallingProcessForeground = am != null
-                && am.getUidImportance(uid)
-                        == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
-        return isCallingProcessForeground;
     }
 
     /**
