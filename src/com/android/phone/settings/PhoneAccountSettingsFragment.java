@@ -186,6 +186,12 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
      */
     @Override
     public boolean onPreferenceChange(Preference pref, Object objValue) {
+        if (pref == mButtonVibratingForMoCallAccepted) {
+            Settings.Global.putInt(getActivity().getContentResolver(),
+                    android.provider.Settings.Global.VIBRATING_FOR_OUTGOING_CALL_ACCEPTED,
+                    mButtonVibratingForMoCallAccepted.isChecked() ? 0 : 1);
+            return true;
+        }
         return false;
     }
 
