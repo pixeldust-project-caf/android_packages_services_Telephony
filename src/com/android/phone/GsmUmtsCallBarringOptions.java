@@ -361,6 +361,10 @@ public class GsmUmtsCallBarringOptions extends TimeConsumingPreferenceActivity
         return password != null && password.length() == PW_LENGTH;
     }
 
+    private boolean canExpectMoreCallFwdReq() {
+        return (mInitIndex < mPreferences.size()-1);
+    }
+
     @Override
     protected void onCreate(Bundle icicle) {
         super.onCreate(icicle);
@@ -546,6 +550,7 @@ public class GsmUmtsCallBarringOptions extends TimeConsumingPreferenceActivity
                     // and start query from incoming barring
                     mInitIndex = 3;
                 }
+                mPreferences.get(mInitIndex).setExpectMore(canExpectMoreCallFwdReq());
                 mPreferences.get(mInitIndex).init(this, false, mPhone);
 
                 // Request removing BUSY_SAVING_DIALOG because reading is restarted.
@@ -587,6 +592,7 @@ public class GsmUmtsCallBarringOptions extends TimeConsumingPreferenceActivity
     public void onFinished(Preference preference, boolean reading) {
         if (mInitIndex < mPreferences.size() - 1 && !isFinishing()) {
             mInitIndex++;
+            mPreferences.get(mInitIndex).setExpectMore(canExpectMoreCallFwdReq());
             mPreferences.get(mInitIndex).init(this, false, mPhone);
         }
         super.onFinished(preference, reading);

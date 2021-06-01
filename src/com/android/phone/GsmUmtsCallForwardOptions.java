@@ -339,6 +339,7 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
             if (mIcicle == null) {
                 Log.d(LOG_TAG, "start to init ");
                 CallForwardEditPreference pref = mPreferences.get(mInitIndex);
+                pref.setExpectMore(canExpectMoreCallFwdReq());
                 pref.init(this, mPhone, mReplaceInvalidCFNumbers, mServiceClass, mCallForwardByUssd);
                 pref.startCallForwardOptionsQuery();
 
@@ -452,12 +453,17 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
             } else {
                 mInitIndex++;
                 CallForwardEditPreference pref = mPreferences.get(mInitIndex);
+                pref.setExpectMore(canExpectMoreCallFwdReq());
                 pref.init(this, mPhone, mReplaceInvalidCFNumbers, mServiceClass, mCallForwardByUssd);
                 pref.startCallForwardOptionsQuery();
             }
         }
 
         super.onFinished(preference, reading);
+    }
+
+    private boolean canExpectMoreCallFwdReq() {
+        return (mInitIndex < mPreferences.size()-1);
     }
 
     @Override
