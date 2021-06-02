@@ -42,6 +42,7 @@ import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
+import android.telephony.ims.ImsReasonInfo;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionManager;
 import android.text.TextUtils;
@@ -56,6 +57,7 @@ import android.widget.Toast;
 
 import com.android.internal.telephony.Call;
 import com.android.internal.telephony.CallStateException;
+import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.Connection;
 import com.android.internal.telephony.IccCard;
 import com.android.internal.telephony.MmiCode;
@@ -99,6 +101,10 @@ public class PhoneUtils {
 
     /** Define for default vibrate pattern if res cannot be found */
     private static final long[] DEFAULT_VIBRATE_PATTERN = {0, 250, 250, 250};
+
+    private static final int INVALID = -1;
+    private static int mBackToBackSSFeature = INVALID;
+    private static final int BACK_BACK_SS_REQ = 1;
 
     /**
      * Theme to use for dialogs displayed by utility methods in this class. This is needed
@@ -926,4 +932,46 @@ public class PhoneUtils {
         }
     };
 
+    static boolean isBacktoBackSSFeatureSupported() {
+        if (mBackToBackSSFeature == INVALID) {
+            mBackToBackSSFeature =
+                   (mExtTelephonyManager.isFeatureSupported(BACK_BACK_SS_REQ)) ? 1 : 0;
+        }
+        return (mBackToBackSSFeature == 1);
+    }
+
+    public static CommandException getCommandException(int code) {
+            CommandException.Error error = CommandException.Error.GENERIC_FAILURE;
+
+        switch(code) {
+            case ImsReasonInfo.CODE_UT_NOT_SUPPORTED:
+                error = CommandException.Error.REQUEST_NOT_SUPPORTED;
+                break;
+            case ImsReasonInfo.CODE_UT_CB_PASSWORD_MISMATCH:
+                error = CommandException.Error.PASSWORD_INCORRECT;
+                break;
+            case ImsReasonInfo.CODE_UT_SERVICE_UNAVAILABLE:
+                error = CommandException.Error.RADIO_NOT_AVAILABLE;
+                break;
+            case ImsReasonInfo.CODE_FDN_BLOCKED:
+                error = CommandException.Error.FDN_CHECK_FAILURE;
+                break;
+            case ImsReasonInfo.CODE_UT_SS_MODIFIED_TO_DIAL:
+                error = CommandException.Error.SS_MODIFIED_TO_DIAL;
+                break;
+            case ImsReasonInfo.CODE_UT_SS_MODIFIED_TO_USSD:
+                error = CommandException.Error.SS_MODIFIED_TO_USSD;
+                break;
+            case ImsReasonInfo.CODE_UT_SS_MODIFIED_TO_SS:
+                error = CommandException.Error.SS_MODIFIED_TO_SS;
+                break;
+            case ImsReasonInfo.CODE_UT_SS_MODIFIED_TO_DIAL_VIDEO:
+                error = CommandException.Error.SS_MODIFIED_TO_DIAL_VIDEO;
+                break;
+            default:
+                break;
+        }
+
+        return new CommandException(error);
+    }
 }
