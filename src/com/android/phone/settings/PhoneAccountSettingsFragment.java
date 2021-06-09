@@ -186,6 +186,12 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
      */
     @Override
     public boolean onPreferenceChange(Preference pref, Object objValue) {
+        if (pref == mButtonVibratingForMoCallAccepted) {
+            Settings.Global.putInt(getActivity().getContentResolver(),
+                    android.provider.Settings.Global.VIBRATING_FOR_OUTGOING_CALL_ACCEPTED,
+                    mButtonVibratingForMoCallAccepted.isChecked() ? 0 : 1);
+            return true;
+        }
         return false;
     }
 
@@ -373,15 +379,16 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
             // then don't show enable/disable dialog.
             if (!allNonSimAccounts.isEmpty()) {
                 mAccountList.addPreference(mAllCallingAccounts);
-                if (isXdivertAvailable) {
-                    if (mSmartDivertPref != null) {
-                        Log.d(LOG_TAG, "Add smart divert preference");
-                        mAccountList.addPreference(mSmartDivertPref);
-                    }
-                }
             } else {
                 mAccountList.removePreference(mAllCallingAccounts);
                 mMakeAndReceiveCallsCategory.removePreference(mDefaultOutgoingAccount);
+            }
+
+            if (isXdivertAvailable) {
+                if (mSmartDivertPref != null) {
+                    Log.d(LOG_TAG, "Add smart divert preference");
+                    mAccountList.addPreference(mSmartDivertPref);
+                }
             }
         }
     }

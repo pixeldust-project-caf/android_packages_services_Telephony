@@ -30,9 +30,12 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceSpecificException;
 import android.provider.BlockedNumberContract;
+import android.telephony.BarringInfo;
 import android.telephony.CarrierConfigManager;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.TelephonyRegistryManager;
 import android.telephony.emergency.EmergencyNumber;
 import android.telephony.ims.ImsException;
 import android.telephony.ims.RcsContactUceCapability;
@@ -41,6 +44,7 @@ import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
+import android.util.SparseArray;
 
 import com.android.ims.rcs.uce.util.FeatureTags;
 import com.android.internal.telephony.ITelephony;
@@ -130,6 +134,9 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private static final String D2D_SEND = "send";
     private static final String D2D_TRANSPORT = "transport";
 
+    private static final String BARRING_SUBCOMMAND = "barring";
+    private static final String BARRING_SEND_INFO = "send";
+
     private static final String RCS_UCE_COMMAND = "uce";
     private static final String UCE_GET_EAB_CONTACT = "get-eab-contact";
     private static final String UCE_REMOVE_EAB_CONTACT = "remove-eab-contact";
@@ -137,9 +144,14 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private static final String UCE_SET_DEVICE_ENABLED = "set-device-enabled";
     private static final String UCE_OVERRIDE_PUBLISH_CAPS = "override-published-caps";
     private static final String UCE_GET_LAST_PIDF_XML = "get-last-publish-pidf";
+    private static final String UCE_REMOVE_REQUEST_DISALLOWED_STATUS =
+            "remove-request-disallowed-status";
 
     // Check if a package has carrier privileges on any SIM, regardless of subId/phoneId.
     private static final String HAS_CARRIER_PRIVILEGES_COMMAND = "has-carrier-privileges";
+
+    private static final String DISABLE_PHYSICAL_SUBSCRIPTION = "disable-physical-subscription";
+    private static final String ENABLE_PHYSICAL_SUBSCRIPTION = "enable-physical-subscription";
 
     private static final String THERMAL_MITIGATION_COMMAND = "thermal-mitigation";
     private static final String ALLOW_THERMAL_MITIGATION_PACKAGE_SUBCOMMAND = "allow-package";
@@ -150,6 +162,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
 
     private SubscriptionManager mSubscriptionManager;
     private CarrierConfigManager mCarrierConfigManager;
+    private TelephonyRegistryManager mTelephonyRegistryManager;
     private Context mContext;
 
     private enum CcType {
@@ -243,6 +256,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 (CarrierConfigManager) context.getSystemService(Context.CARRIER_CONFIG_SERVICE);
         mSubscriptionManager = (SubscriptionManager)
                 context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        mTelephonyRegistryManager = (TelephonyRegistryManager)
+                context.getSystemService(Context.TELEPHONY_REGISTRY_SERVICE);
         mContext = context;
     }
 
@@ -275,6 +290,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleGbaCommand();
             case D2D_SUBCOMMAND:
                 return handleD2dCommand();
+            case BARRING_SUBCOMMAND:
+                return handleBarringCommand();
             case SINGLE_REGISTATION_CONFIG:
                 return handleSingleRegistrationConfigCommand();
             case RESTART_MODEM:
@@ -287,6 +304,10 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleHasCarrierPrivilegesCommand();
             case THERMAL_MITIGATION_COMMAND:
                 return handleThermalMitigationCommand();
+            case DISABLE_PHYSICAL_SUBSCRIPTION:
+                return handleEnablePhysicalSubscription(false);
+            case ENABLE_PHYSICAL_SUBSCRIPTION:
+                return handleEnablePhysicalSubscription(true);
             default: {
                 return handleDefaultCommands(cmd);
             }
@@ -330,6 +351,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         onHelpGba();
         onHelpSrc();
         onHelpD2D();
+        onHelpDisableOrEnablePhysicalSubscription();
     }
 
     private void onHelpD2D() {
@@ -349,6 +371,18 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("  d2d transport TYPE");
         pw.println("    Forces the specified D2D transport TYPE to be active.  Use the");
         pw.println("    short class name of the transport; i.e. DtmfTransport or RtpTransport.");
+    }
+
+    private void onHelpBarring() {
+        PrintWriter pw = getOutPrintWriter();
+        pw.println("Barring Commands:");
+        pw.println("  barring send -s SLOT_ID -b BARRING_TYPE -c IS_CONDITIONALLY_BARRED"
+                + " -t CONDITIONAL_BARRING_TIME_SECS");
+        pw.println("    Notifies of a barring info change for the specified slot id.");
+        pw.println("    BARRING_TYPE: 0 for BARRING_TYPE_NONE");
+        pw.println("    BARRING_TYPE: 1 for BARRING_TYPE_UNCONDITIONAL");
+        pw.println("    BARRING_TYPE: 2 for BARRING_TYPE_CONDITIONAL");
+        pw.println("    BARRING_TYPE: -1 for BARRING_TYPE_UNKNOWN");
     }
 
     private void onHelpIms() {
@@ -423,6 +457,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("  uce get-last-publish-pidf [-s SLOT_ID]");
         pw.println("    Get the PIDF XML included in the last SIP PUBLISH, or \"none\" if no ");
         pw.println("    PUBLISH is active");
+        pw.println("  uce remove-request-disallowed-status [-s SLOT_ID]");
+        pw.println("    Remove the UCE is disallowed to execute UCE requests status");
     }
 
     private void onHelpNumberVerification() {
@@ -444,6 +480,15 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("  thermal-mitigation disallow-package PACKAGE_NAME");
         pw.println("    Remove the package from one of the authorized packages for thermal "
                 + "mitigation.");
+    }
+
+    private void onHelpDisableOrEnablePhysicalSubscription() {
+        PrintWriter pw = getOutPrintWriter();
+        pw.println("Disable or enable a physical subscription");
+        pw.println("  disable-physical-subscription SUB_ID");
+        pw.println("    Disable the physical subscription with the provided subId, if allowed.");
+        pw.println("  enable-physical-subscription SUB_ID");
+        pw.println("    Enable the physical subscription with the provided subId, if allowed.");
     }
 
     private void onHelpDataTestMode() {
@@ -756,6 +801,41 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         return -1;
     }
 
+    private boolean subIsEsim(int subId) {
+        SubscriptionInfo info = mSubscriptionManager.getActiveSubscriptionInfo(subId);
+        if (info != null) {
+            return info.isEmbedded();
+        }
+        return false;
+    }
+
+    private int handleEnablePhysicalSubscription(boolean enable) {
+        PrintWriter errPw = getErrPrintWriter();
+        int subId = 0;
+        try {
+            subId = Integer.parseInt(getNextArgRequired());
+        } catch (NumberFormatException e) {
+            errPw.println((enable ? "enable" : "disable")
+                    + "-physical-subscription requires an integer as a subId.");
+            return -1;
+        }
+        // Verify that the user is allowed to run the command. Only allowed in rooted device in a
+        // non user build.
+        if (Binder.getCallingUid() != Process.ROOT_UID || TelephonyUtils.IS_USER) {
+            errPw.println("cc: Permission denied.");
+            return -1;
+        }
+        // Verify that the subId represents a physical sub
+        if (subIsEsim(subId)) {
+            errPw.println("SubId " + subId + " is not for a physical subscription");
+            return -1;
+        }
+        Log.d(LOG_TAG, (enable ? "Enabling" : "Disabling")
+                + " physical subscription with subId=" + subId);
+        mSubscriptionManager.setUiccApplicationsEnabled(subId, enable);
+        return 0;
+    }
+
     private int handleThermalMitigationCommand() {
         String arg = getNextArg();
         String packageName = getNextArg();
@@ -858,6 +938,93 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             mInterface.setActiveDeviceToDeviceTransport(arg);
         } catch (RemoteException e) {
             Log.w(LOG_TAG, "d2d transport error: " + e.getMessage());
+            errPw.println("Exception: " + e.getMessage());
+            return -1;
+        }
+        return 0;
+    }
+    private int handleBarringCommand() {
+        String arg = getNextArg();
+        if (arg == null) {
+            onHelpBarring();
+            return 0;
+        }
+
+        switch (arg) {
+            case BARRING_SEND_INFO: {
+                return handleBarringSendCommand();
+            }
+        }
+        return -1;
+    }
+
+    private int handleBarringSendCommand() {
+        PrintWriter errPw = getErrPrintWriter();
+        int slotId = getDefaultSlot();
+        int subId = SubscriptionManager.getSubId(slotId)[0];
+        @BarringInfo.BarringServiceInfo.BarringType int barringType =
+                BarringInfo.BarringServiceInfo.BARRING_TYPE_UNCONDITIONAL;
+        boolean isConditionallyBarred = false;
+        int conditionalBarringTimeSeconds = 0;
+
+        String opt;
+        while ((opt = getNextOption()) != null) {
+            switch (opt) {
+                case "-s": {
+                    try {
+                        slotId = Integer.parseInt(getNextArgRequired());
+                        subId = SubscriptionManager.getSubId(slotId)[0];
+                    } catch (NumberFormatException e) {
+                        errPw.println("barring send requires an integer as a SLOT_ID.");
+                        return -1;
+                    }
+                    break;
+                }
+                case "-b": {
+                    try {
+                        barringType = Integer.parseInt(getNextArgRequired());
+                        if (barringType < -1 || barringType > 2) {
+                            throw new NumberFormatException();
+                        }
+
+                    } catch (NumberFormatException e) {
+                        errPw.println("barring send requires an integer in range [-1,2] as "
+                                + "a BARRING_TYPE.");
+                        return -1;
+                    }
+                    break;
+                }
+                case "-c": {
+                    try {
+                        isConditionallyBarred = Boolean.parseBoolean(getNextArgRequired());
+                    } catch (Exception e) {
+                        errPw.println("barring send requires a boolean after -c indicating"
+                                + " conditional barring");
+                        return -1;
+                    }
+                    break;
+                }
+                case "-t": {
+                    try {
+                        conditionalBarringTimeSeconds = Integer.parseInt(getNextArgRequired());
+                    } catch (NumberFormatException e) {
+                        errPw.println("barring send requires an integer for time of barring"
+                                + " in seconds after -t for conditional barring");
+                        return -1;
+                    }
+                    break;
+                }
+            }
+        }
+        SparseArray<BarringInfo.BarringServiceInfo> barringServiceInfos = new SparseArray<>();
+        BarringInfo.BarringServiceInfo bsi = new BarringInfo.BarringServiceInfo(
+                barringType, isConditionallyBarred, 0, conditionalBarringTimeSeconds);
+        barringServiceInfos.append(0, bsi);
+        BarringInfo barringInfo = new BarringInfo(null, barringServiceInfos);
+        try {
+            mTelephonyRegistryManager.notifyBarringInfoChanged(slotId, subId, barringInfo);
+        } catch (Exception e) {
+            Log.w(LOG_TAG, "barring send error: " + e.getMessage());
             errPw.println("Exception: " + e.getMessage());
             return -1;
         }
@@ -1860,6 +2027,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleUceOverridePublishCaps();
             case UCE_GET_LAST_PIDF_XML:
                 return handleUceGetPidfXml();
+            case UCE_REMOVE_REQUEST_DISALLOWED_STATUS:
+                return handleUceRemoveRequestDisallowedStatus();
         }
         return -1;
     }
@@ -1943,6 +2112,26 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             getErrPrintWriter().println("Exception: " + e.getMessage());
             return -1;
         }
+        return 0;
+    }
+
+    private int handleUceRemoveRequestDisallowedStatus() {
+        int subId = getSubId("uce remove-request-disallowed-status");
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            Log.w(LOG_TAG, "uce remove-request-disallowed-status, Invalid subscription ID");
+            return -1;
+        }
+        boolean result;
+        try {
+            result = mInterface.removeUceRequestDisallowedStatus(subId);
+        } catch (RemoteException e) {
+            Log.w(LOG_TAG, "uce remove-request-disallowed-status, error " + e.getMessage());
+            return -1;
+        }
+        if (VDBG) {
+            Log.v(LOG_TAG, "uce remove-request-disallowed-status, returned: " + result);
+        }
+        getOutPrintWriter().println(result);
         return 0;
     }
 
