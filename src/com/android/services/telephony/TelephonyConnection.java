@@ -2181,7 +2181,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         phone.unregisterForInCallVoicePrivacyOff(mHandler);
     }
 
-    protected void hangup(int telephonyDisconnectCode) {
+    @VisibleForTesting
+    public void hangup(int telephonyDisconnectCode) {
         if (mOriginalConnection != null) {
             if (mHangupDisconnectCause != DisconnectCause.NOT_VALID) {
                 Log.i(this, "hangup already called once");
