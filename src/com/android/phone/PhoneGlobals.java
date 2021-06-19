@@ -58,6 +58,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.android.ims.ImsFeatureBinderRepository;
+import com.android.internal.os.BinderCallsStats;
 import com.android.internal.telephony.CallManager;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.MmiCode;
@@ -158,7 +159,6 @@ public class PhoneGlobals extends ContextWrapper {
     CallNotifier notifier;
     CallerInfoCache callerInfoCache;
     NotificationMgr notificationMgr;
-    ImsResolver mImsResolver;
     TelephonyRcsService mTelephonyRcsService;
     public PhoneInterfaceManager phoneMgr;
     public ImsRcsController imsRcsController;
@@ -213,6 +213,7 @@ public class PhoneGlobals extends ContextWrapper {
             new CarrierVvmPackageInstalledReceiver();
 
     private final SettingsObserver mSettingsObserver;
+    private BinderCallsStats.SettingsObserver mBinderCallsSettingsObserver;
 
     private static class EventSimStateChangedBag {
         final int mPhoneId;
@@ -422,10 +423,10 @@ public class PhoneGlobals extends ContextWrapper {
                         R.string.config_ims_mmtel_package);
                 String defaultImsRcsPackage = getResources().getString(
                         R.string.config_ims_rcs_package);
-                mImsResolver = new ImsResolver(this, defaultImsMmtelPackage,
+                ImsResolver.make(this, defaultImsMmtelPackage,
                         defaultImsRcsPackage, PhoneFactory.getPhones().length,
                         new ImsFeatureBinderRepository());
-                mImsResolver.initialize();
+                ImsResolver.getInstance().initialize();
 
                 // With the IMS phone created, load static config.xml values from the phone process
                 // so that it can be provided to the ImsPhoneCallTracker.
@@ -548,6 +549,12 @@ public class PhoneGlobals extends ContextWrapper {
                             ? SettingsConstants.HAC_VAL_ON : SettingsConstants.HAC_VAL_OFF));
         }
 
+        // Start tracking Binder latency for the phone process.
+        mBinderCallsSettingsObserver = new BinderCallsStats.SettingsObserver(
+            getApplicationContext(),
+            new BinderCallsStats(new BinderCallsStats.Injector()),
+            com.android.internal.os.BinderLatencyProto.Dims.TELEPHONY);
+
         PhoneUtils.connectExtTelephonyManager(this);
     }
 
@@ -572,10 +579,6 @@ public class PhoneGlobals extends ContextWrapper {
 
     public static Phone getPhone(int subId) {
         return PhoneFactory.getPhone(SubscriptionManager.getPhoneId(subId));
-    }
-
-    public ImsResolver getImsResolver() {
-        return mImsResolver;
     }
 
     /* package */ CallManager getCallManager() {
@@ -1057,7 +1060,7 @@ public class PhoneGlobals extends ContextWrapper {
         pw.println("ImsResolver:");
         pw.increaseIndent();
         try {
-            if (mImsResolver != null) mImsResolver.dump(fd, pw, args);
+            if (ImsResolver.getInstance() != null) ImsResolver.getInstance().dump(fd, pw, args);
         } catch (Exception e) {
             e.printStackTrace();
         }
