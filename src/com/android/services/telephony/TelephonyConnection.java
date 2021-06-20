@@ -1628,6 +1628,12 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             extrasToRemove.add(QtiImsExtUtils.QTI_IMS_PHONE_ID_EXTRA_KEY);
             extrasToRemove.add(QtiImsExtUtils.EXTRA_TIR_OVERWRITE_ALLOWED);
             extrasToRemove.add(QtiCallConstants.ORIENTATION_MODE_EXTRA_KEY);
+            extrasToRemove.add(QtiCallConstants.EXTRAS_CALL_PROGRESS_INFO_TYPE);
+            extrasToRemove.add(QtiCallConstants.EXTRAS_CALL_PROGRESS_REASON_CODE);
+            extrasToRemove.add(QtiCallConstants.EXTRAS_CALL_PROGRESS_REASON_TEXT);
+            extrasToRemove.add(QtiCallConstants.EXTRA_CRS_TYPE);
+            extrasToRemove.add(QtiCallConstants.EXTRA_ORIGINAL_CALL_TYPE);
+            extrasToRemove.add(QtiCallConstants.EXTRA_IS_PREPARATORY);
         }
         if (originalConnection instanceof ImsPhoneConnection) {
             maybeConfigureDeviceToDeviceCommunication();
