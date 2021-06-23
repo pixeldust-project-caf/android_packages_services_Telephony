@@ -868,7 +868,7 @@ public class TelephonyConnectionService extends ConnectionService {
                                 || serviceState == ServiceState.STATE_IN_SERVICE;
                     }
                 }
-            }, isEmergencyNumber && !isTestEmergencyNumber, phone);
+            }, isEmergencyNumber && !isTestEmergencyNumber, phone, isTestEmergencyNumber);
             // Return the still unconnected GsmConnection and wait for the Radios to boot before
             // connecting it to the underlying Phone.
             return resultConnection;
@@ -2762,7 +2762,10 @@ public class TelephonyConnectionService extends ConnectionService {
                         if (!tc.shouldTreatAsEmergencyCall()) {
                             Log.i(LOG_TAG, "maybeDisconnectCallsOnOtherSubs: disconnect %s due to "
                                     + "incoming call on other sub.", tc.getTelecomCallId());
-                            tc.onDisconnect();
+                            // Note: intentionally calling hangup instead of onDisconnect.
+                            // onDisconnect posts the disconnection to a handle which means that the
+                            // disconnection will take place AFTER we answer the incoming call.
+                            tc.hangup(android.telephony.DisconnectCause.LOCAL);
                         }
                     }
                 });
