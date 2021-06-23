@@ -1805,11 +1805,18 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     private void maybeRemoveAnsweringDropsFgCallExtra() {
-        if(mOriginalConnection != null && mOriginalConnection.isActiveCallDisconnectedOnAnswer()
-                && mOriginalConnection.getState() !=  Call.State.INCOMING){
-            Log.v(TelephonyConnection.this, "maybeRemoveAnsweringDropsFgCallExtra removing extra");
-            removeExtras(Connection.EXTRA_ANSWERING_DROPS_FG_CALL);
+        if(mOriginalConnection == null || !mOriginalConnection.isActiveCallDisconnectedOnAnswer()) {
+            return;
         }
+
+        Call.State state = mOriginalConnection.getState();
+
+        if (state == Call.State.INCOMING || state == Call.State.WAITING) {
+            return;
+        }
+
+        Log.v(TelephonyConnection.this, "maybeRemoveAnsweringDropsFgCallExtra removing extra");
+        removeExtras(Connection.EXTRA_ANSWERING_DROPS_FG_CALL);
     }
 
     private int transformCodec(int codec) {
