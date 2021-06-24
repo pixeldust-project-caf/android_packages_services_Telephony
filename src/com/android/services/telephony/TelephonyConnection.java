@@ -169,10 +169,11 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                     updateState();
                     break;
                 case MSG_HANDOVER_STATE_CHANGED:
+                    // fall through
                 case MSG_REDIAL_CONNECTION_CHANGED:
                     String what = (msg.what == MSG_HANDOVER_STATE_CHANGED)
                             ? "MSG_HANDOVER_STATE_CHANGED" : "MSG_REDIAL_CONNECTION_CHANGED";
-                    Log.v(TelephonyConnection.this, what);
+                    Log.i(TelephonyConnection.this, "Connection changed due to: %s", what);
                     AsyncResult ar = (AsyncResult) msg.obj;
                     com.android.internal.telephony.Connection connection =
                          (com.android.internal.telephony.Connection) ar.result;
@@ -189,7 +190,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                             mOriginalConnection.getAddress() != null &&
                             mOriginalConnection.getAddress().equals(connection.getAddress())) ||
                             connection.getState() == mOriginalConnection.getStateBeforeHandover())) {
-                            Log.d(TelephonyConnection.this, "Setting original connection after"
+                            Log.i(TelephonyConnection.this, "Setting original connection after"
                                     + " handover or redial, current original connection="
                                     + mOriginalConnection.toString()
                                     + ", new original connection="
@@ -798,6 +799,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         @Override
         public void onOriginalConnectionReplaced(
                 com.android.internal.telephony.Connection newConnection) {
+            Log.i(TelephonyConnection.this, "onOriginalConnectionReplaced; newConn=%s",
+                    newConnection);
             setOriginalConnection(newConnection);
         }
 
@@ -1566,6 +1569,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     public void registerForCallEvents(Phone phone) {
+        Log.i(this, "registerForCallEvents; phone=%s", phone);
         phone.registerForPreciseCallStateChanged(mHandler, MSG_PRECISE_CALL_STATE_CHANGED, null);
         phone.registerForHandoverStateChanged(mHandler, MSG_HANDOVER_STATE_CHANGED, null);
         phone.registerForRedialConnectionChanged(mHandler, MSG_REDIAL_CONNECTION_CHANGED, null);
@@ -1577,7 +1581,8 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     void setOriginalConnection(com.android.internal.telephony.Connection originalConnection) {
-        Log.v(this, "new TelephonyConnection, originalConnection: " + originalConnection);
+        Log.i(this, "setOriginalConnection: TelephonyConnection, originalConnection: "
+                + originalConnection);
         if (mOriginalConnection != null && originalConnection != null
                && !originalConnection.isIncoming()
                && originalConnection.getOrigDialString() == null
@@ -2167,6 +2172,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
      */
     void clearOriginalConnection() {
         if (mOriginalConnection != null) {
+            Log.i(this, "clearOriginalConnection; clearing=%s", mOriginalConnection);
             if (getPhone() != null) {
                 unregisterForCallEvents(getPhone());
             }
