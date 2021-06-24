@@ -7215,11 +7215,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         try {
             if (!Objects.equals(mApp.getPackageManager().getPackageUid(callingPackage, 0),
                     Binder.getCallingUid())) {
-                throw new SecurityException("Package uid and package name do not match: "
-                        + "uid=" + Binder.getCallingUid() + ", packageName=" + callingPackage);
+                throw new SecurityException("Invalid package:" + callingPackage);
             }
         } catch (PackageManager.NameNotFoundException e) {
-            throw new SecurityException("Package name invalid:" + callingPackage);
+            throw new SecurityException("Invalid package:" + callingPackage);
         }
         RoleManager rm = mApp.getSystemService(RoleManager.class);
         List<String> dialerRoleHolders = rm.getRoleHolders(RoleManager.ROLE_DIALER);
@@ -9836,6 +9835,24 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         return sThermalMitigationAllowlistedPackages;
     }
 
+    private boolean isAnyPhoneInEmergencyState() {
+        TelecomManager tm = mApp.getSystemService(TelecomManager.class);
+        if (tm.isInEmergencyCall()) {
+            Log.e(LOG_TAG , "Phone state is not valid. One of the phones is in an emergency call");
+            return true;
+        }
+        for (Phone phone : PhoneFactory.getPhones()) {
+            if (phone.isInEmergencySmsMode() || phone.isInEcm()) {
+                Log.e(LOG_TAG, "Phone state is not valid. isInEmergencySmsMode = "
+                    + phone.isInEmergencySmsMode() + " isInEmergencyCallbackMode = "
+                    + phone.isInEcm());
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Used by shell commands to add an authorized package name for thermal mitigation.
      * @param packageName name of package to be allowlisted
@@ -9918,8 +9935,6 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
                     TelecomAccountRegistry registry = TelecomAccountRegistry.getInstance(null);
                     if (registry != null) {
-                        TelephonyConnectionService service =
-                                registry.getTelephonyConnectionService();
                         Phone phone = getPhone(subId);
                         if (phone == null) {
                             thermalMitigationResult =
@@ -9927,19 +9942,20 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                             break;
                         }
 
-                        if (PhoneConstantConversions.convertCallState(phone.getState())
-                                    != TelephonyManager.CALL_STATE_IDLE
-                                    || phone.isInEmergencySmsMode() || phone.isInEcm()
-                                    || (service != null && service.isEmergencyCallPending())) {
-                            String errorMessage = "Phone state is not valid. call state = "
-                                    + PhoneConstantConversions.convertCallState(phone.getState())
-                                    + " isInEmergencySmsMode = " + phone.isInEmergencySmsMode()
-                                    + " isInEmergencyCallbackMode = " + phone.isInEcm();
-                            errorMessage += service == null
-                                    ? " TelephonyConnectionService is null"
-                                    : " isEmergencyCallPending = "
-                                            + service.isEmergencyCallPending();
-                            Log.e(LOG_TAG, errorMessage);
+                        TelephonyConnectionService service =
+                                registry.getTelephonyConnectionService();
+                        if (service == null) {
+                            Log.e(LOG_TAG, "TelephonyConnectionService is null");
+                            thermalMitigationResult =
+                                    TelephonyManager.THERMAL_MITIGATION_RESULT_INVALID_STATE;
+                            break;
+
+                        } else if (service.isEmergencyCallPending()) {
+                            Log.e(LOG_TAG, "An emergency call is pending");
+                            thermalMitigationResult =
+                                    TelephonyManager.THERMAL_MITIGATION_RESULT_INVALID_STATE;
+                            break;
+                        } else if (isAnyPhoneInEmergencyState()) {
                             thermalMitigationResult =
                                 TelephonyManager.THERMAL_MITIGATION_RESULT_INVALID_STATE;
                             break;
@@ -10084,9 +10100,13 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         try {
             RcsProvisioningMonitor rpm = RcsProvisioningMonitor.getInstance();
             if (rpm != null) {
-                return rpm.isRcsVolteSingleRegistrationEnabled(subId);
+                Boolean isCapable = rpm.isRcsVolteSingleRegistrationEnabled(subId);
+                if (isCapable != null) {
+                    return isCapable;
+                }
             }
-            return false;
+            throw new ServiceSpecificException(ImsException.CODE_ERROR_SERVICE_UNAVAILABLE,
+                    "service is temporarily unavailable.");
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
