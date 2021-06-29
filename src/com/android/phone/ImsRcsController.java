@@ -49,6 +49,7 @@ import com.android.internal.telephony.IIntegerConsumer;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.ims.ImsResolver;
+import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.services.telephony.rcs.RcsFeatureController;
 import com.android.services.telephony.rcs.SipTransportController;
 import com.android.services.telephony.rcs.TelephonyRcsService;
@@ -93,7 +94,7 @@ public class ImsRcsController extends IImsRcsController.Stub {
         mApp = app;
         TelephonyFrameworkInitializer
                 .getTelephonyServiceManager().getTelephonyImsServiceRegisterer().register(this);
-        mImsResolver = ImsResolver.getInstance();
+        mImsResolver = mApp.getImsResolver();
     }
 
     /**
@@ -213,8 +214,6 @@ public class ImsRcsController extends IImsRcsController.Stub {
         final long token = Binder.clearCallingIdentity();
         try {
             getRcsFeatureController(subId).unregisterRcsAvailabilityCallback(subId, callback);
-        } catch (ServiceSpecificException e) {
-            Log.e(TAG, "unregisterRcsAvailabilityCallback: error=" + e.errorCode);
         } finally {
             Binder.restoreCallingIdentity(token);
         }
@@ -339,16 +338,12 @@ public class ImsRcsController extends IImsRcsController.Stub {
     public RcsContactUceCapability addUceRegistrationOverrideShell(int subId,
             Set<String> featureTags) throws ImsException {
         // Permission check happening in PhoneInterfaceManager.
-        try {
-            UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
-                    UceControllerManager.class);
-            if (uceCtrlManager == null) {
-                return null;
-            }
-            return uceCtrlManager.addUceRegistrationOverride(featureTags);
-        } catch (ServiceSpecificException e) {
-            throw new ImsException(e.getMessage(), e.errorCode);
+        UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
+                UceControllerManager.class);
+        if (uceCtrlManager == null) {
+            return null;
         }
+        return uceCtrlManager.addUceRegistrationOverride(featureTags);
     }
 
     /**
@@ -358,16 +353,12 @@ public class ImsRcsController extends IImsRcsController.Stub {
     public RcsContactUceCapability removeUceRegistrationOverrideShell(int subId,
             Set<String> featureTags) throws ImsException {
         // Permission check happening in PhoneInterfaceManager.
-        try {
-            UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
-                    UceControllerManager.class);
-            if (uceCtrlManager == null) {
-                return null;
-            }
-            return uceCtrlManager.removeUceRegistrationOverride(featureTags);
-        } catch (ServiceSpecificException e) {
-            throw new ImsException(e.getMessage(), e.errorCode);
+        UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
+                UceControllerManager.class);
+        if (uceCtrlManager == null) {
+            return null;
         }
+        return uceCtrlManager.removeUceRegistrationOverride(featureTags);
     }
 
     /**
@@ -376,17 +367,13 @@ public class ImsRcsController extends IImsRcsController.Stub {
     // Used for SHELL command only right now.
     public RcsContactUceCapability clearUceRegistrationOverrideShell(int subId)
             throws ImsException {
-        try {
-            // Permission check happening in PhoneInterfaceManager.
-            UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
-                    UceControllerManager.class);
-            if (uceCtrlManager == null) {
-                return null;
-            }
-            return uceCtrlManager.clearUceRegistrationOverride();
-        } catch (ServiceSpecificException e) {
-            throw new ImsException(e.getMessage(), e.errorCode);
+        // Permission check happening in PhoneInterfaceManager.
+        UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
+                UceControllerManager.class);
+        if (uceCtrlManager == null) {
+            return null;
         }
+        return uceCtrlManager.clearUceRegistrationOverride();
     }
 
     /**
@@ -395,17 +382,13 @@ public class ImsRcsController extends IImsRcsController.Stub {
     // Used for SHELL command only right now.
     public RcsContactUceCapability getLatestRcsContactUceCapabilityShell(int subId)
             throws ImsException {
-        try {
-            // Permission check happening in PhoneInterfaceManager.
-            UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
-                    UceControllerManager.class);
-            if (uceCtrlManager == null) {
-                return null;
-            }
-            return uceCtrlManager.getLatestRcsContactUceCapability();
-        } catch (ServiceSpecificException e) {
-            throw new ImsException(e.getMessage(), e.errorCode);
+        // Permission check happening in PhoneInterfaceManager.
+        UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
+                UceControllerManager.class);
+        if (uceCtrlManager == null) {
+            return null;
         }
+        return uceCtrlManager.getLatestRcsContactUceCapability();
     }
 
     /**
@@ -414,18 +397,14 @@ public class ImsRcsController extends IImsRcsController.Stub {
      */
     // Used for SHELL command only right now.
     public String getLastUcePidfXmlShell(int subId) throws ImsException {
-        try {
-            // Permission check happening in PhoneInterfaceManager.
-            UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
-                    UceControllerManager.class);
-            if (uceCtrlManager == null) {
-                return null;
-            }
-            String pidfXml = uceCtrlManager.getLastPidfXml();
-            return pidfXml == null ? "none" : pidfXml;
-        } catch (ServiceSpecificException e) {
-            throw new ImsException(e.getMessage(), e.errorCode);
+        // Permission check happening in PhoneInterfaceManager.
+        UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
+                UceControllerManager.class);
+        if (uceCtrlManager == null) {
+            return null;
         }
+        String pidfXml = uceCtrlManager.getLastPidfXml();
+        return pidfXml == null ? "none" : pidfXml;
     }
 
     /**
@@ -434,33 +413,12 @@ public class ImsRcsController extends IImsRcsController.Stub {
      */
     // Used for SHELL command only right now.
     public boolean removeUceRequestDisallowedStatus(int subId) throws ImsException {
-        try {
-            UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
-                    UceControllerManager.class);
-            if (uceCtrlManager == null) {
-                return false;
-            }
-            return uceCtrlManager.removeUceRequestDisallowedStatus();
-        } catch (ServiceSpecificException e) {
-            throw new ImsException(e.getMessage(), e.errorCode);
+        UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
+                UceControllerManager.class);
+        if (uceCtrlManager == null) {
+            return false;
         }
-    }
-
-    /**
-     * Set the timeout for contact capabilities request.
-     */
-    // Used for SHELL command only right now.
-    public boolean setCapabilitiesRequestTimeout(int subId, long timeoutAfter) throws ImsException {
-        try {
-            UceControllerManager uceCtrlManager = getRcsFeatureController(subId).getFeature(
-                    UceControllerManager.class);
-            if (uceCtrlManager == null) {
-                return false;
-            }
-            return uceCtrlManager.setCapabilitiesRequestTimeout(timeoutAfter);
-        } catch (ServiceSpecificException e) {
-            throw new ImsException(e.getMessage(), e.errorCode);
-        }
+        return uceCtrlManager.removeUceRequestDisallowedStatus();
     }
 
     @Override
@@ -494,8 +452,6 @@ public class ImsRcsController extends IImsRcsController.Stub {
                         "This subscription does not support UCE.");
             }
             uceCtrlManager.unregisterPublishStateCallback(c);
-        } catch (ServiceSpecificException e) {
-            Log.e(TAG, "unregisterUcePublishStateCallback: error=" + e.errorCode);
         } finally {
             Binder.restoreCallingIdentity(token);
         }
@@ -611,8 +567,6 @@ public class ImsRcsController extends IImsRcsController.Stub {
                 return;
             }
             transport.destroySipDelegate(subId, connection, reason);
-        } catch (ServiceSpecificException e) {
-            Log.e(TAG, "destroySipDelegate: error=" + e.errorCode);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -631,8 +585,6 @@ public class ImsRcsController extends IImsRcsController.Stub {
                 return;
             }
             transport.triggerFullNetworkRegistration(subId, connection, sipCode, sipReason);
-        } catch (ServiceSpecificException e) {
-            Log.e(TAG, "triggerNetworkRegistration: error=" + e.errorCode);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -723,6 +675,31 @@ public class ImsRcsController extends IImsRcsController.Stub {
     }
 
     /**
+     * Retrieve ImsPhone instance.
+     *
+     * @param subId the subscription ID
+     * @return The ImsPhone instance
+     * @throws ServiceSpecificException if getting ImsPhone instance failed.
+     */
+    private ImsPhone getImsPhone(int subId) {
+        if (!ImsManager.isImsSupportedOnDevice(mApp)) {
+            throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
+                    "IMS is not available on device.");
+        }
+        Phone phone = PhoneGlobals.getPhone(subId);
+        if (phone == null) {
+            throw new ServiceSpecificException(ImsException.CODE_ERROR_INVALID_SUBSCRIPTION,
+                    "Invalid subscription Id: " + subId);
+        }
+        ImsPhone imsPhone = (ImsPhone) phone.getImsPhone();
+        if (imsPhone == null) {
+            throw new ServiceSpecificException(ImsException.CODE_ERROR_SERVICE_UNAVAILABLE,
+                    "Cannot find ImsPhone instance: " + subId);
+        }
+        return imsPhone;
+    }
+
+    /**
      * Retrieve RcsFeatureManager instance.
      *
      * @param subId the subscription ID
@@ -744,27 +721,12 @@ public class ImsRcsController extends IImsRcsController.Stub {
                     "Invalid subscription Id: " + subId);
         }
         int slotId = phone.getPhoneId();
-        verifyImsRcsConfiguredOrThrow(slotId);
         RcsFeatureController c = mRcsService.getFeatureController(slotId);
         if (c == null) {
             throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
                     "The requested operation is not supported for subId " + subId);
         }
         return c;
-    }
-
-    /**
-     * Throw an ImsException if the IMS resolver does not have an ImsService configured for RCS
-     * for the given slot ID or no ImsResolver instance has been created.
-     * @param slotId The slot ID that the IMS service is created for.
-     * @throws ServiceSpecificException If there is no ImsService configured for this slot.
-     */
-    private void verifyImsRcsConfiguredOrThrow(int slotId) {
-        if (mImsResolver == null
-                || !mImsResolver.isImsServiceConfiguredForFeature(slotId, ImsFeature.FEATURE_RCS)) {
-            throw new ServiceSpecificException(ImsException.CODE_ERROR_UNSUPPORTED_OPERATION,
-                    "This subscription does not support RCS");
-        }
     }
 
     private boolean isImsSingleRegistrationSupportedOnDevice() {

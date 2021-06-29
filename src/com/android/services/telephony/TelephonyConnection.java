@@ -960,11 +960,6 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         }
     }
 
-    @VisibleForTesting
-    protected TelephonyConnection() {
-        // Do nothing
-    }
-
     @Override
     public void onCallEvent(String event, Bundle extras) {
         switch (event) {
@@ -1297,8 +1292,6 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         Log.v(this, "performAnswer");
         if (isValidRingingCall() && getPhone() != null) {
             try {
-                mTelephonyConnectionService.maybeDisconnectCallsOnOtherSubs(
-                        getPhoneAccountHandle());
                 getPhone().acceptCall(videoState);
             } catch (CallStateException e) {
                 Log.e(this, e, "Failed to accept call.");
@@ -1805,18 +1798,11 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     private void maybeRemoveAnsweringDropsFgCallExtra() {
-        if(mOriginalConnection == null || !mOriginalConnection.isActiveCallDisconnectedOnAnswer()) {
-            return;
+        if(mOriginalConnection != null && mOriginalConnection.isActiveCallDisconnectedOnAnswer()
+                && mOriginalConnection.getState() !=  Call.State.INCOMING){
+            Log.v(TelephonyConnection.this, "maybeRemoveAnsweringDropsFgCallExtra removing extra");
+            removeExtras(Connection.EXTRA_ANSWERING_DROPS_FG_CALL);
         }
-
-        Call.State state = mOriginalConnection.getState();
-
-        if (state == Call.State.INCOMING || state == Call.State.WAITING) {
-            return;
-        }
-
-        Log.v(TelephonyConnection.this, "maybeRemoveAnsweringDropsFgCallExtra removing extra");
-        removeExtras(Connection.EXTRA_ANSWERING_DROPS_FG_CALL);
     }
 
     private int transformCodec(int codec) {
@@ -2154,15 +2140,6 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     /**
-     * Sets whether to treat this call as an emergency call or not.
-     * @param shouldTreatAsEmergencyCall
-     */
-    @VisibleForTesting
-    public void setShouldTreatAsEmergencyCall(boolean shouldTreatAsEmergencyCall) {
-        mTreatAsEmergencyCall = shouldTreatAsEmergencyCall;
-    }
-
-    /**
      * Un-sets the underlying radio connection.
      */
     void clearOriginalConnection() {
@@ -2188,8 +2165,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         phone.unregisterForInCallVoicePrivacyOff(mHandler);
     }
 
-    @VisibleForTesting
-    public void hangup(int telephonyDisconnectCode) {
+    protected void hangup(int telephonyDisconnectCode) {
         if (mOriginalConnection != null) {
             if (mHangupDisconnectCause != DisconnectCause.NOT_VALID) {
                 Log.i(this, "hangup already called once");

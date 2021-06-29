@@ -735,14 +735,12 @@ public class DisconnectCauseUtil {
                 break;
 
             case android.telephony.DisconnectCause.POWER_OFF:
-                // Radio is explicitly powered off because the device's radio is off.
+                // Radio is explictly powered off because the device is in airplane mode.
 
                 // TODO: Offer the option to turn the radio on, and automatically retry the call
                 // once network registration is complete.
 
-                if (isRadioOffForThermalMitigation(phoneId)) {
-                    resourceId = R.string.incall_error_power_off_thermal;
-                } else if (ImsUtil.shouldPromoteWfc(context, phoneId)) {
+                if (ImsUtil.shouldPromoteWfc(context, phoneId)) {
                     resourceId = R.string.incall_error_promote_wfc;
                 } else if (ImsUtil.isWfcModeWifiOnly(context, phoneId)) {
                     resourceId = R.string.incall_error_wfc_only_no_wireless_network;
@@ -1059,12 +1057,7 @@ public class DisconnectCauseUtil {
             default:
                 break;
         }
-        return resourceId == null ? "" : context.getResources().getText(resourceId);
-    }
-
-    private static boolean isRadioOffForThermalMitigation(int phoneId) {
-        Phone phone = PhoneFactory.getPhone(phoneId);
-        return phone.isRadioOffForThermalMitigation();
+        return resourceId == null ? "" : context.getResources().getString(resourceId);
     }
 
     /**

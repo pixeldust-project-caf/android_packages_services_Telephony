@@ -86,7 +86,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
     private HashMap<String, String> mCfInfo;
 
     private boolean mExpectMore;
-    private boolean mIsTimerEnabled;
+    private boolean isTimerEnabled;
     private boolean mAllowSetCallFwding = false;
     private boolean mUtEnabled = false;
     /*Variables which holds CFUT response data*/
@@ -151,7 +151,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                             Log.i(LOG_TAG, "QtiImsExtConnector onConnectionAvailable");
                             mQtiImsExtManager = qtiImsExtManager;
                             if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL &&
-                                    mIsTimerEnabled) {
+                                    isTimerEnabled) {
                                 setTimeSettingVisibility(true);
                                 try {
                                     mQtiImsExtManager.getCallForwardUncondTimer(mPhone.getPhoneId(),
@@ -168,9 +168,9 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                         public void onConnectionUnavailable() {
                             mQtiImsExtManager = null;
                             //QtiImsExtManager is not available so set
-                            //mIsTimerEnabled to false so that no Timer related operations will hit
+                            //isTimerEnabled to false so that no Timer related operations will hit
                             //and remove spinner.
-                            mIsTimerEnabled = false;
+                            isTimerEnabled = false;
                             mTcpListener.onFinished(CallForwardEditPreference.this, false);
                         }
                     });
@@ -184,7 +184,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
             mQtiImsExtConnector.disconnect();
             mQtiImsExtConnector = null;
             mQtiImsExtManager = null;
-            mIsTimerEnabled = false;
+            isTimerEnabled = false;
         }
     }
 
@@ -210,7 +210,6 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
         return autoRetryCfu && mUtEnabled && !mPhone.isUtEnabled();
     }
 
-    //Used to check if CFUT(CFU with timer) is supported
     private boolean isTimerEnabled() {
         //Timer is enabled only when UT services are enabled
         CarrierConfigManager cfgManager = (CarrierConfigManager)
@@ -331,7 +330,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                 // the interface of Phone.setCallForwardingOption has error:
                 // should be action, reason...
                 if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL
-                        && !isAllDayChecked() && mIsTimerEnabled
+                        && !isAllDayChecked() && isTimerEnabled
                         && (action != CommandsInterface.CF_ACTION_DISABLE)) {
 
                     Log.d(LOG_TAG, "setCallForwardingUncondTimerOption,"
@@ -441,9 +440,10 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                 Log.d(LOG_TAG, "Video CF query cannot be triggered due to UT is false now");
                 return;
             }
-            mIsTimerEnabled = isTimerEnabled();
-            Log.d(LOG_TAG, "isTimerEnabled=" + mIsTimerEnabled);
-            if (mPhone != null &&  mPhone.isUtEnabled() && mQtiImsExtConnector == null) {
+            isTimerEnabled = isTimerEnabled();
+            Log.d(LOG_TAG, "isTimerEnabled=" + isTimerEnabled);
+            if ((reason == CommandsInterface.CF_REASON_UNCONDITIONAL && isTimerEnabled) ||
+                    mPhone.isUtEnabled()) {
                 createQtiImsExtConnector(mContext);
                 //Connect will get the QtiImsExtManager instance.
                 mQtiImsExtConnector.connect();
@@ -538,7 +538,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
         if (isToggled()) {
             String number = getRawPhoneNumber();
             if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL
-                    && mIsTimerEnabled && isTimerValid()){
+                    && isTimerEnabled && isTimerValid()){
                 number = getRawPhoneNumberWithTime();
             }
             if (number != null && number.length() > 0) {
@@ -648,7 +648,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
             if (DBG) Log.d(LOG_TAG, "onUTReqFailed phoneId=" + phoneId + " errCode= "
                     + errCode + "errString =" + errString);
             Message msg;
-            if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL && mIsTimerEnabled) {
+            if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL && isTimerEnabled) {
                 msg = mHandler.obtainMessage(mHandler.MESSAGE_GET_UT_FAILED);
                 msg.arg1 = errCode;
                 msg.sendToTarget();

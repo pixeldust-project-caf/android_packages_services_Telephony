@@ -405,11 +405,6 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
         if (mCheckData && mReceiver != null) {
             unregisterReceiver(mReceiver);
         }
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
         for (CallForwardEditPreference pref : mPreferences) {
             pref.deInit();
         }

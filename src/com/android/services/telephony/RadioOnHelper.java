@@ -78,7 +78,7 @@ public class RadioOnHelper implements RadioOnStateListener.Callback {
      * serialized, and runs on the main looper.)
      */
     public void triggerRadioOnAndListen(RadioOnStateListener.Callback callback,
-            boolean forEmergencyCall, Phone phoneForEmergencyCall, boolean isTestEmergencyNumber) {
+            boolean forEmergencyCall, Phone phoneForEmergencyCall) {
         setupListeners();
         mCallback = callback;
         mInProgressListeners.clear();
@@ -90,17 +90,17 @@ public class RadioOnHelper implements RadioOnStateListener.Callback {
             }
 
             mInProgressListeners.add(mListeners.get(i));
-            mListeners.get(i).waitForRadioOn(phone, this, forEmergencyCall, forEmergencyCall
-                    && phone == phoneForEmergencyCall);
+            mListeners.get(i).waitForRadioOn(phone, this, forEmergencyCall,
+                    forEmergencyCall && phone == phoneForEmergencyCall);
         }
-        powerOnRadio(forEmergencyCall, phoneForEmergencyCall, isTestEmergencyNumber);
+
+        powerOnRadio(forEmergencyCall, phoneForEmergencyCall);
     }
     /**
      * Attempt to power on the radio (i.e. take the device out of airplane mode). We'll eventually
      * get an onServiceStateChanged() callback when the radio successfully comes up.
      */
-    private void powerOnRadio(boolean forEmergencyCall, Phone phoneForEmergencyCall,
-            boolean isTestEmergencyNumber) {
+    private void powerOnRadio(boolean forEmergencyCall, Phone phoneForEmergencyCall) {
 
         // If airplane mode is on, we turn it off the same way that the Settings activity turns it
         // off.
@@ -114,12 +114,7 @@ public class RadioOnHelper implements RadioOnStateListener.Callback {
 
             for (Phone phone : PhoneFactory.getPhones()) {
                 Log.d(this, "powerOnRadio, enabling Radio");
-                if (isTestEmergencyNumber) {
-                    phone.setRadioPowerOnForTestEmergencyCall(phone == phoneForEmergencyCall);
-                } else {
-                    phone.setRadioPower(true, forEmergencyCall, phone == phoneForEmergencyCall,
-                            false);
-                }
+                phone.setRadioPower(true, forEmergencyCall, phone == phoneForEmergencyCall, false);
             }
 
             // Post the broadcast intend for change in airplane mode
