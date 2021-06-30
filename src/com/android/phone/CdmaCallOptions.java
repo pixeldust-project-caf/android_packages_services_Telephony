@@ -59,7 +59,6 @@ public class CdmaCallOptions extends TimeConsumingPreferenceActivity
     private static final String BUTTON_VP_KEY = "button_voice_privacy_key";
     private static final String CALL_FORWARDING_KEY = "call_forwarding_key";
     private static final String CALL_WAITING_KEY = "call_waiting_key";
-    private CdmaVoicePrivacySwitchPreference mButtonVoicePrivacy;
     public static final String CALL_FORWARD_INTENT = "org.codeaurora.settings.CDMA_CALL_FORWARDING";
     public static final String CALL_WAITING_INTENT = "org.codeaurora.settings.CDMA_CALL_WAITING";
 
@@ -213,9 +212,10 @@ public class CdmaCallOptions extends TimeConsumingPreferenceActivity
                 getActionBar(), getResources(),
                 mCommon ? R.string.labelCommonMore_with_label : R.string.labelCdmaMore_with_label);
 
-        mButtonVoicePrivacy = (CdmaVoicePrivacySwitchPreference) findPreference(BUTTON_VP_KEY);
+        CdmaVoicePrivacySwitchPreference buttonVoicePrivacy =
+            (CdmaVoicePrivacySwitchPreference) findPreference(BUTTON_VP_KEY);
         mPhone = subInfoHelper.getPhone();
-        mButtonVoicePrivacy.setPhone(mPhone);
+        buttonVoicePrivacy.setPhone(mPhone);
         Log.d(LOG_TAG, "sub id = " + subInfoHelper.getSubId() + " phone id = " +
                 mPhone.getPhoneId());
 
@@ -317,11 +317,22 @@ public class CdmaCallOptions extends TimeConsumingPreferenceActivity
         }
 
         Preference callForwardingPref = getPreferenceScreen().findPreference(CALL_FORWARDING_KEY);
-        callForwardingPref.setIntent(subInfoHelper.getIntent(CdmaCallForwardOptions.class));
+        if (carrierConfig != null && carrierConfig.getBoolean(
+                CarrierConfigManager.KEY_CALL_FORWARDING_VISIBILITY_BOOL)) {
+            callForwardingPref.setIntent(
+                    subInfoHelper.getIntent(CdmaCallForwardOptions.class));
+        } else {
+            getPreferenceScreen().removePreference(callForwardingPref);
+        }
 
         CdmaCallWaitingPreference callWaitingPref = (CdmaCallWaitingPreference)getPreferenceScreen()
                                                      .findPreference(CALL_WAITING_KEY);
-        callWaitingPref.init(this, subInfoHelper.getPhone());
+        if (carrierConfig != null && carrierConfig.getBoolean(
+                CarrierConfigManager.KEY_ADDITIONAL_SETTINGS_CALL_WAITING_VISIBILITY_BOOL)) {
+            callWaitingPref.init(this, subInfoHelper.getPhone());
+        } else {
+            getPreferenceScreen().removePreference(callWaitingPref);
+        }
     }
 
     @Override
