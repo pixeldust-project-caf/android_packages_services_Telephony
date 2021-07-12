@@ -137,6 +137,7 @@ import android.util.Pair;
 import com.android.ims.ImsManager;
 import com.android.ims.internal.IImsServiceFeatureCallback;
 import com.android.ims.rcs.uce.eab.EabUtil;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CallForwardInfo;
 import com.android.internal.telephony.CallManager;
 import com.android.internal.telephony.CallStateException;
@@ -7615,13 +7616,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         getDefaultDataEnabled());
                 setNetworkSelectionModeAutomatic(subId);
                 Phone phone = getPhone(subId);
-                if (phone != null) {
-                    SubscriptionManager.setSubscriptionProperty(subId,
-                            SubscriptionManager.ALLOWED_NETWORK_TYPES,
-                            "user=" + RadioAccessFamily.getRafFromNetworkType(
-                                    RILConstants.PREFERRED_NETWORK_MODE));
-                    phone.loadAllowedNetworksFromSubscriptionDatabase();
-                }
+                cleanUpAllowedNetworkTypes(phone, subId);
                 setDataRoamingEnabled(subId, getDefaultDataRoamingEnabled(subId));
                 getPhone(subId).resetCarrierKeysForImsiEncryption();
             }
@@ -7650,6 +7645,21 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
+    }
+
+    @VisibleForTesting
+    void cleanUpAllowedNetworkTypes(Phone phone, int subId) {
+        if (phone == null || !SubscriptionManager.isUsableSubscriptionId(subId)) {
+            return;
+        }
+        long defaultNetworkType = RadioAccessFamily.getRafFromNetworkType(
+                RILConstants.PREFERRED_NETWORK_MODE);
+        SubscriptionManager.setSubscriptionProperty(subId,
+                SubscriptionManager.ALLOWED_NETWORK_TYPES,
+                "user=" + defaultNetworkType);
+        phone.loadAllowedNetworksFromSubscriptionDatabase();
+        phone.setAllowedNetworkTypes(TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_USER,
+                defaultNetworkType, null);
     }
 
     private void cleanUpSmsRawTable(Context context) {
@@ -10419,6 +10429,21 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         final long identity = Binder.clearCallingIdentity();
         try {
             return EabUtil.getContactFromEab(getDefaultPhone().getContext(), contact);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Get the EAB capability from the EAB database.
+     */
+    @Override
+    public String getCapabilityFromEab(String contact) {
+        TelephonyPermissions.enforceShellOnly(Binder.getCallingUid(), "getCapabilityFromEab");
+        enforceModifyPermission();
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            return EabUtil.getCapabilityFromEab(getDefaultPhone().getContext(), contact);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
