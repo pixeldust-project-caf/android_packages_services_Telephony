@@ -64,7 +64,7 @@ import com.android.internal.telephony.ExponentialBackoff;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneFactory;
-import com.android.internal.telephony.TelephonyProperties;
+import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.SubscriptionController;
 import com.android.phone.PhoneGlobals;
 import com.android.phone.PhoneUtils;
@@ -1637,18 +1637,23 @@ public class TelecomAccountRegistry {
         // Clean up any PhoneAccounts that are no longer relevant
         cleanupPhoneAccounts();
 
-        PhoneAccountHandle defaultPhoneAccount =
-                mTelecomManager.getUserSelectedOutgoingPhoneAccount();
+        // Do not call setUserSelectedOutgoingPhoneAccount() from here when IRadio HAL version 1_5
+        // and later enabled as  MultiSimSettingController.updateUserPreferences() taking care of
+        // settings the default outgoing phone account.
+        if ((phones.length > 0) && phones[0].getHalVersion().less(RIL.RADIO_HAL_VERSION_1_5)) {
+            PhoneAccountHandle defaultPhoneAccount =
+                    mTelecomManager.getUserSelectedOutgoingPhoneAccount();
 
-        if ((defaultPhoneAccount == null)
-                    && (mTelephonyManager.getActiveModemCount() > Count.ONE.ordinal())
-                    && (activeCount == Count.ONE.ordinal())
-                    && (areAllSimAccountsFound()) && (isRadioInValidState(phones))) {
-            PhoneAccountHandle phoneAccountHandle =
-                    subscriptionIdToPhoneAccountHandle(activeSubscriptionId);
-            if (phoneAccountHandle != null) {
-                Log.i(this, "setting default phone account, subId " + activeSubscriptionId);
-                mTelecomManager.setUserSelectedOutgoingPhoneAccount(phoneAccountHandle);
+            if ((defaultPhoneAccount == null)
+                        && (mTelephonyManager.getActiveModemCount() > Count.ONE.ordinal())
+                        && (activeCount == Count.ONE.ordinal())
+                        && (areAllSimAccountsFound()) && (isRadioInValidState(phones))) {
+                PhoneAccountHandle phoneAccountHandle =
+                        subscriptionIdToPhoneAccountHandle(activeSubscriptionId);
+                if (phoneAccountHandle != null) {
+                    Log.i(this, "setting default phone account, subId " + activeSubscriptionId);
+                    mTelecomManager.setUserSelectedOutgoingPhoneAccount(phoneAccountHandle);
+                }
             }
         }
     }
