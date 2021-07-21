@@ -2706,7 +2706,8 @@ public class TelephonyConnectionService extends ConnectionService {
      */
     public void maybeIndicateAnsweringWillDisconnect(@NonNull TelephonyConnection connection,
             @NonNull PhoneAccountHandle phoneAccountHandle) {
-        if (isCallPresentOnOtherSub(phoneAccountHandle)) {
+        if (isCallPresentOnOtherSub(phoneAccountHandle) &&
+            !TelephonyManager.isConcurrentCallsPossible()) {
             Log.i(this, "maybeIndicateAnsweringWillDisconnect; answering call %s will cause a call "
                     + "on another subscription to drop.", connection.getTelecomCallId());
             Bundle extras = new Bundle();
