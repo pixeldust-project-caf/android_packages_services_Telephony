@@ -1917,6 +1917,8 @@
          does not have enough resources (e.g. it is congested) and the call cannot be placed. -->
     <string name="callFailed_NetworkCongested">Network is congested.  Contact your mobile operator
     for assistance.</string>
+    <string name="callFailed_concurrent_calls_not_possible">Call ended due to concurrent calls not
+    possible.</string>
     <!-- Message displayed to the user when an outgoing call is deflected.  This means that the
          party the user is calling has chosen to send the call to another phone number. -->
     <string name="supp_service_notification_call_deflected">Call deflected.</string>
