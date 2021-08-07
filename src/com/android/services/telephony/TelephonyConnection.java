@@ -835,6 +835,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
 
     private TelephonyConnectionService mTelephonyConnectionService;
     protected com.android.internal.telephony.Connection mOriginalConnection;
+    private Phone mPhoneForEvents;
     private Call.State mConnectionState = Call.State.IDLE;
     private Bundle mOriginalConnectionExtras = new Bundle();
     private boolean mIsStateOverridden = false;
@@ -1569,7 +1570,14 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     public void registerForCallEvents(Phone phone) {
+        if (mPhoneForEvents == phone) {
+            Log.i(this, "registerForCallEvents - same phone requested for"
+                    + "registration, ignoring.");
+            return;
+        }
         Log.i(this, "registerForCallEvents; phone=%s", phone);
+        // Only one Phone should be registered for events at a time.
+        unregisterForCallEvents();
         phone.registerForPreciseCallStateChanged(mHandler, MSG_PRECISE_CALL_STATE_CHANGED, null);
         phone.registerForHandoverStateChanged(mHandler, MSG_HANDOVER_STATE_CHANGED, null);
         phone.registerForRedialConnectionChanged(mHandler, MSG_REDIAL_CONNECTION_CHANGED, null);
@@ -1578,6 +1586,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         phone.registerForOnHoldTone(mHandler, MSG_ON_HOLD_TONE, null);
         phone.registerForInCallVoicePrivacyOn(mHandler, MSG_CDMA_VOICE_PRIVACY_ON, null);
         phone.registerForInCallVoicePrivacyOff(mHandler, MSG_CDMA_VOICE_PRIVACY_OFF, null);
+        mPhoneForEvents = phone;
     }
 
     void setOriginalConnection(com.android.internal.telephony.Connection originalConnection) {
@@ -2179,25 +2188,25 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     void clearOriginalConnection() {
         if (mOriginalConnection != null) {
             Log.i(this, "clearOriginalConnection; clearing=%s", mOriginalConnection);
-            if (getPhone() != null) {
-                unregisterForCallEvents(getPhone());
-            }
+            unregisterForCallEvents();
             mOriginalConnection.removePostDialListener(mPostDialListener);
             mOriginalConnection.removeListener(mOriginalConnectionListener);
             mOriginalConnection = null;
         }
     }
 
-    public void unregisterForCallEvents(Phone phone) {
-        phone.unregisterForPreciseCallStateChanged(mHandler);
-        phone.unregisterForRingbackTone(mHandler);
-        phone.unregisterForHandoverStateChanged(mHandler);
-        phone.unregisterForRedialConnectionChanged(mHandler);
-        phone.unregisterForDisconnect(mHandler);
-        phone.unregisterForSuppServiceNotification(mHandler);
-        phone.unregisterForOnHoldTone(mHandler);
-        phone.unregisterForInCallVoicePrivacyOn(mHandler);
-        phone.unregisterForInCallVoicePrivacyOff(mHandler);
+    public void unregisterForCallEvents() {
+        if (mPhoneForEvents == null) return;
+        mPhoneForEvents.unregisterForPreciseCallStateChanged(mHandler);
+        mPhoneForEvents.unregisterForRingbackTone(mHandler);
+        mPhoneForEvents.unregisterForHandoverStateChanged(mHandler);
+        mPhoneForEvents.unregisterForRedialConnectionChanged(mHandler);
+        mPhoneForEvents.unregisterForDisconnect(mHandler);
+        mPhoneForEvents.unregisterForSuppServiceNotification(mHandler);
+        mPhoneForEvents.unregisterForOnHoldTone(mHandler);
+        mPhoneForEvents.unregisterForInCallVoicePrivacyOn(mHandler);
+        mPhoneForEvents.unregisterForInCallVoicePrivacyOff(mHandler);
+        mPhoneForEvents = null;
     }
 
     @VisibleForTesting
