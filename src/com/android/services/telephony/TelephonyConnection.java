@@ -177,50 +177,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                     AsyncResult ar = (AsyncResult) msg.obj;
                     com.android.internal.telephony.Connection connection =
                          (com.android.internal.telephony.Connection) ar.result;
-                    if (connection == null) {
-                        setDisconnected(DisconnectCauseUtil
-                                .toTelecomDisconnectCause(DisconnectCause.OUT_OF_NETWORK,
-                                        "handover failure, no connection"));
-                        close();
-                        break;
-                    }
-                    if (mOriginalConnection != null) {
-                        if (connection != null &&
-                            ((connection.getAddress() != null &&
-                            mOriginalConnection.getAddress() != null &&
-                            mOriginalConnection.getAddress().equals(connection.getAddress())) ||
-                            connection.getState() == mOriginalConnection.getStateBeforeHandover())) {
-                            Log.i(TelephonyConnection.this, "Setting original connection after"
-                                    + " handover or redial, current original connection="
-                                    + mOriginalConnection.toString()
-                                    + ", new original connection="
-                                    + connection.toString());
-                            boolean isShowToast = false;
-                            Phone phone = getPhone();
-                            if (phone != null) {
-                                CarrierConfigManager cfgManager = (CarrierConfigManager) phone
-                                        .getContext().getSystemService(Context
-                                        .CARRIER_CONFIG_SERVICE);
-                                if (cfgManager != null) {
-                                    isShowToast = cfgManager.getConfigForSubId(phone.getSubId())
-                                            .getBoolean("config_show_srvcc_toast");
-                                }
-                            }
-                            if (isShowToast && !shouldTreatAsEmergencyCall()) {
-                                int srvccMessageRes = VideoProfile.isVideo(
-                                        mOriginalConnection.getVideoState()) ?
-                                        R.string.srvcc_video_message : R.string.srvcc_message;
-                                Toast.makeText(phone.getContext(),
-                                        srvccMessageRes, Toast.LENGTH_LONG).show();
-                            }
-                            setOriginalConnection(connection);
-                            mWasImsConnection = false;
-                        }
-                    } else {
-                        Log.w(TelephonyConnection.this,
-                                what + ": mOriginalConnection==null --"
-                                        + " invalid state (not cleaned up)");
-                    }
+                    onOriginalConnectionRedialed(connection);
                     break;
                 case MSG_RINGBACK_TONE:
                     Log.v(TelephonyConnection.this, "MSG_RINGBACK_TONE");
@@ -400,6 +357,72 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     };
 
     private final Messenger mHandlerMessenger = new Messenger(mHandler);
+
+    /**
+     * The underlying telephony Connection has been redialed on a different domain (CS or IMS).
+     * Track the new telephony Connection and set back up appropriate callbacks.
+     * @param connection The new telephony Connection associated with this TelephonyConnection.
+     */
+    @VisibleForTesting
+    public void onOriginalConnectionRedialed(
+            com.android.internal.telephony.Connection connection) {
+        if (connection == null) {
+            setDisconnected(DisconnectCauseUtil
+                    .toTelecomDisconnectCause(DisconnectCause.OUT_OF_NETWORK,
+                            "handover failure, no connection"));
+            close();
+            return;
+        }
+        if (mOriginalConnection != null) {
+            if ((connection.getAddress() != null
+                    && mOriginalConnection.getAddress() != null
+                    && mOriginalConnection.getAddress().equals(connection.getAddress()))
+                    || connection.getState() == mOriginalConnection.getStateBeforeHandover()) {
+                Log.i(TelephonyConnection.this, "Setting original connection after"
+                        + " handover or redial, current original connection="
+                        + mOriginalConnection.toString()
+                        + ", new original connection="
+                        + connection.toString());
+                boolean isShowToast = false;
+                Phone phone = getPhone();
+                if (phone != null) {
+                    CarrierConfigManager cfgManager = (CarrierConfigManager) phone
+                            .getContext().getSystemService(Context
+                            .CARRIER_CONFIG_SERVICE);
+                    if (cfgManager != null) {
+                        isShowToast = cfgManager.getConfigForSubId(phone.getSubId())
+                                .getBoolean("config_show_srvcc_toast");
+                    }
+                }
+                if (isShowToast && !shouldTreatAsEmergencyCall()) {
+                    int srvccMessageRes = VideoProfile.isVideo(
+                            mOriginalConnection.getVideoState()) ?
+                            R.string.srvcc_video_message : R.string.srvcc_message;
+                    Toast.makeText(phone.getContext(),
+                            srvccMessageRes, Toast.LENGTH_LONG).show();
+                }
+                setOriginalConnection(connection);
+                mWasImsConnection = false;
+                if (mHangupDisconnectCause != DisconnectCause.NOT_VALID) {
+                    // A hangup request was initiated during the handover process, so
+                    // go ahead and initiate the hangup on the new connection.
+                    try {
+                        Log.i(TelephonyConnection.this, "user has tried to hangup "
+                                + "during handover, retrying hangup.");
+                        connection.hangup();
+                    } catch (CallStateException e) {
+                        // Call state exception may be thrown if the connection was
+                        // already disconnected, so just log this case.
+                        Log.w(TelephonyConnection.this, "hangup during "
+                                + "handover or redial resulted in an exception:" + e);
+                    }
+                }
+            }
+        } else {
+            Log.w(TelephonyConnection.this, " mOriginalConnection==null --"
+                    + " invalid state (not cleaned up)");
+        }
+    }
 
     /**
      * Handles {@link SuppServiceNotification}s pertinent to Telephony.
@@ -835,6 +858,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
 
     private TelephonyConnectionService mTelephonyConnectionService;
     protected com.android.internal.telephony.Connection mOriginalConnection;
+    private Phone mPhoneForEvents;
     private Call.State mConnectionState = Call.State.IDLE;
     private Bundle mOriginalConnectionExtras = new Bundle();
     private boolean mIsStateOverridden = false;
@@ -1569,7 +1593,14 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     }
 
     public void registerForCallEvents(Phone phone) {
+        if (mPhoneForEvents == phone) {
+            Log.i(this, "registerForCallEvents - same phone requested for"
+                    + "registration, ignoring.");
+            return;
+        }
         Log.i(this, "registerForCallEvents; phone=%s", phone);
+        // Only one Phone should be registered for events at a time.
+        unregisterForCallEvents();
         phone.registerForPreciseCallStateChanged(mHandler, MSG_PRECISE_CALL_STATE_CHANGED, null);
         phone.registerForHandoverStateChanged(mHandler, MSG_HANDOVER_STATE_CHANGED, null);
         phone.registerForRedialConnectionChanged(mHandler, MSG_REDIAL_CONNECTION_CHANGED, null);
@@ -1578,6 +1609,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         phone.registerForOnHoldTone(mHandler, MSG_ON_HOLD_TONE, null);
         phone.registerForInCallVoicePrivacyOn(mHandler, MSG_CDMA_VOICE_PRIVACY_ON, null);
         phone.registerForInCallVoicePrivacyOff(mHandler, MSG_CDMA_VOICE_PRIVACY_OFF, null);
+        mPhoneForEvents = phone;
     }
 
     void setOriginalConnection(com.android.internal.telephony.Connection originalConnection) {
@@ -2179,25 +2211,25 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     void clearOriginalConnection() {
         if (mOriginalConnection != null) {
             Log.i(this, "clearOriginalConnection; clearing=%s", mOriginalConnection);
-            if (getPhone() != null) {
-                unregisterForCallEvents(getPhone());
-            }
+            unregisterForCallEvents();
             mOriginalConnection.removePostDialListener(mPostDialListener);
             mOriginalConnection.removeListener(mOriginalConnectionListener);
             mOriginalConnection = null;
         }
     }
 
-    public void unregisterForCallEvents(Phone phone) {
-        phone.unregisterForPreciseCallStateChanged(mHandler);
-        phone.unregisterForRingbackTone(mHandler);
-        phone.unregisterForHandoverStateChanged(mHandler);
-        phone.unregisterForRedialConnectionChanged(mHandler);
-        phone.unregisterForDisconnect(mHandler);
-        phone.unregisterForSuppServiceNotification(mHandler);
-        phone.unregisterForOnHoldTone(mHandler);
-        phone.unregisterForInCallVoicePrivacyOn(mHandler);
-        phone.unregisterForInCallVoicePrivacyOff(mHandler);
+    public void unregisterForCallEvents() {
+        if (mPhoneForEvents == null) return;
+        mPhoneForEvents.unregisterForPreciseCallStateChanged(mHandler);
+        mPhoneForEvents.unregisterForRingbackTone(mHandler);
+        mPhoneForEvents.unregisterForHandoverStateChanged(mHandler);
+        mPhoneForEvents.unregisterForRedialConnectionChanged(mHandler);
+        mPhoneForEvents.unregisterForDisconnect(mHandler);
+        mPhoneForEvents.unregisterForSuppServiceNotification(mHandler);
+        mPhoneForEvents.unregisterForOnHoldTone(mHandler);
+        mPhoneForEvents.unregisterForInCallVoicePrivacyOn(mHandler);
+        mPhoneForEvents.unregisterForInCallVoicePrivacyOff(mHandler);
+        mPhoneForEvents = null;
     }
 
     @VisibleForTesting

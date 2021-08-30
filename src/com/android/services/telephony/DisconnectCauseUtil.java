@@ -219,6 +219,7 @@ public class DisconnectCauseUtil {
             case android.telephony.DisconnectCause.IMS_ACCESS_BLOCKED:
             case android.telephony.DisconnectCause.IMS_SIP_ALTERNATE_EMERGENCY_CALL:
             case android.telephony.DisconnectCause.MEDIA_TIMEOUT:
+            case android.telephony.DisconnectCause.CONCURRENT_CALLS_NOT_POSSIBLE:
                 return DisconnectCause.ERROR;
 
             case android.telephony.DisconnectCause.DIALED_MMI:
@@ -437,6 +438,9 @@ public class DisconnectCauseUtil {
                 break;
             case android.telephony.DisconnectCause.WFC_SERVICE_NOT_AVAILABLE_IN_THIS_LOCATION:
                 resourceId = R.string.callFailed_wfc_service_not_available_in_this_location;
+                break;
+            case android.telephony.DisconnectCause.CONCURRENT_CALLS_NOT_POSSIBLE:
+                resourceId = R.string.callFailed_concurrent_calls_not_possible;
                 break;
             default:
                 break;
@@ -1055,6 +1059,9 @@ public class DisconnectCauseUtil {
                 break;
             case android.telephony.DisconnectCause.WFC_SERVICE_NOT_AVAILABLE_IN_THIS_LOCATION:
                 resourceId = R.string.callFailed_wfc_service_not_available_in_this_location;
+                break;
+            case android.telephony.DisconnectCause.CONCURRENT_CALLS_NOT_POSSIBLE:
+                resourceId = R.string.callFailed_concurrent_calls_not_possible;
                 break;
             default:
                 break;
