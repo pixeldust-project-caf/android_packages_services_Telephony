@@ -156,7 +156,6 @@
     <uses-permission android:name="android.permission.WRITE_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.SEND_RESPOND_VIA_MESSAGE" />
-    <uses-permission android:name="android.permission.SET_TIME_ZONE" />
     <uses-permission android:name="android.permission.SUGGEST_TELEPHONY_TIME_AND_ZONE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
@@ -165,7 +164,6 @@
     <uses-permission android:name="android.permission.DEVICE_POWER" />
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.WRITE_APN_SETTINGS" />
@@ -198,8 +196,6 @@
     <uses-permission android:name="android.permission.REGISTER_SIM_SUBSCRIPTION" />
     <uses-permission android:name="android.permission.BIND_IMS_SERVICE" />
     <uses-permission android:name="android.permission.BIND_CARRIER_SERVICES" />
-    <!-- BIND_CARRIER_MESSAGING_SERVICE has been deprecated in favor of BIND_CARRIER_SERVICES. -->
-    <uses-permission android:name="android.permission.BIND_CARRIER_MESSAGING_SERVICE" />
     <uses-permission android:name="android.permission.BIND_EUICC_SERVICE" />
     <uses-permission android:name="android.permission.BIND_TELEPHONY_NETWORK_SERVICE" />
     <uses-permission android:name="android.permission.BIND_CELL_BROADCAST_SERVICE" />
@@ -244,6 +240,9 @@
     <uses-permission android:name="android.permission.MANAGE_SUBSCRIPTION_PLANS"/>
     <uses-permission android:name="android.permission.OBSERVE_ROLE_HOLDERS"/>
     <uses-permission android:name="android.permission.BIND_GBA_SERVICE"/>
+    <!-- Permissions required for reading and logging compat changes -->
+    <uses-permission android:name="android.permission.LOG_COMPAT_CHANGE"/>
+    <uses-permission android:name="android.permission.READ_COMPAT_CHANGE_CONFIG"/>
 
     <!-- Needed to listen to changes in projection state. -->
     <uses-permission android:name="android.permission.READ_PROJECTION_STATE"/>
@@ -462,8 +461,7 @@
                 android:configChanges="orientation|screenSize|keyboardHidden"
                 android:exported="true"
                 android:theme="@style/DialerSettingsLight">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
+            <intent-filter android:priority="1">
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.telecom.action.SHOW_CALL_SETTINGS" />
                 <category android:name="android.intent.category.DEFAULT" />
