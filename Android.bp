@@ -40,6 +40,7 @@ android_app {
         "voip-common",
         "ims-common",
         "libprotobuf-java-lite",
+        "app-compat-annotations",
         "unsupportedappusage",
         "telephony-ext",
          "extphonelib",
@@ -100,4 +101,9 @@ android_app {
     proto: {
         type: "lite",
     },
+}
+
+platform_compat_config {
+    name: "TeleService-platform-compat-config",
+    src: ":TeleService",
 }
