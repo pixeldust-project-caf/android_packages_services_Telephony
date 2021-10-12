@@ -2193,8 +2193,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             for (Connection current : getTelephonyConnectionService().getAllConnections()) {
                 if (current != this && current instanceof TelephonyConnection) {
                     TelephonyConnection other = (TelephonyConnection) current;
-                    if ((getPhone().getSubId() == other.getPhone().getSubId()) &&
-                            canTransfer(other)) {
+                    if (getPhone() != null && other.getPhone() != null
+                            && (getPhone().getSubId() == other.getPhone().getSubId())
+                            && canTransfer(other)) {
                         canConsultativeTransfer = true;
                         break;
                     }
