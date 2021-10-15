@@ -304,10 +304,12 @@ public class ImsConferenceController {
             if (c instanceof Connection) {
                 PhoneAccountHandle handle = getPhoneAccountHandle(c);
                 // Remove this connection from the Set and add ones with same PhoneAccountHandle
+                // and both connections are not in HELD state
                 List<Conferenceable> conferenceables = conferenceableSet
                         .stream()
                         .filter(conferenceable -> c != conferenceable &&
-                        Objects.equals(handle, getPhoneAccountHandle(conferenceable)))
+                        Objects.equals(handle, getPhoneAccountHandle(conferenceable)) &&
+                        !(isHeld(c) && isHeld(conferenceable)))
                         .collect(Collectors.toList());
                 // TODO: Remove this once RemoteConnection#setConferenceableConnections is fixed.
                 // Add all conference participant connections as conferenceable with a standalone
@@ -334,7 +336,8 @@ public class ImsConferenceController {
                 List<Connection> connections = conferenceableSet
                         .stream()
                         .filter(conferenceable -> conferenceable instanceof Connection &&
-                        Objects.equals(handle, getPhoneAccountHandle(conferenceable)))
+                        Objects.equals(handle, getPhoneAccountHandle(conferenceable)) &&
+                        !(isHeld(c) && isHeld(conferenceable)))
                         .map(conferenceable -> (Connection) conferenceable)
                         .collect(Collectors.toList());
                 // Conference equivalent to setConferenceables that only accepts Connections
@@ -346,13 +349,27 @@ public class ImsConferenceController {
     /**
      * Retrieves the PhoneAccountHandle for Conferenceable object
      */
-    private PhoneAccountHandle getPhoneAccountHandle(Conferenceable c) {
+    private static PhoneAccountHandle getPhoneAccountHandle(Conferenceable c) {
         if (c instanceof Connection) {
             return ((Connection) c).getPhoneAccountHandle();
         } else if (c instanceof ImsConference) {
             return ((ImsConference) c).getPhoneAccountHandle();
         }
         return null;
+    }
+
+    /*
+     * Checks if the Connection is in HELD state
+     */
+    private static boolean isHeld(Conferenceable conn) {
+        return conn instanceof Connection ?
+                isHoldingState(((Connection) conn).getState()) :
+                conn instanceof ImsConference ?
+                isHoldingState(((ImsConference) conn).getState()) : false;
+    }
+
+    private static boolean isHoldingState(int state) {
+        return state == Connection.STATE_HOLDING;
     }
 
     /**
