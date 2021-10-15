@@ -225,7 +225,7 @@ public class TelephonyConnectionService extends ConnectionService {
         public void onCompleted(boolean status) {
             mHoldHandler.removeListener(this);
             mHoldHandler = null;
-            Log.i(this, "onCompleted");
+            Log.i(this, "onCompleted " + status);
         }
     };
 
