@@ -185,6 +185,7 @@ import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppType;
 import com.android.internal.telephony.uicc.IccIoResult;
 import com.android.internal.telephony.uicc.IccRecords;
 import com.android.internal.telephony.uicc.IccUtils;
+import com.android.internal.telephony.uicc.PinStorage;
 import com.android.internal.telephony.uicc.SIMRecords;
 import com.android.internal.telephony.uicc.UiccCard;
 import com.android.internal.telephony.uicc.UiccCardApplication;
@@ -341,6 +342,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     private static final int CMD_GET_SLICING_CONFIG = 110;
     private static final int EVENT_GET_SLICING_CONFIG_DONE = 111;
     private static final int CMD_ERASE_DATA_SHARED_PREFERENCES = 112;
+    private static final int CMD_ENABLE_VONR = 113;
+    private static final int EVENT_ENABLE_VONR_DONE = 114;
+    private static final int CMD_IS_VONR_ENABLED = 115;
+    private static final int EVENT_IS_VONR_ENABLED_DONE = 116;
 
     // Parameters of select command.
     private static final int SELECT_COMMAND = 0xA4;
@@ -834,7 +839,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     } else {
                         // request.result must be set to something non-null
                         // for the calling thread to unblock
-                        if (request.result != null) {
+                        if (ar.result != null) {
                             request.result = ar.result;
                         } else {
                             request.result = false;
@@ -846,6 +851,46 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                                     + ar.exception);
                         } else {
                             loge("isNRDualConnectivityEnabled: Unknown exception");
+                        }
+                    }
+                    notifyRequester(request);
+                    break;
+
+                case CMD_IS_VONR_ENABLED: {
+                    request = (MainThreadRequest) msg.obj;
+                    onCompleted = obtainMessage(EVENT_IS_VONR_ENABLED_DONE,
+                            request);
+                    Phone phone = getPhoneFromRequest(request);
+                    if (phone != null) {
+                        phone.isVoNrEnabled(onCompleted, request.workSource);
+                    } else {
+                        loge("isVoNrEnabled: No phone object");
+                        request.result = false;
+                        notifyRequester(request);
+                    }
+                    break;
+                }
+
+                case EVENT_IS_VONR_ENABLED_DONE:
+                    ar = (AsyncResult) msg.obj;
+                    request = (MainThreadRequest) ar.userObj;
+                    if (ar.exception == null && ar.result != null) {
+                        request.result = ar.result;
+                    } else {
+                        // request.result must be set to something non-null
+                        // for the calling thread to unblock
+                        if (ar.result != null) {
+                            request.result = ar.result;
+                        } else {
+                            request.result = false;
+                        }
+                        if (ar.result == null) {
+                            loge("isVoNrEnabled: Empty response");
+                        } else if (ar.exception instanceof CommandException) {
+                            loge("isVoNrEnabled: CommandException: "
+                                    + ar.exception);
+                        } else {
+                            loge("isVoNrEnabled: Unknown exception");
                         }
                     }
                     notifyRequester(request);
@@ -893,6 +938,49 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                                     + ar.exception);
                         } else {
                             loge("enableNrDualConnectivity" + ": Unknown exception");
+                        }
+                    }
+                    notifyRequester(request);
+                    break;
+                }
+
+                case CMD_ENABLE_VONR: {
+                    request = (MainThreadRequest) msg.obj;
+                    onCompleted = obtainMessage(EVENT_ENABLE_VONR_DONE, request);
+                    Phone phone = getPhoneFromRequest(request);
+                    if (phone != null) {
+                        phone.setVoNrEnabled((boolean) request.argument, onCompleted,
+                                request.workSource);
+                    } else {
+                        loge("setVoNrEnabled: No phone object");
+                        request.result =
+                                TelephonyManager.ENABLE_VONR_RADIO_NOT_AVAILABLE;
+                        notifyRequester(request);
+                    }
+                    break;
+                }
+
+                case EVENT_ENABLE_VONR_DONE: {
+                    ar = (AsyncResult) msg.obj;
+                    request = (MainThreadRequest) ar.userObj;
+                    if (ar.exception == null) {
+                        request.result = TelephonyManager.ENABLE_VONR_SUCCESS;
+                    } else {
+                        request.result = TelephonyManager.ENABLE_VONR_RADIO_ERROR;
+                        if (ar.exception instanceof CommandException) {
+                            CommandException.Error error =
+                                    ((CommandException) (ar.exception)).getCommandError();
+                            if (error == CommandException.Error.RADIO_NOT_AVAILABLE) {
+                                request.result = TelephonyManager.ENABLE_VONR_RADIO_NOT_AVAILABLE;
+                            } else if (error == CommandException.Error.REQUEST_NOT_SUPPORTED) {
+                                request.result = TelephonyManager.ENABLE_VONR_REQUEST_NOT_SUPPORTED;
+                            } else {
+                                request.result = TelephonyManager.ENABLE_VONR_RADIO_ERROR;
+                            }
+                            loge("setVoNrEnabled" + ": CommandException: "
+                                    + ar.exception);
+                        } else {
+                            loge("setVoNrEnabled" + ": Unknown exception");
                         }
                     }
                     notifyRequester(request);
@@ -1056,7 +1144,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                                     request.argument).first;
                     request.phone.setCallForwardingOption(
                             callForwardingInfoToSet.isEnabled()
-                                    ? CommandsInterface.CF_ACTION_ENABLE
+                                    ? CommandsInterface.CF_ACTION_REGISTRATION
                                     : CommandsInterface.CF_ACTION_DISABLE,
                             callForwardingInfoToSet.getReason(),
                             callForwardingInfoToSet.getNumber(),
@@ -1732,8 +1820,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         // If the operation is successful, update the PIN storage
                         Pair<String, String> passwords = (Pair<String, String>) request.argument;
                         int phoneId = getPhoneFromRequest(request).getPhoneId();
-                        UiccController.getInstance().getPinStorage()
-                                .storePin(passwords.second, phoneId);
+                        PinStorage pinStorage = UiccController.getInstance().getPinStorage();
+                        pinStorage.storePin(passwords.second, phoneId,
+                                pinStorage.getIccid(phoneId));
                     } else {
                         request.result = msg.arg1;
                     }
@@ -1757,8 +1846,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         Pair<Boolean, String> enabled = (Pair<Boolean, String>) request.argument;
                         int phoneId = getPhoneFromRequest(request).getPhoneId();
                         if (enabled.first) {
-                            UiccController.getInstance().getPinStorage()
-                                    .storePin(enabled.second, phoneId);
+                            PinStorage pinStorage = UiccController.getInstance().getPinStorage();
+                            pinStorage.storePin(enabled.second, phoneId,
+                                    pinStorage.getIccid(phoneId));
                         } else {
                             UiccController.getInstance().getPinStorage().clearPin(phoneId);
                         }
@@ -1968,7 +2058,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 case CMD_PREPARE_UNATTENDED_REBOOT:
                     request = (MainThreadRequest) msg.obj;
                     request.result =
-                            UiccController.getInstance().getPinStorage().prepareUnattendedReboot();
+                            UiccController.getInstance().getPinStorage()
+                                .prepareUnattendedReboot(request.workSource);
                     notifyRequester(request);
                     break;
 
@@ -2457,7 +2548,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             resultArray[1] = mRetryCount;
 
             if (mResult == PhoneConstants.PIN_RESULT_SUCCESS && pin.length() > 0) {
-                UiccController.getInstance().getPinStorage().storePin(pin, mPhoneId);
+                PinStorage pinStorage = UiccController.getInstance().getPinStorage();
+                pinStorage.storePin(pin, mPhoneId, pinStorage.getIccid(mPhoneId));
             }
 
             return resultArray;
@@ -2947,6 +3039,14 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     @SuppressWarnings("unchecked")
     public List<NeighboringCellInfo> getNeighboringCellInfo(String callingPackage,
             String callingFeatureId) {
+        try {
+            mApp.getSystemService(AppOpsManager.class)
+                    .checkPackage(Binder.getCallingUid(), callingPackage);
+        } catch (SecurityException e) {
+            EventLog.writeEvent(0x534e4554, "190619791", Binder.getCallingUid());
+            throw e;
+        }
+
         final int targetSdk = TelephonyPermissions.getTargetSdk(mApp, callingPackage);
         if (targetSdk >= android.os.Build.VERSION_CODES.Q) {
             throw new SecurityException(
@@ -3126,13 +3226,25 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         String tac = null;
         if (phone != null) {
             String imei = phone.getImei();
-            tac = imei == null ? null : imei.substring(0, TYPE_ALLOCATION_CODE_LENGTH);
+            try {
+                tac = imei == null ? null : imei.substring(0, TYPE_ALLOCATION_CODE_LENGTH);
+            } catch (IndexOutOfBoundsException e) {
+                Log.e(LOG_TAG, "IMEI length shorter than upper index.");
+                return null;
+            }
         }
         return tac;
     }
 
     @Override
     public String getMeidForSlot(int slotIndex, String callingPackage, String callingFeatureId) {
+        try {
+            mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
+        } catch (SecurityException se) {
+            EventLog.writeEvent(0x534e4554, "186530496", Binder.getCallingUid());
+            throw new SecurityException("Package " + callingPackage + " does not belong to "
+                    + Binder.getCallingUid());
+        }
         Phone phone = PhoneFactory.getPhone(slotIndex);
         if (phone == null) {
             return null;
@@ -3158,7 +3270,13 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         String manufacturerCode = null;
         if (phone != null) {
             String meid = phone.getMeid();
-            manufacturerCode = meid == null ? null : meid.substring(0, MANUFACTURER_CODE_LENGTH);
+            try {
+                manufacturerCode =
+                        meid == null ? null : meid.substring(0, MANUFACTURER_CODE_LENGTH);
+            } catch (IndexOutOfBoundsException e) {
+                Log.e(LOG_TAG, "MEID length shorter than upper index.");
+                return null;
+            }
         }
         return manufacturerCode;
     }
@@ -4908,6 +5026,13 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     @Override
     public int getNetworkTypeForSubscriber(int subId, String callingPackage,
             String callingFeatureId) {
+        try {
+            mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
+        } catch (SecurityException se) {
+            EventLog.writeEvent(0x534e4554, "186776740", Binder.getCallingUid());
+            throw new SecurityException("Package " + callingPackage + " does not belong to "
+                    + Binder.getCallingUid());
+        }
         final int targetSdk = TelephonyPermissions.getTargetSdk(mApp, callingPackage);
         if (targetSdk > android.os.Build.VERSION_CODES.Q) {
             return getDataNetworkTypeForSubscriber(subId, callingPackage, callingFeatureId);
@@ -7475,6 +7600,13 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     @Override
     public String getDeviceIdWithFeature(String callingPackage, String callingFeatureId) {
+        try {
+            mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
+        } catch (SecurityException se) {
+            EventLog.writeEvent(0x534e4554, "186530889", Binder.getCallingUid());
+            throw new SecurityException("Package " + callingPackage + " does not belong to "
+                    + Binder.getCallingUid());
+        }
         final Phone phone = PhoneFactory.getPhone(0);
         if (phone == null) {
             return null;
@@ -8182,6 +8314,53 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             phone.carrierActionSetRadioEnabled(enabled);
         } catch (Exception e) {
             Log.e(LOG_TAG, "carrierAction: SetRadioEnabled fails. Exception ex=" + e);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Enable or disable Voice over NR (VoNR)
+     * @param subId the subscription ID that this action applies to.
+     * @param enabled enable or disable VoNR.
+     * @return operation result.
+     */
+    @Override
+    public int setVoNrEnabled(int subId, boolean enabled) {
+        enforceModifyPermission();
+        final Phone phone = getPhone(subId);
+
+        final long identity = Binder.clearCallingIdentity();
+        if (phone == null) {
+            loge("setVoNrEnabled fails with no phone object for subId: " + subId);
+            return TelephonyManager.ENABLE_VONR_RADIO_NOT_AVAILABLE;
+        }
+
+        WorkSource workSource = getWorkSource(Binder.getCallingUid());
+        try {
+            int result = (int) sendRequest(CMD_ENABLE_VONR, enabled, subId,
+                    workSource);
+            if (DBG) log("setVoNrEnabled result: " + result);
+            return result;
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Is voice over NR enabled
+     * @return true if VoNR is enabled else false
+     */
+    @Override
+    public boolean isVoNrEnabled(int subId) {
+        enforceReadPrivilegedPermission("isVoNrEnabled");
+        WorkSource workSource = getWorkSource(Binder.getCallingUid());
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            boolean isEnabled = (boolean) sendRequest(CMD_IS_VONR_ENABLED,
+                    null, subId, workSource);
+            if (DBG) log("isVoNrEnabled: " + isEnabled);
+            return isEnabled;
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -10735,11 +10914,12 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     @Override
     @TelephonyManager.PrepareUnattendedRebootResult
     public int prepareForUnattendedReboot() {
+        WorkSource workSource = getWorkSource(Binder.getCallingUid());
         enforceRebootPermission();
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            return (int) sendRequest(CMD_PREPARE_UNATTENDED_REBOOT, null);
+            return (int) sendRequest(CMD_PREPARE_UNATTENDED_REBOOT, null, workSource);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
