@@ -514,6 +514,7 @@ public class PhoneGlobals extends ContextWrapper {
             intentFilter.addAction(TelephonyIntents.ACTION_SIM_STATE_CHANGED);
             intentFilter.addAction(TelephonyIntents.ACTION_RADIO_TECHNOLOGY_CHANGED);
             intentFilter.addAction(TelephonyIntents.ACTION_SERVICE_STATE_CHANGED);
+            intentFilter.addAction(SmsCallbackModeService.ACTION_SMS_CALLBACK_MODE_CHANGED);
             intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
             intentFilter.addAction(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED);
             intentFilter.addAction(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED);
@@ -815,6 +816,12 @@ public class PhoneGlobals extends ContextWrapper {
                     }
                 } else {
                     Log.w(LOG_TAG, "phoneInEcm is null.");
+                }
+            } else if (action.equals(SmsCallbackModeService.ACTION_SMS_CALLBACK_MODE_CHANGED)) {
+                if (intent.getBooleanExtra(
+                                SmsCallbackModeService.EXTRA_PHONE_IN_SCM_STATE, false)) {
+                   // Start Sms Callback Mode service
+                    context.startService(new Intent(context, SmsCallbackModeService.class));
                 }
             } else if (action.equals(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED)) {
                 // Roaming status could be overridden by carrier config, so we need to update it.
