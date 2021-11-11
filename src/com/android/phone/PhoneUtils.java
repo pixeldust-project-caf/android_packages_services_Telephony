@@ -40,11 +40,13 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
+import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
 import android.telephony.ims.ImsReasonInfo;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
@@ -112,6 +114,9 @@ public class PhoneUtils {
      * the dialog theme correctly.
      */
     private static final int THEME = com.android.internal.R.style.Theme_DeviceDefault_Dialog_Alert;
+    private static final int THEME_LIGHT =
+            com.android.internal.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
+
     /** Extra key to identify the service class voice or video */
     public static final String SERVICE_CLASS = "service_class";
 
@@ -120,6 +125,8 @@ public class PhoneUtils {
     /** USSD information used to aggregate all USSD messages */
     private static StringBuilder sUssdMsg = new StringBuilder();
     private static ExtTelephonyManager mExtTelephonyManager;
+    private static TelephonyManager sTelephonyManager;
+    private static TelecomManager sTelecomManager;
 
     private static final ComponentName PSTN_CONNECTION_SERVICE_COMPONENT =
             new ComponentName("com.android.phone",
@@ -245,13 +252,15 @@ public class PhoneUtils {
      * Handle the MMIInitiate message and put up an alert that lets
      * the user cancel the operation, if applicable.
      *
+     * @param phone the Phone object.
      * @param context context to get strings.
      * @param mmiCode the MmiCode object being started.
      * @param buttonCallbackMessage message to post when button is clicked.
      * @param previousAlert a previous alert used in this activity.
      * @return the dialog handle
      */
-    static Dialog displayMMIInitiate(Context context,
+    static Dialog displayMMIInitiate(Phone phone,
+                                          Context context,
                                           MmiCode mmiCode,
                                           Message buttonCallbackMessage,
                                           Dialog previousAlert) {
@@ -302,6 +311,13 @@ public class PhoneUtils {
 
             // create the indeterminate progress dialog and display it.
             ProgressDialog pd = new ProgressDialog(context, THEME);
+            if (isMultiSimMode() && phone != null) {
+                pd.setTitle(context.getText(R.string.ussdinitiated_title));
+                PhoneAccount account = getPhoneAccount(phone.getSubId());
+                if (account != null && account.getIcon() != null) {
+                    pd.setIcon(account.getIcon().loadDrawable(context));
+                }
+            }
             pd.setMessage(context.getText(R.string.ussdRunning));
             pd.setCancelable(false);
             pd.setIndeterminate(true);
@@ -489,13 +505,27 @@ public class PhoneUtils {
                     };
 
                 // build the dialog
-                final AlertDialog newDialog = new AlertDialog.Builder(contextThemeWrapper)
+                final AlertDialog newDialog = new AlertDialog.Builder(context, THEME_LIGHT)
                         .setMessage(text)
                         .setView(dialogView)
                         .setPositiveButton(R.string.send_button, mUSSDDialogListener)
                         .setNegativeButton(R.string.cancel, mUSSDDialogListener)
                         .setCancelable(false)
                         .create();
+
+                if (isMultiSimMode() && phone != null) {
+                    PhoneAccount account = getPhoneAccount(phone.getSubId());
+                    if (account != null && account.getIcon() != null) {
+                        newDialog.setIcon(account.getIcon().loadDrawable(context));
+                    }
+                    if (phone.getCarrierName() != null) {
+                        newDialog.setTitle(app.getResources().getString(
+                                R.string.carrier_mmi_msg_title, phone.getCarrierName()));
+                    } else {
+                        newDialog.setTitle(app.getResources().getString(
+                               R.string.default_carrier_mmi_msg_title));
+                    }
+                }
 
                 // attach the key listener to the dialog's input field and make
                 // sure focus is set.
@@ -631,6 +661,12 @@ public class PhoneUtils {
         } else {
             ussdDialog
                     .setTitle(app.getResources().getString(R.string.default_carrier_mmi_msg_title));
+        }
+        if (isMultiSimMode() && phone != null) {
+            PhoneAccount account = getPhoneAccount(phone.getSubId());
+            if (account != null && account.getIcon() != null) {
+                ussdDialog.setIcon(account.getIcon().loadDrawable(context));
+            }
         }
         sUssdMsg.insert(0, text);
         ussdDialog.setMessage(sUssdMsg.toString());
@@ -973,5 +1009,42 @@ public class PhoneUtils {
         }
 
         return new CommandException(error);
+    }
+
+    /**
+     * To get the phone account using subscription ID.
+     */
+    private static PhoneAccount getPhoneAccount(int subId) {
+        PhoneAccountHandle handle = getTelephonyManager() != null ?
+                getTelephonyManager().getPhoneAccountHandleForSubscriptionId(subId) : null;
+        return getTelecomManager() != null && handle != null ?
+                getTelecomManager().getPhoneAccount(handle) : null;
+    }
+
+    /**
+     * Returns true if device is in Single Standby mode, false otherwise.
+     */
+    private static boolean isMultiSimMode() {
+        return getTelephonyManager() != null && getTelephonyManager().getActiveModemCount() > 1;
+    }
+
+    /**
+     * To get the instance of TelephonyManager.
+     */
+    private static TelephonyManager getTelephonyManager() {
+        if (sTelephonyManager == null) {
+            sTelephonyManager = PhoneGlobals.getInstance().getSystemService(TelephonyManager.class);
+        }
+        return sTelephonyManager;
+    }
+
+    /**
+     * To get the instance of TelecomManager.
+     */
+    private static TelecomManager getTelecomManager() {
+        if (sTelecomManager == null) {
+            sTelecomManager = PhoneGlobals.getInstance().getSystemService(TelecomManager.class);
+        }
+        return sTelecomManager;
     }
 }
