@@ -99,6 +99,8 @@
     <protected-broadcast android:name= "org.codeaurora.intent.action.ACTION_NETWORK_SPECIFIER_SET" />
     <protected-broadcast android:name= "org.codeaurora.intent.action.ACTION_DDS_SWITCH_DONE" />
     <protected-broadcast android:name= "org.codeaurora.intent.action.RADIO_POWER_STATE" />
+    <protected-broadcast android:name= "org.codeaurora.intent.action.SMS_CALLBACK_MODE_CHANGED" />
+    <protected-broadcast android:name= "org.codeaurora.intent.action.SHOW_NOTICE_SCM_BLOCK_OTHERS" />
     <protected-broadcast android:name= "android.telephony.action.SUBSCRIPTION_CARRIER_IDENTITY_CHANGED" />
     <protected-broadcast android:name= "android.telephony.action.SUBSCRIPTION_SPECIFIC_CARRIER_IDENTITY_CHANGED" />
     <protected-broadcast android:name= "android.telephony.action.TOGGLE_PROVISION" />
@@ -503,6 +505,9 @@
         <service android:name="EmergencyCallbackModeService">
         </service>
 
+        <service android:name="SmsCallbackModeService">
+        </service>
+
         <!-- service to dump telephony information -->
         <service android:name="com.android.phone.TelephonyDebugService"
                 android:exported="true"
@@ -591,6 +596,19 @@
             <intent-filter>
                 <action android:name="com.android.phone.action.ACTION_SHOW_ECM_EXIT_DIALOG" />
                 <action android:name="android.telephony.action.SHOW_NOTICE_ECM_BLOCK_OTHERS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name="SmsCallbackModeExitDialog"
+            android:excludeFromRecents="true"
+            android:label="@string/scm_exit_dialog"
+            android:launchMode="singleTop"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="org.codeaurora.intent.action.ACTION_SHOW_SCM_EXIT_DIALOG" />
+                <action android:name="org.codeaurora.intent.action.SHOW_NOTICE_SCM_BLOCK_OTHERS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
