@@ -2862,9 +2862,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         capabilities = changeBitmask(capabilities, CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL,
                 isLocalVideoSupported);
 
-        capabilities = changeBitmask(capabilities, CAPABILITY_SUPPORTS_RTT_REMOTE,
+        capabilities = changeBitmask(capabilities, CAPABILITY_REMOTE_PARTY_SUPPORTS_RTT,
                 (mOriginalConnectionCapabilities & Capability.SUPPORTS_RTT_REMOTE)
-                        == Capability.SUPPORTS_RTT_REMOTE);
+                == Capability.SUPPORTS_RTT_REMOTE);
 
         return capabilities;
     }
