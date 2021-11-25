@@ -487,12 +487,78 @@ public class TelephonyConnectionService extends ConnectionService {
             new TelephonyConnection.TelephonyConnectionListener() {
         @Override
         public void onOriginalConnectionConfigured(TelephonyConnection c) {
-            addConnectionToConferenceController(c);
+            if (!c.isAdhocConferenceCall()) {
+                addConnectionToConferenceController(c);
+            }
         }
 
         @Override
         public void onOriginalConnectionRetry(TelephonyConnection c, boolean isPermanentFailure) {
-            retryOutgoingOriginalConnection(c, isPermanentFailure);
+            if (!c.isAdhocConferenceCall()) {
+                retryOutgoingOriginalConnection(c, isPermanentFailure);
+            }
+        }
+
+        @Override
+        public void onStateChanged(android.telecom.Connection c, int state) {
+            /*
+             * Special handling for Incoming + Incoming call scenario where we transitioned
+             * to Active + Incoming call scenario.
+             */
+            if (state != Connection.STATE_ACTIVE) {
+                return;
+            }
+            // Check for DSDA mode and Connection type
+            if (!isConcurrentCallsPossible() || !isTelephonyConnection(c)) {
+                return;
+            }
+            TelephonyConnection conn = (TelephonyConnection) c;
+            // Check if we need to disable VT capability based on carrier requirements.
+            maybeDisableVideo(conn);
+            /*
+             * Check if we need to update Incoming connection extra using
+             * handleIncomingDsdaCall().
+             */
+            Connection ringingConnection = getRingingConnection();
+            if (ringingConnection != null) {
+                handleIncomingDsdaCall((TelephonyConnection) ringingConnection);
+            }
+        }
+
+        @Override
+        public void onVideoStateChanged(android.telecom.Connection c, int videoState) {
+            /*
+             * Special handling for Video + Voice call case where the Video call
+             * is downgraded or Voice + Voice call case where the Voice call
+             * is upgraded.
+             */
+            if (c.getState() != Connection.STATE_ACTIVE) {
+                return;
+            }
+            // Check for DSDA mode and Connection type
+            if (!isConcurrentCallsPossible() || !isTelephonyConnection(c)) {
+                return;
+            }
+            TelephonyConnection conn = (TelephonyConnection) c;
+            /*
+             * As per carrier requirement we need to disable swap when Active call is
+             * VT call and enable swap if that Video call is downgraded to Voice
+             * call.
+             */
+             if (!isConcurrentCallAllowedDuringVideoCall(conn.getPhone())) {
+                 return;
+             }
+            /*
+             * Either there is no call present on the other SUB or there is
+             * a connected Video call on other SUB then no need to check
+             * further since here we only handle Voice/Video + Voice use-cases.
+             */
+            PhoneAccountHandle accountHandle = c.getPhoneAccountHandle();
+            if (!isCallPresentOnOtherSub(accountHandle) ||
+                    hasConnectedVideoCallOnOtherSub(accountHandle)) {
+                return;
+            }
+            disableSwap(conn, VideoProfile.isVideo(videoState));
         }
     };
 
@@ -677,7 +743,7 @@ public class TelephonyConnectionService extends ConnectionService {
             return;
         }
         if (mAnswerAndReleaseHandler != null) {
-            Log.i(this, "answerVideo: duplicate answer request.");
+            Log.e(this, null, "Cannot answer as AnswerAndRelease is in progress.");
             return;
         }
         if(isConcurrentCallsPossible()) {
@@ -694,10 +760,7 @@ public class TelephonyConnectionService extends ConnectionService {
             return;
         }
         // Pseudo DSDA use case
-        mAnswerAndReleaseHandler =
-                new AnswerAndReleaseHandler(answerAndReleaseConnection, videoState);
-        mAnswerAndReleaseHandler.addListener(mAnswerAndReleaseListener);
-        mAnswerAndReleaseHandler.checkAndAnswer(getAllConnections(), getAllConferences());
+        setupAnswerAndReleaseHandler(answerAndReleaseConnection, videoState);
     }
 
     private Connection shallDisconnectOtherCalls() {
@@ -963,6 +1026,7 @@ public class TelephonyConnectionService extends ConnectionService {
             }
 
             if (!isEmergencyNumber) {
+                boolean disableSwap = false;
                 if (isConcurrentCallsPossible()) {
                     Connection conn = getRingingOrDialingConnection();
                     if (conn != null && !Objects.equals(
@@ -978,9 +1042,33 @@ public class TelephonyConnectionService extends ConnectionService {
                                 mDisconnectCauseFactory.toTelecomDisconnectCause(disconnectCause,
                                         "Ongoing calls", phone.getPhoneId()));
                     }
+                    /*
+                     * This is the case when we have Outgoing Video + Voice call and as per
+                     * carrier requirement we need to either disallow this operation or we
+                     * need to disable swap option if the Video call is permitted.
+                     * Note: In case of same SUB case, this will be blocked in
+                     *       ImsPhoneCallTracker#canAddVideoCallDuringImsAudioCall()
+                     */
+                    boolean hasOutgoingVideoCallDuringAudioCall =
+                            VideoProfile.isVideo(request.getVideoState()) &&
+                            hasActiveOrHeldAudioCall();
+                    if (!isVideoCallHoldAllowedOnAnySub() && hasOutgoingVideoCallDuringAudioCall) {
+                        if (!isConcurrentCallAllowedDuringVideoCall(phone)) {
+                            return Connection.createFailedConnection(
+                                    mDisconnectCauseFactory.toTelecomDisconnectCause(
+                                            android.telephony.DisconnectCause.OUTGOING_FAILURE,
+                                            "cannot dial in current state", phone.getPhoneId()));
+                        }
+                        disableSwap = true;
+                    }
                 }
                 final Connection resultConnection = getTelephonyConnection(request, numberToDial,
                         false, handle, phone);
+                if (disableSwap) {
+                    if (resultConnection instanceof TelephonyConnection) {
+                        disableSwap((TelephonyConnection)resultConnection, true);
+                    }
+                }
                 if (isAdhocConference) {
                     if (resultConnection instanceof TelephonyConnection) {
                         TelephonyConnection conn = (TelephonyConnection)resultConnection;
@@ -1395,6 +1483,7 @@ public class TelephonyConnectionService extends ConnectionService {
             // Add extra to call if answering this incoming call would cause an in progress call on
             // another subscription to be disconnected.
             maybeIndicateAnsweringWillDisconnect(connection, request.getAccountHandle());
+            handleIncomingDsdaCall(connection);
 
             connection.setTtyEnabled(mDeviceState.isTtyModeEnabled(getApplicationContext()));
             return connection;
@@ -1431,6 +1520,209 @@ public class TelephonyConnectionService extends ConnectionService {
 
         Log.i(this, "Setting the call to be answered with RTT on.");
         imsOriginalConnection.getImsCall().setAnswerWithRtt();
+    }
+
+    /*
+     * This handles certain incoming call DSDA use cases based on carrier requirements
+     * by updating Connection(s) extras to enable PseudoDsda behavior
+     * or disable/remove call swap option.
+     */
+    private void handleIncomingDsdaCall(TelephonyConnection incomingConnection) {
+        com.android.internal.telephony.Connection originalConnection =
+                incomingConnection.getOriginalConnection();
+        Phone phone = incomingConnection.getPhone();
+        PhoneAccountHandle incomingHandle = mPhoneUtilsProxy.makePstnPhoneAccountHandle(phone);
+
+        /*
+         * If we are not in DSDA mode or the incoming call is on the same phoneAccount or
+         * connection is not IMS then we return and let the legacy behavior take over.
+         */
+        if (!isConcurrentCallsPossible()
+                || !isCallPresentOnOtherSub(incomingHandle)
+                || originalConnection == null
+                || originalConnection.getPhoneType() != PhoneConstants.PHONE_TYPE_IMS) {
+            return;
+        }
+
+        /*
+         * Check if the incoming call is a Voice call and there is no Video call on the other
+         * SUB in which case we do not have to do any special handling and let the incoming
+         * call pass as is.
+         */
+        boolean hasConnectedVideoCallOnOtherSub =
+                hasConnectedVideoCallOnOtherSub(incomingHandle);
+        if (!VideoProfile.isVideo(incomingConnection.getVideoState()) &&
+                !hasConnectedVideoCallOnOtherSub) {
+            return;
+        }
+
+        ImsPhoneConnection imsOriginalConnection = (ImsPhoneConnection) originalConnection;
+        /*
+         * If holding Video call is not allowed on the other SUB and there is a video call then
+         * answering the incoming call will end the call(s) on the other SUB.
+         */
+        if (hasConnectedVideoCallOnOtherSub && !isVideoCallHoldAllowedOnOtherSub(phone)) {
+            enableAnsweringWillDisconnect(imsOriginalConnection, incomingConnection);
+            return;
+        }
+
+        boolean isVideoCallHoldAllowed = isVideoCallHoldAllowed(phone);
+        boolean videoCallDuringVoiceCall =
+                VideoProfile.isVideo(incomingConnection.getVideoState()) &&
+                !hasConnectedVideoCallOnOtherSub;
+        // Check this is Voice Call (SUB1) + Incoming VT call (SUB2) scenario
+        if (isVideoCallHoldAllowed || !videoCallDuringVoiceCall) {
+            return;
+        }
+
+        if (!isConcurrentCallAllowedDuringVideoCall(phone)) {
+            // If concurrent call is NOT allowed then answering the incoming
+            // call should end the call(s) on other SUB.
+            enableAnsweringWillDisconnect(imsOriginalConnection, incomingConnection);
+        } else {
+            // If concurrent call is allowed then grey out the swap option on the UI.
+            disableSwap(incomingConnection, true);
+        }
+    }
+
+    /**
+     * Checks to see if there are video calls present on a sub other than the one passed in.
+     * @param accountHandle The new incoming connection {@link PhoneAccountHandle}
+     */
+    private boolean hasConnectedVideoCallOnOtherSub(@NonNull PhoneAccountHandle accountHandle) {
+        return getAllConnections().stream()
+                .filter(c ->
+                        // Exclude multiendpoint calls as they're not on this device.
+                        (c.getConnectionProperties() & Connection.PROPERTY_IS_EXTERNAL_CALL) == 0
+                        // Include any calls not on same sub as current connection.
+                        && !Objects.equals(c.getPhoneAccountHandle(), accountHandle)
+                        && VideoProfile.isVideo(c.getVideoState())
+                        && (c.getState() == Connection.STATE_ACTIVE ||
+                            c.getState() == Connection.STATE_HOLDING))
+                .count() > 0;
+    }
+
+    /**
+     * Checks if video call hold is allowed on the other SUB
+     * @param phone The current phone {@link Phone}
+     * Note: This function assumes that we can only have device in
+     *       single sim / dual sim configuration.
+     */
+    private boolean isVideoCallHoldAllowedOnOtherSub(Phone phone) {
+        for (Phone ph : mPhoneFactoryProxy.getPhones()) {
+            if (ph.getSubId() !=  phone.getSubId()) {
+                return isVideoCallHoldAllowed(ph);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks if video call hold is allowed on any SUB.
+     * This function checks if we have specific mcc mnc combo on
+     * each SUB.
+     * Note: This function assumes that we can only have device in
+     *       single sim / dual sim configuration.
+     */
+    private boolean isVideoCallHoldAllowedOnAnySub() {
+        for (Phone ph : mPhoneFactoryProxy.getPhones()) {
+            if (isVideoCallHoldAllowed(ph)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void enableAnsweringWillDisconnect(ImsPhoneConnection imsOriginalConnection,
+            TelephonyConnection connection) {
+        imsOriginalConnection.setActiveCallDisconnectedOnAnswer(true);
+        Bundle extras = new Bundle();
+        extras.putBoolean(Connection.EXTRA_ANSWERING_DROPS_FG_CALL, true);
+        connection.putExtras(extras);
+    }
+
+    private void disableSwap(TelephonyConnection connection, boolean disable) {
+        Bundle extras = new Bundle();
+        extras.putBoolean(Connection.EXTRA_DISABLE_SWAP_CALL, disable);
+        connection.putExtras(extras);
+    }
+
+    private boolean isConcurrentCallAllowedDuringVideoCall(Phone phone) {
+         CarrierConfigManager cfgManager = (CarrierConfigManager)
+                phone.getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
+        if (cfgManager == null) {
+            // For some reason CarrierConfigManager is unavailable, return default
+            Log.w(this,
+                  "isConcurrentCallAllowedDuringVideoCall: couldn't get CarrierConfigManager");
+            return true;
+        }
+        return cfgManager.getConfigForSubId(phone.getSubId()).getBoolean(
+                CarrierConfigManager.KEY_ALLOW_CONCURRENT_CALL_DURING_VIDEO_CALL_BOOL, true);
+    }
+
+    /*
+     * Checks if we need to disable Video to prevent Video upgrades
+     * for any call.
+     * @param connection The connection is used to get phoneAccountHandle.
+     */
+    public void maybeDisableVideo(TelephonyConnection connection) {
+        // Checks if in DSDA mode and both mcc mnc has certain configs
+        // to disable VT capability or not.
+        if (connection == null || !isConcurrentCallsPossible() ||
+                isVideoCallHoldAllowedOnAnySub() ||
+                isConcurrentCallAllowedDuringVideoCall(connection.getPhone())) {
+            return;
+        }
+
+        PhoneAccountHandle phoneAccountHandle = connection.getPhoneAccountHandle();
+        // Checks if this is Voice call (SUB1) + Dialed Voice call (SUB2) case
+        if (phoneAccountHandle == null || !isCallPresentOnOtherSub(phoneAccountHandle) ||
+                hasConnectedVideoCallOnOtherSub(phoneAccountHandle) ||
+                VideoProfile.isVideo(connection.getVideoState())) {
+            return;
+        }
+
+        setAllowVideoCall(false);
+    }
+
+    /*
+     * Checks if there are no more calls on the {@connection} phone account handle in
+     * which case we enable VT capability for all remaining call(s).
+     * @param connection The connection is used to get phoneAccountHandle.
+     */
+    private void maybeEnableVideo(Connection connection) {
+        PhoneAccountHandle phoneAccountHandle = connection.getPhoneAccountHandle();
+        long count = getAllConnections().stream()
+                .filter(c ->
+                        // Exclude multiendpoint calls as they're not on this device.
+                        (c.getConnectionProperties() & Connection.PROPERTY_IS_EXTERNAL_CALL) == 0
+                        // Include any calls on same sub as current connection.
+                        && Objects.equals(c.getPhoneAccountHandle(), phoneAccountHandle)
+                        && (c.getState() == Connection.STATE_ACTIVE ||
+                            c.getState() == Connection.STATE_HOLDING))
+                .count();
+        if (count > 0) {
+            return;
+        }
+
+        setAllowVideoCall(true);
+    }
+
+    private void setAllowVideoCall(boolean allowed) {
+        for (Connection conn : getAllConnections()) {
+            if (!isTelephonyConnection(conn)) {
+                continue;
+            }
+            ((TelephonyConnection) conn).allowVideoCall(allowed);
+        }
+
+        for (Conference current : getAllConferences()) {
+            if (!isImsConference(current)) {
+                continue;
+            }
+            Connection conn = ((ImsConference)current).getConferenceHost();
+            ((TelephonyConnection) conn).allowVideoCall(allowed);
+        }
     }
 
     /**
@@ -2072,10 +2364,7 @@ public class TelephonyConnectionService extends ConnectionService {
                     allowsMute, callDirection, telecomCallId);
         }
         if (returnConnection != null) {
-            if (!isAdhocConference) {
-                // Listen to Telephony specific callbacks from the connection
-                returnConnection.addTelephonyConnectionListener(mTelephonyConnectionListener);
-            }
+            returnConnection.addTelephonyConnectionListener(mTelephonyConnectionListener);
             returnConnection.setVideoPauseSupported(
                     TelecomAccountRegistry.getInstance(this).isVideoPauseSupported(
                             phoneAccountHandle));
@@ -2511,6 +2800,7 @@ public class TelephonyConnectionService extends ConnectionService {
 
     @Override
     public void removeConnection(Connection connection) {
+        maybeEnableVideo(connection);
         super.removeConnection(connection);
         if (connection instanceof TelephonyConnection) {
             removeConnectionRemovedListener((TelephonyConnection)connection);
@@ -2936,6 +3226,13 @@ public class TelephonyConnectionService extends ConnectionService {
             // Let TelephonyConnection know that context based swap needs to be disabled so that
             // it can invoke hold APIs based on that
             connToAnswer.disableContextBasedSwap(true);
+            if (connToAnswer.getExtras() != null &&
+                connToAnswer.getExtras().getBoolean(
+                    Connection.EXTRA_ANSWERING_DROPS_FG_CALL, false)) {
+                // Pseudo DSDA use case
+                setupAnswerAndReleaseHandler(connToAnswer, videoState);
+                return;
+            }
             // Get connection to hold if any
             Pair<TelephonyConnection, PhoneAccountHandle> pairToHold =
                     getActiveDsdaConnectionPhoneAccountPair();
@@ -2957,6 +3254,14 @@ public class TelephonyConnectionService extends ConnectionService {
             Log.e(this, e, "answerDsdaCall " + e);
             return;
         }
+    }
+
+    private void setupAnswerAndReleaseHandler(Connection conn, int videoState) {
+        mAnswerAndReleaseHandler =
+            new AnswerAndReleaseHandler(conn, videoState);
+        mAnswerAndReleaseHandler.addListener(mAnswerAndReleaseListener);
+        mAnswerAndReleaseHandler.checkAndAnswer(getAllConnections(),
+                getAllConferences());
     }
 
     /*
@@ -2984,10 +3289,48 @@ public class TelephonyConnectionService extends ConnectionService {
         return null;
     }
 
+    /*
+     * This function checks if there is an ACTIVE / HELD audio call.
+     */
+    private boolean hasActiveOrHeldAudioCall() {
+        for (Connection current : getAllConnections()) {
+            if (isTelephonyConnection(current) &&
+                (current.getState() == Connection.STATE_HOLDING ||
+                    current.getState() == Connection.STATE_ACTIVE) &&
+                VideoProfile.isAudioOnly(((TelephonyConnection)current).getVideoState())) {
+                return true;
+            }
+        }
+
+        for (Conference conference : getAllConferences()) {
+            if (isTelephonyConferenceBase(conference) &&
+                (conference.getState() == Connection.STATE_HOLDING ||
+                    conference.getState() == Connection.STATE_ACTIVE) &&
+                isImsConference(conference)) {
+                Connection conn = ((ImsConference)conference).getConferenceHost();
+                if (VideoProfile.isAudioOnly(((TelephonyConnection)conn).getVideoState())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private Connection getRingingOrDialingConnection() {
         for (Connection current : getAllConnections()) {
             int state = current.getState();
             if (state == Connection.STATE_RINGING || state == Connection.STATE_DIALING) {
+                return current;
+            }
+        }
+        return null;
+    }
+
+    private Connection getRingingConnection() {
+        for (Connection current : getAllConnections()) {
+            if (isTelephonyConnection(current) &&
+                    current.getState() == Connection.STATE_RINGING) {
                 return current;
             }
         }
