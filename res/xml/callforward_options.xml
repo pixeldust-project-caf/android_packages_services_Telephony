@@ -78,4 +78,21 @@
         android:singleLine="true"
         android:autoText="false"
         android:enabled="false" />
+
+    <!-- See note on com.android.phone.EditPreference above -->
+    <com.android.phone.CallForwardEditPreference
+        android:key="button_cfnl_key"
+        android:title="@string/labelCFNL"
+        android:persistent="false"
+        android:summaryOn="@string/sum_cfnl_enabled"
+        android:summaryOff="@string/sum_cfnl_disabled"
+        android:dialogTitle="@string/labelCFNL"
+        android:dialogMessage="@string/messageCFNL"
+        phone:confirmMode="activation"
+        phone:serviceClass="voice"
+        phone:reason="not_logged_in"
+        android:dependency="button_cfu_key"
+        android:singleLine="true"
+        android:autoText="false"
+        android:enabled="false" />
 </PreferenceScreen>
