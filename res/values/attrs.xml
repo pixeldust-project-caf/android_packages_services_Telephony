@@ -47,6 +47,8 @@
             <enum name="no_reply" value="2" />
             <!-- not_reachable -->
             <enum name="not_reachable" value="3" />
+            <!-- not_logged_in -->
+            <enum name="not_logged_in" value="6" />
         </attr>
     </declare-styleable>
 
