@@ -950,6 +950,11 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     private boolean mIsTtyEnabled;
 
     /**
+     * Indicates whether this connection is VT capable.
+     */
+    private boolean mAllowVideoCall = true;
+
+    /**
      * Indicates whether this call is using assisted dialing.
      */
     private boolean mIsUsingAssistedDialing;
@@ -2856,15 +2861,15 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         if(pb != null) {
             vtTtySupported = pb.getBoolean(CarrierConfigManager.KEY_CARRIER_VT_TTY_SUPPORT_BOOL);
         }
-        boolean isLocalVideoSupported = (mOriginalConnectionCapabilities
+        boolean isLocalVideoSupported = mAllowVideoCall && (mOriginalConnectionCapabilities
                 & Capability.SUPPORTS_VT_LOCAL_BIDIRECTIONAL)
                 == Capability.SUPPORTS_VT_LOCAL_BIDIRECTIONAL && (vtTtySupported || !mIsTtyEnabled);
         capabilities = changeBitmask(capabilities, CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL,
                 isLocalVideoSupported);
 
-        capabilities = changeBitmask(capabilities, CAPABILITY_SUPPORTS_RTT_REMOTE,
+        capabilities = changeBitmask(capabilities, CAPABILITY_REMOTE_PARTY_SUPPORTS_RTT,
                 (mOriginalConnectionCapabilities & Capability.SUPPORTS_RTT_REMOTE)
-                        == Capability.SUPPORTS_RTT_REMOTE);
+                == Capability.SUPPORTS_RTT_REMOTE);
 
         return capabilities;
     }
@@ -3007,6 +3012,15 @@ abstract class TelephonyConnection extends Connection implements Holdable,
      */
     public void setTtyEnabled(boolean isTtyEnabled) {
         mIsTtyEnabled = isTtyEnabled;
+        updateConnectionCapabilities();
+    }
+
+    /**
+     * This function is used to disables VT capability.
+     * @param allowVideoCall true disables VT capability
+     */
+    public void allowVideoCall(boolean allowVideoCall) {
+        mAllowVideoCall = allowVideoCall;
         updateConnectionCapabilities();
     }
 
