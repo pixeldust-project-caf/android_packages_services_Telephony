@@ -296,6 +296,15 @@
     <string name="disable_cfnrc_forbidden">Your carrier doesn\'t support disabling call forwarding when your phone is unreachable.</string>
     <string name="registration_cf_forbidden">Your carrier doesn\'t support call forwarding.</string>
 
+    <!-- Call forwarding settings screen, setting option name -->
+    <string name="labelCFNL">When not logged in</string>
+    <!-- Call forwarding dialog box, text field label -->
+    <string name="messageCFNL">Number when not logged in</string>
+    <!-- Call forwarding settings screen, setting summary text when forwarding to a specific number when not logged in-->
+    <string name="sum_cfnl_enabled">Forwarding to <xliff:g id="phonenumber" example="555-1212">{0}</xliff:g></string>
+    <!-- Call forwarding settings screen, setting summary text when Forward when not logged in is disabled -->
+    <string name="sum_cfnl_disabled">Off</string>
+
     <!-- Cdma Call waiting settings screen, setting option name -->
     <string name="cdma_call_waiting">Turn on call waiting?</string>
     <string name="enable_cdma_call_waiting_setting">During a call, you\'ll be notified about incoming calls</string>
