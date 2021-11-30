@@ -462,13 +462,6 @@ public class TelecomAccountRegistry {
                 extras.putBoolean(PhoneAccount.EXTRA_PLAY_CALL_RECORDING_TONE, true);
             }
 
-            if (isRttCurrentlySupported()) {
-                capabilities |= PhoneAccount.CAPABILITY_RTT;
-                mIsRttCapable = true;
-            } else {
-                mIsRttCapable = false;
-            }
-
             extras.putBoolean(EXTRA_SUPPORTS_VIDEO_CALLING_FALLBACK,
                     mContext.getResources()
                             .getBoolean(R.bool.config_support_video_calling_fallback));
@@ -821,7 +814,6 @@ public class TelecomAccountRegistry {
          */
         @Override
         public void onVideoCapabilitiesChanged(boolean isVideoCapable) {
-            mIsVideoCapable = isVideoCapable;
             synchronized (mAccountsLock) {
                 if (!mAccounts.contains(this)) {
                     // Account has already been torn down, don't try to register it again.
@@ -830,7 +822,10 @@ public class TelecomAccountRegistry {
                     // time we get here, the original phone account could have been torn down.
                     return;
                 }
-                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
+                if (isVideoCapable != mIsVideoCapable) {
+                    mIsVideoCapable = isVideoCapable;
+                    mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
+                }
             }
         }
 
