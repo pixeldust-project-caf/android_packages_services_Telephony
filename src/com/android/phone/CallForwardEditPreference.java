@@ -39,6 +39,7 @@ import org.codeaurora.ims.QtiImsExtListenerBaseImpl;
 import org.codeaurora.ims.QtiImsExtConnector;
 import org.codeaurora.ims.QtiImsExtManager;
 import org.codeaurora.ims.utils.QtiImsExtUtils;
+import org.codeaurora.ims.QtiCallConstants;
 
 import com.android.internal.telephony.CallForwardInfo;
 import com.android.internal.telephony.CommandException;
@@ -659,7 +660,12 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                     msg = mHandler.obtainMessage(MyHandler.MESSAGE_GET_CF,
                             // unused in this case
                             CommandsInterface.CF_ACTION_DISABLE, MyHandler.MESSAGE_GET_CF, null);
-                    AsyncResult.forMessage(msg, null, PhoneUtils.getCommandException(errCode));
+                    if (errCode == QtiCallConstants.CODE_UT_CF_SERVICE_NOT_REGISTERED) {
+                        AsyncResult.forMessage(msg, null,
+                                new QtiImsException("Service Not Registered", errCode));
+                    } else {
+                        AsyncResult.forMessage(msg, null, PhoneUtils.getCommandException(errCode));
+                    }
                     msg.sendToTarget();
                 }
             }
@@ -801,6 +807,9 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                         mTcpListener.onException(CallForwardEditPreference.this,
                                 (CommandException) ar.exception);
                     }
+                } else if (ar.exception instanceof QtiImsException) {
+                    mTcpListener.onError(CallForwardEditPreference.this,
+                            ((QtiImsException) ar.exception).getCode());
                 } else {
                     // Most likely an ImsException and we can't handle it the same way as
                     // a CommandException. The best we can do is to handle the exception
