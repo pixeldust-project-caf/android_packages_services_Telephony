@@ -11,6 +11,7 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.os.SystemProperties;
@@ -33,6 +34,8 @@ import com.android.internal.telephony.CallForwardInfo;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.Phone;
 
+import org.codeaurora.ims.QtiCallConstants;
+
 import java.util.ArrayList;
 
 public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
@@ -50,6 +53,7 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
     private static final String BUTTON_CFB_KEY   = "button_cfb_key";
     private static final String BUTTON_CFNRY_KEY = "button_cfnry_key";
     private static final String BUTTON_CFNRC_KEY = "button_cfnrc_key";
+    private static final String BUTTON_CFNL_KEY  = "button_cfnl_key";
 
     private static final String KEY_TOGGLE = "toggle";
     private static final String KEY_STATUS = "status";
@@ -60,6 +64,9 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
     private CallForwardEditPreference mButtonCFB;
     private CallForwardEditPreference mButtonCFNRy;
     private CallForwardEditPreference mButtonCFNRc;
+    private CallForwardEditPreference mButtonCFNL;
+
+    private boolean mSupportCFNL = true;
 
     private final ArrayList<CallForwardEditPreference> mPreferences =
             new ArrayList<CallForwardEditPreference> ();
@@ -117,6 +124,13 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
                     CarrierConfigManager.KEY_CALL_FORWARDING_WHEN_UNREACHABLE_SUPPORTED_BOOL);
             supportCFNRy = b.getBoolean(
                     CarrierConfigManager.KEY_CALL_FORWARDING_WHEN_UNANSWERED_SUPPORTED_BOOL);
+            mSupportCFNL = b.getBoolean(
+                    CarrierConfigManager.KEY_CALL_FORWARDING_WHEN_NOT_LOGGED_IN_SUPPORTED_BOOL);
+        }
+        // Disable mSupportCFNL if IMS UT is not registered or build version is older than S.
+        if (!mPhone.isUtEnabled() ||
+                SystemProperties.getInt("ro.board.api_level", 0) < Build.VERSION_CODES.S) {
+            mSupportCFNL = false;
         }
 
         PreferenceScreen prefSet = getPreferenceScreen();
@@ -124,16 +138,19 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
         mButtonCFB = (CallForwardEditPreference) prefSet.findPreference(BUTTON_CFB_KEY);
         mButtonCFNRy = (CallForwardEditPreference) prefSet.findPreference(BUTTON_CFNRY_KEY);
         mButtonCFNRc = (CallForwardEditPreference) prefSet.findPreference(BUTTON_CFNRC_KEY);
+        mButtonCFNL  = (CallForwardEditPreference) prefSet.findPreference(BUTTON_CFNL_KEY);
 
         mButtonCFU.setParentActivity(this, mButtonCFU.reason);
         mButtonCFB.setParentActivity(this, mButtonCFB.reason);
         mButtonCFNRy.setParentActivity(this, mButtonCFNRy.reason);
         mButtonCFNRc.setParentActivity(this, mButtonCFNRc.reason);
+        mButtonCFNL.setParentActivity(this, mButtonCFNL.reason);
 
         mPreferences.add(mButtonCFU);
         layoutCallForwardItem(supportCFB, mButtonCFB, prefSet);
         layoutCallForwardItem(supportCFNRy, mButtonCFNRy, prefSet);
         layoutCallForwardItem(supportCFNRc, mButtonCFNRc, prefSet);
+        layoutCallForwardItem(mSupportCFNL, mButtonCFNL, prefSet);
 
         if (mCallForwardByUssd) {
             //the call forwarding ussd command's behavior is similar to the call forwarding when
@@ -141,9 +158,11 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
             prefSet.removePreference(mButtonCFU);
             prefSet.removePreference(mButtonCFB);
             prefSet.removePreference(mButtonCFNRc);
+            prefSet.removePreference(mButtonCFNL);
             mPreferences.remove(mButtonCFU);
             mPreferences.remove(mButtonCFB);
             mPreferences.remove(mButtonCFNRc);
+            mPreferences.remove(mButtonCFNL);
             mButtonCFNRy.setDependency(null);
         }
 
@@ -465,6 +484,26 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
         }
 
         super.onFinished(preference, reading);
+
+        // Update CFNL also if CFNRc is changed
+        if (preference == mButtonCFNRc && !reading && mSupportCFNL) {
+            Log.d(LOG_TAG, "CFNRc is changed, updating CFNL also");
+            mButtonCFNL.setExpectMore(canExpectMoreCallFwdReq());
+            mButtonCFNL.init(this, mPhone, mReplaceInvalidCFNumbers, mServiceClass,
+                    mCallForwardByUssd);
+            mButtonCFNL.startCallForwardOptionsQuery();
+        }
+    }
+
+    public void onError(Preference preference, int error) {
+        if (preference == mButtonCFNL &&
+                error == QtiCallConstants.CODE_UT_CF_SERVICE_NOT_REGISTERED) {
+            Log.d(LOG_TAG, "CFNL failed with CODE_UT_CF_SERVICE_NOT_REGISTERED");
+            mSupportCFNL = false;
+            getPreferenceScreen().removePreference(preference);
+            return;
+        }
+        super.onError(preference, error);
     }
 
     private boolean canExpectMoreCallFwdReq() {
