@@ -65,6 +65,7 @@ import com.android.internal.telephony.d2d.Communicator;
 import com.android.internal.telephony.imsphone.ImsExternalCallTracker;
 import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.imsphone.ImsPhoneConnection;
+import com.android.phone.FrameworksUtils;
 import com.android.phone.MMIDialogActivity;
 import com.android.phone.PhoneUtils;
 import com.android.phone.PhoneGlobals;
@@ -2997,7 +2998,7 @@ public class TelephonyConnectionService extends ConnectionService {
                 if (showDialog) {
                     Log.d(this, "Creating UT Data enable dialog");
                     String message = SuppServicesUiUtil.makeMessage(context, suppKey, phone);
-                    AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                    AlertDialog.Builder builder = FrameworksUtils.makeAlertDialogBuilder(context);
                     DialogInterface.OnClickListener networkSettingsClickListener =
                             new Dialog.OnClickListener() {
                                 @Override

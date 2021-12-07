@@ -114,8 +114,6 @@ public class PhoneUtils {
      * the dialog theme correctly.
      */
     private static final int THEME = com.android.internal.R.style.Theme_DeviceDefault_Dialog_Alert;
-    private static final int THEME_LIGHT =
-            com.android.internal.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
 
     /** Extra key to identify the service class voice or video */
     public static final String SERVICE_CLASS = "service_class";
@@ -505,7 +503,8 @@ public class PhoneUtils {
                     };
 
                 // build the dialog
-                final AlertDialog newDialog = new AlertDialog.Builder(context, THEME_LIGHT)
+                final AlertDialog newDialog =
+                        FrameworksUtils.makeAlertDialogBuilder(contextThemeWrapper)
                         .setMessage(text)
                         .setView(dialogView)
                         .setPositiveButton(R.string.send_button, mUSSDDialogListener)
