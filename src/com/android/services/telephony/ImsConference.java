@@ -581,6 +581,10 @@ public class ImsConference extends TelephonyConferenceBase implements Holdable {
                 Connection.PROPERTY_IS_ADHOC_CONFERENCE,
                 (properties & Connection.PROPERTY_IS_ADHOC_CONFERENCE) != 0);
 
+        conferenceProperties = changeBitmask(conferenceProperties,
+                Connection.PROPERTY_CROSS_SIM,
+                (properties & Connection.PROPERTY_CROSS_SIM) != 0);
+
         return conferenceProperties;
     }
 

@@ -1097,7 +1097,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                             // any service for voice call.
                             if ((callForwardInfo.serviceClass
                                     & CommandsInterface.SERVICE_CLASS_VOICE) > 0) {
-                                callForwardingInfo = new CallForwardingInfo(true,
+                                callForwardingInfo = new CallForwardingInfo(
+                                        callForwardInfo.status
+                                                == CommandsInterface.CF_ACTION_ENABLE,
                                         callForwardInfo.reason,
                                         callForwardInfo.number,
                                         callForwardInfo.timeSeconds);
@@ -5524,11 +5526,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     public int setForbiddenPlmns(int subId, int appType, List<String> fplmns, String callingPackage,
             String callingFeatureId) {
-        if (!TelephonyPermissions.checkCallingOrSelfReadPhoneState(mApp, subId, callingPackage,
-                callingFeatureId, "setForbiddenPlmns")) {
-            if (DBG) logv("no permissions for setForbiddenplmns");
-            throw new IllegalStateException("No Permissions for setForbiddenPlmns");
-        }
+        TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
+                mApp, subId, "setForbiddenPlmns");
+
         if (appType != TelephonyManager.APPTYPE_USIM && appType != TelephonyManager.APPTYPE_SIM) {
             loge("setForbiddenPlmnList(): App Type must be USIM or SIM");
             throw new IllegalArgumentException("Invalid appType: App Type must be USIM or SIM");
@@ -8340,6 +8340,16 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             int result = (int) sendRequest(CMD_ENABLE_VONR, enabled, subId,
                     workSource);
             if (DBG) log("setVoNrEnabled result: " + result);
+
+            if (result == TelephonyManager.ENABLE_VONR_SUCCESS) {
+                if (DBG) {
+                    log("Set VoNR settings in siminfo db; subId=" + subId + ", value:" + enabled);
+                }
+                SubscriptionManager.setSubscriptionProperty(
+                        subId, SubscriptionManager.NR_ADVANCED_CALLING_ENABLED,
+                        (enabled ? "1" : "0"));
+            }
+
             return result;
         } finally {
             Binder.restoreCallingIdentity(identity);
