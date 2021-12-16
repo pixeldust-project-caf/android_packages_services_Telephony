@@ -151,19 +151,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                         public void onConnectionAvailable(QtiImsExtManager qtiImsExtManager) {
                             Log.i(LOG_TAG, "QtiImsExtConnector onConnectionAvailable");
                             mQtiImsExtManager = qtiImsExtManager;
-                            if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL &&
-                                    mIsTimerEnabled) {
-                                setTimeSettingVisibility(true);
-                                try {
-                                    mQtiImsExtManager.getCallForwardUncondTimer(mPhone.getPhoneId(),
-                                            reason, mServiceClass, imsInterfaceListener);
-                                } catch (QtiImsException e){
-                                    Log.d(LOG_TAG, "getCallForwardUncondTimer failed. " +
-                                            "Exception = " + e);
-                                }
-                            } else {
-                                queryImsCallForwardStatus();
-                            }
+                            queryImsCallForwardStatus();
                         }
                         @Override
                         public void onConnectionUnavailable() {
@@ -444,10 +432,14 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
             }
             mIsTimerEnabled = isTimerEnabled();
             Log.d(LOG_TAG, "isTimerEnabled=" + mIsTimerEnabled);
-            if (mPhone != null &&  mPhone.isUtEnabled() && mQtiImsExtConnector == null) {
-                createQtiImsExtConnector(mContext);
-                //Connect will get the QtiImsExtManager instance.
-                mQtiImsExtConnector.connect();
+            if (mPhone != null &&  mPhone.isUtEnabled()) {
+                if (mQtiImsExtConnector == null) {
+                    createQtiImsExtConnector(mContext);
+                    //Connect will get the QtiImsExtManager instance.
+                    mQtiImsExtConnector.connect();
+                } else {
+                    queryImsCallForwardStatus();
+                }
             } else {
                 if (mPhone.getPhoneType() == TelephonyManager.PHONE_TYPE_GSM &&
                         PhoneUtils.isBacktoBackSSFeatureSupported()) {
@@ -524,13 +516,22 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
     };
 
     private void queryImsCallForwardStatus() {
-        try {
-            mQtiImsExtManager.queryCallForwardStatus(mPhone.getPhoneId(),
-                    reason, mServiceClass, mExpectMore, imsInterfaceListener);
-        } catch (QtiImsException e){
-            Log.d(LOG_TAG, "queryCallForwardStatus failed. " +
-                    "Exception = " + e);
-            sendErrorResponse();
+        if (mQtiImsExtManager != null) {
+            try {
+                if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL &&
+                        mIsTimerEnabled) {
+                    setTimeSettingVisibility(true);
+                    mQtiImsExtManager.getCallForwardUncondTimer(mPhone.getPhoneId(),
+                            reason, mServiceClass, imsInterfaceListener);
+                } else {
+                    mQtiImsExtManager.queryCallForwardStatus(mPhone.getPhoneId(),
+                            reason, mServiceClass, mExpectMore, imsInterfaceListener);
+                }
+            } catch (QtiImsException e){
+                Log.d(LOG_TAG, "queryCallForwardStatus failed. " +
+                        "Exception = " + e);
+                sendErrorResponse();
+            }
         }
     }
 
