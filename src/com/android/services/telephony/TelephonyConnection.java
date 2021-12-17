@@ -3993,4 +3993,13 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     public boolean isContextBasedSwapDisabled() {
         return mContextBasedSwapDisabled;
     }
+
+    /**
+     * Returns the current telephony connection listeners for test purposes.
+     * @return list of telephony connection listeners.
+     */
+    @VisibleForTesting
+    public List<TelephonyConnectionListener> getTelephonyConnectionListeners() {
+        return new ArrayList<>(mTelephonyListeners);
+    }
 }
