@@ -950,6 +950,11 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     private boolean mIsTtyEnabled;
 
     /**
+     * Indicates whether this connection is VT capable.
+     */
+    private boolean mAllowVideoCall = true;
+
+    /**
      * Indicates whether this call is using assisted dialing.
      */
     private boolean mIsUsingAssistedDialing;
@@ -2193,8 +2198,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             for (Connection current : getTelephonyConnectionService().getAllConnections()) {
                 if (current != this && current instanceof TelephonyConnection) {
                     TelephonyConnection other = (TelephonyConnection) current;
-                    if ((getPhone().getSubId() == other.getPhone().getSubId()) &&
-                            canTransfer(other)) {
+                    if (getPhone() != null && other.getPhone() != null
+                            && (getPhone().getSubId() == other.getPhone().getSubId())
+                            && canTransfer(other)) {
                         canConsultativeTransfer = true;
                         break;
                     }
@@ -2855,7 +2861,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         if(pb != null) {
             vtTtySupported = pb.getBoolean(CarrierConfigManager.KEY_CARRIER_VT_TTY_SUPPORT_BOOL);
         }
-        boolean isLocalVideoSupported = (mOriginalConnectionCapabilities
+        boolean isLocalVideoSupported = mAllowVideoCall && (mOriginalConnectionCapabilities
                 & Capability.SUPPORTS_VT_LOCAL_BIDIRECTIONAL)
                 == Capability.SUPPORTS_VT_LOCAL_BIDIRECTIONAL && (vtTtySupported || !mIsTtyEnabled);
         capabilities = changeBitmask(capabilities, CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL,
@@ -3006,6 +3012,15 @@ abstract class TelephonyConnection extends Connection implements Holdable,
      */
     public void setTtyEnabled(boolean isTtyEnabled) {
         mIsTtyEnabled = isTtyEnabled;
+        updateConnectionCapabilities();
+    }
+
+    /**
+     * This function is used to disables VT capability.
+     * @param allowVideoCall true disables VT capability
+     */
+    public void allowVideoCall(boolean allowVideoCall) {
+        mAllowVideoCall = allowVideoCall;
         updateConnectionCapabilities();
     }
 
@@ -3992,14 +4007,5 @@ abstract class TelephonyConnection extends Connection implements Holdable,
     /* Determines if context based swap is disabled */
     public boolean isContextBasedSwapDisabled() {
         return mContextBasedSwapDisabled;
-    }
-
-    /**
-     * Returns the current telephony connection listeners for test purposes.
-     * @return list of telephony connection listeners.
-     */
-    @VisibleForTesting
-    public List<TelephonyConnectionListener> getTelephonyConnectionListeners() {
-        return new ArrayList<>(mTelephonyListeners);
     }
 }
