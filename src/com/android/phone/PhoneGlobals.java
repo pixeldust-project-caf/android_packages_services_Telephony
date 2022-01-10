@@ -165,6 +165,7 @@ public class PhoneGlobals extends ContextWrapper {
     CarrierConfigLoader configLoader;
 
     private Phone phoneInEcm;
+    private Phone phoneInScbm;
 
     static boolean sVoiceCapable = true;
 
@@ -818,10 +819,19 @@ public class PhoneGlobals extends ContextWrapper {
                     Log.w(LOG_TAG, "phoneInEcm is null.");
                 }
             } else if (action.equals(SmsCallbackModeService.ACTION_SMS_CALLBACK_MODE_CHANGED)) {
-                if (intent.getBooleanExtra(
-                                SmsCallbackModeService.EXTRA_PHONE_IN_SCM_STATE, false)) {
-                   // Start Sms Callback Mode service
-                    context.startService(new Intent(context, SmsCallbackModeService.class));
+                int phoneId = intent.getIntExtra(PhoneConstants.PHONE_KEY, 0);
+                Log.d(LOG_TAG, "SMS Callback Mode. phoneId:" + phoneId);
+                phoneInScbm = PhoneFactory.getPhone(phoneId);
+                if (phoneInScbm != null) {
+                    if (intent.getBooleanExtra(
+                                    SmsCallbackModeService.EXTRA_PHONE_IN_SCM_STATE, false)) {
+                       // Start Sms Callback Mode service
+                        context.startService(new Intent(context, SmsCallbackModeService.class));
+                    } else {
+                        phoneInScbm = null;
+                    }
+                } else {
+                    Log.w(LOG_TAG, "phoneInScbm is null.");
                 }
             } else if (action.equals(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED)) {
                 // Roaming status could be overridden by carrier config, so we need to update it.
@@ -1005,6 +1015,10 @@ public class PhoneGlobals extends ContextWrapper {
 
     public Phone getPhoneInEcm() {
         return phoneInEcm;
+    }
+
+    public Phone getPhoneInEmergencyMode() {
+        return phoneInEcm != null ? phoneInEcm: phoneInScbm;
     }
 
     /**
