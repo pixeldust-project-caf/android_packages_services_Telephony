@@ -1359,6 +1359,37 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         }
     }
 
+    /**
+     * Use cases for which this API is applicable
+     * is when call to be Held and call to be Accepted are in different subs
+     * For same active + held cases, onHold() needs to be used
+     * 1 - WAITING + ACTIVE on Sub1 | INCOMING on Sub2, accept sub 2 call
+     * 2 - ACTIVE on Sub1 | INCOMING on Sub2, accept sub 2 call
+     */
+    public void performHoldAcrossSub() {
+        Log.v(this, "performHoldAcrossSub");
+        try {
+            Phone phone = mOriginalConnection.getCall().getPhone();
+            // For DSDA use cases accross sub we need to differentiate between
+            // this hold api and performHold. Call.State.WAITING is required for
+            // same sub use cases, which will make sure that hold is taken care by
+            // phonecalltracker, different sub cases will be taken care through this api
+            if (isContextBasedSwapDisabled() &&
+                    phone.getPhoneType() == PhoneConstants.PHONE_TYPE_IMS) {
+                    ImsPhone imsPhone = (ImsPhone) phone;
+                    imsPhone.holdActiveCallOnly();
+                }
+            } catch (CallStateException e) {
+                Log.e(this, e, "Exception occurred while trying to put call on hold.");
+            }
+    }
+
+    /**
+     * Use cases for which this API is applicable
+     * is when call to be Held and call to be accepted are on the same sub
+     * 1 - WAITING + ACTIVE on Sub1 | INCOMING on Sub2, accept sub 1 call
+     * 2 - ACTIVE + INCOMING on either sub, accept incoming call
+     */
     public void performHold() {
         Log.v(this, "performHold");
         // TODO: Can dialing calls be put on hold as well since they take up the
