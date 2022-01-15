@@ -32,7 +32,9 @@ import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.PhoneConfigurationManager;
+import com.android.internal.telephony.metrics.RcsStats;
 import com.android.internal.util.IndentingPrintWriter;
+import com.android.phone.ImsStateCallbackController;
 import com.android.phone.R;
 
 import java.io.FileDescriptor;
@@ -163,6 +165,7 @@ public class TelephonyRcsService {
         mFeatureControllers = new SparseArray<>(numSlots);
         mSlotToAssociatedSubIds = new SparseArray<>(numSlots);
         mRcsUceEnabled = sResourceProxy.getDeviceUceEnabled(mContext);
+        RcsStats.getInstance().registerUceCallback();
     }
 
     @VisibleForTesting
@@ -173,6 +176,7 @@ public class TelephonyRcsService {
         mSlotToAssociatedSubIds = new SparseArray<>(numSlots);
         sResourceProxy = resourceProxy;
         mRcsUceEnabled = sResourceProxy.getDeviceUceEnabled(mContext);
+        RcsStats.getInstance().registerUceCallback();
     }
 
     /**
@@ -310,6 +314,9 @@ public class TelephonyRcsService {
         }
         // Only start the connection procedure if we have active features.
         if (c.hasActiveFeatures()) c.connect();
+
+        ImsStateCallbackController.getInstance()
+                .notifyExternalRcsStateChanged(slotId, false, c.hasActiveFeatures());
     }
 
     /**
