@@ -4001,6 +4001,15 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         }
     }
 
+    /**
+     * Returns the current telephony connection listeners for test purposes.
+     * @return list of telephony connection listeners.
+     */
+    @VisibleForTesting
+    public List<TelephonyConnectionListener> getTelephonyConnectionListeners() {
+        return new ArrayList<>(mTelephonyListeners);
+    }
+
     /* Disables context based swap to make use of new DSDA hold APIs */
     public void disableContextBasedSwap(boolean contextBasedSwapDisabled) {
         mContextBasedSwapDisabled = contextBasedSwapDisabled;
