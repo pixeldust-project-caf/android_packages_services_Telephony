@@ -1611,13 +1611,14 @@ public class TelecomAccountRegistry {
                                 || phone.getFullIccSerialNumber() == null) {
                             Log.d(this, "setupAccounts: skipping invalid subid %d", subscriptionId);
                             // If device configured in dsds mode, a SIM removed and if corresponding
-                            // phone is in ECM then add emergency account to that sub so that
-                            // incoming emergency call can be processed.
-                            Phone phoneInEcm = PhoneGlobals.getInstance().getPhoneInEcm();
+                            // phone is in ECM or SCBM then add emergency account to that sub so
+                            // that incoming emergency call can be processed.
+                            Phone emergencyPhone =
+                                    PhoneGlobals.getInstance().getPhoneInEmergencyMode();
                             if ((mTelephonyManager.getPhoneCount() > 1)
-                                    && (phoneInEcm != null)
-                                    && phoneInEcm.getPhoneId() == phone.getPhoneId()) {
-                                mAccounts.add(new AccountEntry(phoneInEcm, true /* emergency */,
+                                    && (emergencyPhone != null)
+                                    && emergencyPhone.getPhoneId() == phone.getPhoneId()) {
+                                mAccounts.add(new AccountEntry(emergencyPhone, true /* emergency */,
                                         false /* isTest */));
                                 isAccountAdded = true;
                             }
