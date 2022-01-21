@@ -17,6 +17,7 @@
 package com.android.phone.settings;
 
 import static android.net.ConnectivityManager.NetworkCallback;
+
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import android.content.ComponentName;
@@ -60,7 +61,6 @@ import android.telephony.CellSignalStrengthLte;
 import android.telephony.CellSignalStrengthNr;
 import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.DataSpecificRegistrationInfo;
-import android.telephony.data.NetworkSlicingConfig;
 import android.telephony.NetworkRegistrationInfo;
 import android.telephony.PhysicalChannelConfig;
 import android.telephony.RadioAccessFamily;
@@ -69,6 +69,7 @@ import android.telephony.SignalStrength;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyManager;
+import android.telephony.data.NetworkSlicingConfig;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
@@ -105,8 +106,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Radio Information Class
@@ -1202,9 +1203,16 @@ public class RadioInfo extends AppCompatActivity {
         if (s == null) s = r.getString(R.string.radioInfo_unknown);
         mSubscriberId.setText(s);
 
-        //FIXME: Replace with a TelephonyManager call
-        s = mPhone.getLine1Number();
-        if (s == null) s = r.getString(R.string.radioInfo_unknown);
+        SubscriptionManager subMgr = getSystemService(SubscriptionManager.class);
+        int subId = mPhone.getSubId();
+        s = subMgr.getPhoneNumber(subId)
+                + " { CARRIER:"
+                + subMgr.getPhoneNumber(subId, SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER)
+                + ", UICC:"
+                + subMgr.getPhoneNumber(subId, SubscriptionManager.PHONE_NUMBER_SOURCE_UICC)
+                + ", IMS:"
+                + subMgr.getPhoneNumber(subId, SubscriptionManager.PHONE_NUMBER_SOURCE_IMS)
+                + " }";
         mLine1Number.setText(s);
     }
 
