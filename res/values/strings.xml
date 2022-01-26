@@ -46,6 +46,8 @@
     <string name="carrier_mmi_msg_title"><xliff:g id="mmicarrier" example="T-Mobile">%s</xliff:g> Message</string>
     <!-- Default title for carrier MMI message -->
     <string name="default_carrier_mmi_msg_title">Carrier Message</string>
+    <!-- Title for USSD code initiated -->
+    <string name="ussdinitiated_title">USSD Initiated</string>
     <!-- Possible error messages with outgoing calls --><skip/>
     <string name="mmiStarted">MMI code started</string>
     <!-- Dialog label when a USSD code starts running -->
@@ -295,6 +297,15 @@
     <!-- Error message displayed after failing to disable forwarding calls when the phone is unreachable -->
     <string name="disable_cfnrc_forbidden">Your carrier doesn\'t support disabling call forwarding when your phone is unreachable.</string>
     <string name="registration_cf_forbidden">Your carrier doesn\'t support call forwarding.</string>
+
+    <!-- Call forwarding settings screen, setting option name -->
+    <string name="labelCFNL">When not logged in</string>
+    <!-- Call forwarding dialog box, text field label -->
+    <string name="messageCFNL">Number when not logged in</string>
+    <!-- Call forwarding settings screen, setting summary text when forwarding to a specific number when not logged in-->
+    <string name="sum_cfnl_enabled">Forwarding to <xliff:g id="phonenumber" example="555-1212">{0}</xliff:g></string>
+    <!-- Call forwarding settings screen, setting summary text when Forward when not logged in is disabled -->
+    <string name="sum_cfnl_disabled">Off</string>
 
     <!-- Cdma Call waiting settings screen, setting option name -->
     <string name="cdma_call_waiting">Turn on call waiting?</string>
@@ -1510,6 +1521,34 @@
         <item quantity="other">The phone will be in emergency callback mode for <xliff:g id="count">%s</xliff:g> minutes.\nDo you want to exit now?</item>
     </plurals>
 
+    <!-- Sms Callback Mode (SCM) -->
+    <string name="scm_exit_dialog">ScmExitDialog</string>
+    <!-- SCM: Status bar notification message -->
+    <string name="phone_entered_scm_text">Entered Sms Callback Mode</string>
+    <!-- SCM: Notification title -->
+    <string name="phone_in_scm_notification_title">Sms Callback Mode</string>
+    <!-- SCM: Displays the time when SCM will end, Example: "No Data Connection until 10:45 AM" -->
+    <string name="phone_in_scm_notification_complete_time">until <xliff:g id="completeTime">%s</xliff:g></string>
+    <!-- SCM: Dialog box message for exiting from the notifications screen -->
+    <plurals name="alert_dialog_exit_scm">
+        <!-- number of minutes is one -->
+        <item quantity="one">The phone will be in Sms Callback mode for <xliff:g id="count">%s</xliff:g> minute. While in this mode, no apps using a data connection can be used. Do you want to exit now?</item>
+        <!-- number of minutes is not equal to one -->
+        <item quantity="other">The phone will be in Sms Callback mode for <xliff:g id="count">%s</xliff:g> minutes. While in this mode, no applications using a data connection can be used. Do you want to exit now?</item>
+    </plurals>
+    <!-- SCM: Dialog box message for exiting from any other app -->
+    <plurals name="alert_dialog_not_avaialble_in_scm">
+        <!-- number of minutes is one -->
+        <item quantity="one">The selected action isn\'t available while in the Sms Callback mode. The phone will be in this mode for <xliff:g id="count">%s</xliff:g> minute. Do you want to exit now?</item>
+        <!-- number of minutes is not equal to one -->
+        <item quantity="other">The selected action isn\'t available while in the Sms Callback mode. The phone will be in this mode for <xliff:g id="count">%s</xliff:g> minutes. Do you want to exit now?</item>
+    </plurals>
+    <!-- SCM: Dialog box message while in emergency call -->
+    <string name="alert_dialog_in_scm_call">The selected action isn\'t available while in an emergency call.</string>
+    <!-- SCM: Progress text -->
+    <string name="progress_dialog_exiting_scm">Exiting Sms Callback mode</string>
+    <!-- SCM: Notification body wihout data restriction hint -->
+    <string name="phone_in_scm_call_notification_text_without_data_restriction_hint">The phone is in sms callback mode</string>
     <!-- For incoming calls, this is a string we can get from a CDMA network instead of
          the actual phone number, to indicate there's no number present.  DO NOT TRANSLATE. -->
     <string-array name="absent_num" translatable="false">

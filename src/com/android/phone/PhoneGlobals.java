@@ -75,6 +75,7 @@ import com.android.internal.telephony.ims.ImsResolver;
 import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.imsphone.ImsPhoneCallTracker;
 import com.android.internal.telephony.uicc.UiccCard;
+import com.android.internal.telephony.uicc.UiccPort;
 import com.android.internal.telephony.uicc.UiccProfile;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.phone.settings.SettingsConstants;
@@ -161,6 +162,7 @@ public class PhoneGlobals extends ContextWrapper {
     TelephonyRcsService mTelephonyRcsService;
     public PhoneInterfaceManager phoneMgr;
     public ImsRcsController imsRcsController;
+    public ImsStateCallbackController mImsStateCallbackController;
     CarrierConfigLoader configLoader;
 
     private Phone phoneInEcm;
@@ -243,13 +245,13 @@ public class PhoneGlobals extends ContextWrapper {
 
         // if passed in subType is unknown, retrieve it here.
         if (subType == -1) {
-            final UiccCard uiccCard = phone.getUiccCard();
-            if (uiccCard == null) {
+            final UiccPort uiccPort = phone.getUiccPort();
+            if (uiccPort == null) {
                 Log.e(LOG_TAG,
-                        "handleSimLock: uiccCard for phone " + phone.getPhoneId() + " is null");
+                        "handleSimLock: uiccPort for phone " + phone.getPhoneId() + " is null");
                 return;
             }
-            final UiccProfile uiccProfile = uiccCard.getUiccProfile();
+            final UiccProfile uiccProfile = uiccPort.getUiccProfile();
             if (uiccProfile == null) {
                 Log.e(LOG_TAG,
                         "handleSimLock: uiccProfile for phone " + phone.getPhoneId() + " is null");
@@ -478,6 +480,8 @@ public class PhoneGlobals extends ContextWrapper {
             imsRcsController = ImsRcsController.init(this);
 
             if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_TELEPHONY_IMS)) {
+                mImsStateCallbackController =
+                        ImsStateCallbackController.make(this, PhoneFactory.getPhones().length);
                 mTelephonyRcsService = new TelephonyRcsService(this,
                         PhoneFactory.getPhones().length);
                 mTelephonyRcsService.initialize();
@@ -511,6 +515,7 @@ public class PhoneGlobals extends ContextWrapper {
             intentFilter.addAction(TelephonyIntents.ACTION_SIM_STATE_CHANGED);
             intentFilter.addAction(TelephonyIntents.ACTION_RADIO_TECHNOLOGY_CHANGED);
             intentFilter.addAction(TelephonyIntents.ACTION_SERVICE_STATE_CHANGED);
+            intentFilter.addAction(SmsCallbackModeService.ACTION_SMS_CALLBACK_MODE_CHANGED);
             intentFilter.addAction(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED);
             intentFilter.addAction(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED);
             intentFilter.addAction(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED);
@@ -810,6 +815,12 @@ public class PhoneGlobals extends ContextWrapper {
                 } else {
                     Log.w(LOG_TAG, "phoneInEcm is null.");
                 }
+            } else if (action.equals(SmsCallbackModeService.ACTION_SMS_CALLBACK_MODE_CHANGED)) {
+                if (intent.getBooleanExtra(
+                                SmsCallbackModeService.EXTRA_PHONE_IN_SCM_STATE, false)) {
+                   // Start Sms Callback Mode service
+                    context.startService(new Intent(context, SmsCallbackModeService.class));
+                }
             } else if (action.equals(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED)) {
                 // Roaming status could be overridden by carrier config, so we need to update it.
                 if (VDBG) Log.v(LOG_TAG, "carrier config changed.");
@@ -1063,6 +1074,12 @@ public class PhoneGlobals extends ContextWrapper {
         pw.println("RcsService:");
         try {
             if (mTelephonyRcsService != null) mTelephonyRcsService.dump(fd, pw, args);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        pw.println("ImsStateCallbackController:");
+        try {
+            if (mImsStateCallbackController != null) mImsStateCallbackController.dump(pw);
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -102,7 +102,7 @@ public class MMIDialogActivity extends Activity {
             final MmiCode mmiCode = codes.get(0);
             final Message message = Message.obtain(mHandler, PhoneGlobals.MMI_CANCEL);
             Log.d(TAG, "showMMIDialog: mmiCode = " + mmiCode);
-            mMMIDialog = PhoneUtils.displayMMIInitiate(this, mmiCode, message, mMMIDialog);
+            mMMIDialog = PhoneUtils.displayMMIInitiate(mPhone, this, mmiCode, message, mMMIDialog);
         } else {
             Log.d(TAG, "showMMIDialog: no pending MMIs; finishing");
             finish();

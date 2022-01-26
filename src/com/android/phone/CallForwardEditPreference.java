@@ -39,6 +39,7 @@ import org.codeaurora.ims.QtiImsExtListenerBaseImpl;
 import org.codeaurora.ims.QtiImsExtConnector;
 import org.codeaurora.ims.QtiImsExtManager;
 import org.codeaurora.ims.utils.QtiImsExtUtils;
+import org.codeaurora.ims.QtiCallConstants;
 
 import com.android.internal.telephony.CallForwardInfo;
 import com.android.internal.telephony.CommandException;
@@ -150,19 +151,7 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                         public void onConnectionAvailable(QtiImsExtManager qtiImsExtManager) {
                             Log.i(LOG_TAG, "QtiImsExtConnector onConnectionAvailable");
                             mQtiImsExtManager = qtiImsExtManager;
-                            if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL &&
-                                    mIsTimerEnabled) {
-                                setTimeSettingVisibility(true);
-                                try {
-                                    mQtiImsExtManager.getCallForwardUncondTimer(mPhone.getPhoneId(),
-                                            reason, mServiceClass, imsInterfaceListener);
-                                } catch (QtiImsException e){
-                                    Log.d(LOG_TAG, "getCallForwardUncondTimer failed. " +
-                                            "Exception = " + e);
-                                }
-                            } else {
-                                queryImsCallForwardStatus();
-                            }
+                            queryImsCallForwardStatus();
                         }
                         @Override
                         public void onConnectionUnavailable() {
@@ -443,10 +432,14 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
             }
             mIsTimerEnabled = isTimerEnabled();
             Log.d(LOG_TAG, "isTimerEnabled=" + mIsTimerEnabled);
-            if (mPhone != null &&  mPhone.isUtEnabled() && mQtiImsExtConnector == null) {
-                createQtiImsExtConnector(mContext);
-                //Connect will get the QtiImsExtManager instance.
-                mQtiImsExtConnector.connect();
+            if (mPhone != null &&  mPhone.isUtEnabled()) {
+                if (mQtiImsExtConnector == null) {
+                    createQtiImsExtConnector(mContext);
+                    //Connect will get the QtiImsExtManager instance.
+                    mQtiImsExtConnector.connect();
+                } else {
+                    queryImsCallForwardStatus();
+                }
             } else {
                 if (mPhone.getPhoneType() == TelephonyManager.PHONE_TYPE_GSM &&
                         PhoneUtils.isBacktoBackSSFeatureSupported()) {
@@ -523,13 +516,22 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
     };
 
     private void queryImsCallForwardStatus() {
-        try {
-            mQtiImsExtManager.queryCallForwardStatus(mPhone.getPhoneId(),
-                    reason, mServiceClass, mExpectMore, imsInterfaceListener);
-        } catch (QtiImsException e){
-            Log.d(LOG_TAG, "queryCallForwardStatus failed. " +
-                    "Exception = " + e);
-            sendErrorResponse();
+        if (mQtiImsExtManager != null) {
+            try {
+                if (reason == CommandsInterface.CF_REASON_UNCONDITIONAL &&
+                        mIsTimerEnabled) {
+                    setTimeSettingVisibility(true);
+                    mQtiImsExtManager.getCallForwardUncondTimer(mPhone.getPhoneId(),
+                            reason, mServiceClass, imsInterfaceListener);
+                } else {
+                    mQtiImsExtManager.queryCallForwardStatus(mPhone.getPhoneId(),
+                            reason, mServiceClass, mExpectMore, imsInterfaceListener);
+                }
+            } catch (QtiImsException e){
+                Log.d(LOG_TAG, "queryCallForwardStatus failed. " +
+                        "Exception = " + e);
+                sendErrorResponse();
+            }
         }
     }
 
@@ -659,7 +661,12 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                     msg = mHandler.obtainMessage(MyHandler.MESSAGE_GET_CF,
                             // unused in this case
                             CommandsInterface.CF_ACTION_DISABLE, MyHandler.MESSAGE_GET_CF, null);
-                    AsyncResult.forMessage(msg, null, PhoneUtils.getCommandException(errCode));
+                    if (errCode == QtiCallConstants.CODE_UT_CF_SERVICE_NOT_REGISTERED) {
+                        AsyncResult.forMessage(msg, null,
+                                new QtiImsException("Service Not Registered", errCode));
+                    } else {
+                        AsyncResult.forMessage(msg, null, PhoneUtils.getCommandException(errCode));
+                    }
                     msg.sendToTarget();
                 }
             }
@@ -801,6 +808,9 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                         mTcpListener.onException(CallForwardEditPreference.this,
                                 (CommandException) ar.exception);
                     }
+                } else if (ar.exception instanceof QtiImsException) {
+                    mTcpListener.onError(CallForwardEditPreference.this,
+                            ((QtiImsException) ar.exception).getCode());
                 } else {
                     // Most likely an ImsException and we can't handle it the same way as
                     // a CommandException. The best we can do is to handle the exception
@@ -858,7 +868,8 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                                     default: // not reachable
                                         s = getContext().getText(R.string.disable_cfnrc_forbidden);
                                 }
-                                AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                                AlertDialog.Builder builder =
+                                        FrameworksUtils.makeAlertDialogBuilder(getContext());
                                 builder.setNeutralButton(R.string.close_dialog, null);
                                 builder.setTitle(getContext()
                                         .getText(R.string.error_updating_title));
@@ -871,7 +882,8 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                                 // Handle the fail-to-enable case.
                                 CharSequence s = getContext()
                                     .getText(R.string.registration_cf_forbidden);
-                                AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                                AlertDialog.Builder builder =
+                                        FrameworksUtils.makeAlertDialogBuilder(getContext());
                                 builder.setNeutralButton(R.string.close_dialog, null);
                                 builder.setTitle(getContext()
                                         .getText(R.string.error_updating_title));
