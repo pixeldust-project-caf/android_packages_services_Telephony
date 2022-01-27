@@ -506,6 +506,8 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                     cfInfo[i].toa = infos[i].toa;
                     cfInfo[i].number = infos[i].number;
                     cfInfo[i].timeSeconds = infos[i].timeSeconds;
+
+                    updateCallForwardingPreference(cfInfo[i]);
                 }
                 AsyncResult.forMessage(msg, cfInfo, null);
             } else {
@@ -562,6 +564,20 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
             }
         }
 
+    }
+
+    private void updateCallForwardingPreference(CallForwardInfo cfInfo) {
+        if (cfInfo == null || cfInfo.reason != CommandsInterface.CF_REASON_UNCONDITIONAL) {
+            return;
+        }
+
+        if (cfInfo.serviceClass == (CommandsInterface.SERVICE_CLASS_DATA_SYNC +
+                CommandsInterface.SERVICE_CLASS_PACKET)) {
+            mPhone.setVideoCallForwardingPreference(cfInfo.status == 1);
+            mPhone.notifyCallForwardingIndicator();
+        } else {
+            mPhone.setVoiceCallForwardingFlag(1, (cfInfo.status == 1), cfInfo.number);
+        }
     }
 
     /**
@@ -637,6 +653,8 @@ public class CallForwardEditPreference extends EditPhoneNumberPreference {
                 } else {
                     cfInfo[i].serviceClass = CommandsInterface.SERVICE_CLASS_VOICE;
                 }
+
+                updateCallForwardingPreference(cfInfo[i]);
             }
 
             Message msg = mHandler.obtainMessage(MyHandler.MESSAGE_GET_CF,
