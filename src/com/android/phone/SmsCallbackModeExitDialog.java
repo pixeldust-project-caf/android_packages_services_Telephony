@@ -44,7 +44,6 @@ import android.os.Message;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
-import com.android.internal.telephony.EcbmHandler;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.TelephonyIntents;
@@ -70,16 +69,11 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
 
     AlertDialog mAlertDialog = null;
     ProgressDialog mProgressDialog = null;
-    CountDownTimer mTimer = null;
     SmsCallbackModeService mService = null;
     Handler mHandler = null;
     int mDialogType = 0;
-    long mScmTimeout = 0;
-    private boolean mInEmergencySms = false;
-    private static final int SCM_TIMER_RESET = 1;
     private Phone mPhone = null;
     private boolean mIsResumed = false;
-    //private EcbmHandler mEcbmHandler;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -104,9 +98,6 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
         Thread waitForConnectionCompleteThread = new Thread(null, mTask,
                 "ScmExitDialogWaitThread");
         waitForConnectionCompleteThread.start();
-
-        // Register SCM timer reset notfication
-        mPhone.registerForScbmTimerReset(mTimerResetHandler, SCM_TIMER_RESET, null);
 
         // Register receiver for intent closing the dialog
         IntentFilter filter = new IntentFilter();
@@ -134,10 +125,6 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
         } catch (IllegalArgumentException e) {
             // Receiver was never registered - silently ignore.
         }
-        // Unregister ECM timer reset notification
-        if (mPhone != null) {
-            mPhone.unregisterForScbmTimerReset(mHandler);
-        }
     }
 
     @Override
@@ -159,36 +146,6 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
         public void run() {
             Looper.prepare();
 
-            // Bind to the remote service
-            bindService(new Intent(SmsCallbackModeExitDialog.this,
-                    SmsCallbackModeService.class), mConnection, Context.BIND_AUTO_CREATE);
-
-            // Wait for bind to finish
-            synchronized (SmsCallbackModeExitDialog.this) {
-                try {
-                    if (mService == null) {
-                        SmsCallbackModeExitDialog.this.wait();
-                    }
-                } catch (InterruptedException e) {
-                    Log.d("ECM", "SmsCallbackModeExitDialog InterruptedException: "
-                            + e.getMessage());
-                    e.printStackTrace();
-                }
-            }
-
-            // Get timeout value and call state from the service
-            if (mService != null) {
-                mScmTimeout = mService.getSmsCallbackModeTimeout();
-                mInEmergencySms = mService.getSmsCallbackModeSmsState();
-                try {
-                    // Unbind from remote service
-                    unbindService(mConnection);
-                } catch (IllegalArgumentException e) {
-                    // Failed to unbind from service.
-                    Log.w(TAG, "Failed to unbind from SmsCallbackModeService");
-                }
-            }
-
             // Show dialog
             mHandler.post(new Runnable() {
                 public void run() {
@@ -206,31 +163,13 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
             Log.w(TAG, "Tried to show dialog, but activity was already finished");
             return;
         }
-        if (mInEmergencySms) {
-            mDialogType = EXIT_SCM_IN_EMERGENCY_SMS_DIALOG;
-            showDialog(EXIT_SCM_IN_EMERGENCY_SMS_DIALOG);
-        } else {
-            if (getIntent().getAction().equals(
-                    SmsCallbackModeService.ACTION_SHOW_NOTICE_SCM_BLOCK_OTHERS)) {
-                mDialogType = EXIT_SCM_BLOCK_OTHERS;
-                showDialog(EXIT_SCM_BLOCK_OTHERS);
-            } else if (getIntent().getAction().equals(ACTION_SHOW_SCM_EXIT_DIALOG)) {
-                mDialogType = EXIT_SCM_DIALOG;
-                showDialog(EXIT_SCM_DIALOG);
-            }
-
-            mTimer = new CountDownTimer(mScmTimeout, 1000) {
-                @Override
-                public void onTick(long millisUntilFinished) {
-                    CharSequence text = getDialogText(millisUntilFinished);
-                    mAlertDialog.setMessage(text);
-                }
-
-                @Override
-                public void onFinish() {
-                    //Do nothing
-                }
-            }.start();
+        if (getIntent().getAction().equals(
+                SmsCallbackModeService.ACTION_SHOW_NOTICE_SCM_BLOCK_OTHERS)) {
+            mDialogType = EXIT_SCM_BLOCK_OTHERS;
+            showDialog(EXIT_SCM_BLOCK_OTHERS);
+        } else if (getIntent().getAction().equals(ACTION_SHOW_SCM_EXIT_DIALOG)) {
+            mDialogType = EXIT_SCM_DIALOG;
+            showDialog(EXIT_SCM_DIALOG);
         }
     }
 
@@ -242,7 +181,7 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
         switch (id) {
             case EXIT_SCM_BLOCK_OTHERS:
             case EXIT_SCM_DIALOG:
-                CharSequence text = getDialogText(mScmTimeout);
+                CharSequence text = getDialogText();
                 mAlertDialog = new AlertDialog.Builder(SmsCallbackModeExitDialog.this,
                         android.R.style.Theme_DeviceDefault_Dialog_Alert)
                         .setIcon(R.drawable.ic_emergency_callback_mode)
@@ -260,30 +199,12 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
 
                                         // Show progress dialog
                                         showDialog(EXIT_SCM_PROGRESS_DIALOG);
-                                        mTimer.cancel();
                                     }
                                 })
                         .setNegativeButton(R.string.alert_dialog_no,
                                 new DialogInterface.OnClickListener() {
                                     public void onClick(DialogInterface dialog, int whichButton) {
                                         // User clicked No
-                                        setResult(RESULT_CANCELED);
-                                        finish();
-                                    }
-                                }).create();
-                mAlertDialog.setOnCancelListener(this);
-                return mAlertDialog;
-
-            case EXIT_SCM_IN_EMERGENCY_SMS_DIALOG:
-                mAlertDialog = new AlertDialog.Builder(SmsCallbackModeExitDialog.this,
-                        android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                        .setIcon(R.drawable.ic_emergency_callback_mode)
-                        .setTitle(R.string.phone_in_scm_notification_title)
-                        .setMessage(R.string.alert_dialog_in_scm_call)
-                        .setNeutralButton(R.string.alert_dialog_dismiss,
-                                new DialogInterface.OnClickListener() {
-                                    public void onClick(DialogInterface dialog, int whichButton) {
-                                        // User clicked Dismiss
                                         setResult(RESULT_CANCELED);
                                         finish();
                                     }
@@ -306,19 +227,14 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
     /**
      * Returns dialog box text with updated timeout value
      */
-    private CharSequence getDialogText(long millisUntilFinished) {
-        // Format time
-        int minutes = (int)(millisUntilFinished / 60000);
-        String time = String.format("%d:%02d", minutes,
-                (millisUntilFinished % 60000) / 1000);
-
+    private CharSequence getDialogText() {
         switch (mDialogType) {
             case EXIT_SCM_BLOCK_OTHERS:
-                return String.format(getResources().getQuantityText(
-                        R.plurals.alert_dialog_not_avaialble_in_scm, minutes).toString(), time);
+                return getResources().getString(
+                        R.string.alert_dialog_not_avaialble_in_scm);
             case EXIT_SCM_DIALOG:
-                return String.format(getResources().getQuantityText(
-                        R.plurals.alert_dialog_exit_scm, minutes).toString(), time);
+                return getResources().getString(
+                        R.string.alert_dialog_exit_scm);
         }
         return null;
     }
@@ -354,36 +270,4 @@ public class SmsCallbackModeExitDialog extends Activity implements OnCancelListe
         }
     };
 
-    /**
-     * Class for interacting with the interface of the service
-     */
-    private ServiceConnection mConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            mService = ((SmsCallbackModeService.LocalBinder)service).getService();
-            // Notify thread that connection is ready
-            synchronized (SmsCallbackModeExitDialog.this) {
-                SmsCallbackModeExitDialog.this.notify();
-            }
-        }
-
-        public void onServiceDisconnected(ComponentName className) {
-            mService = null;
-        }
-    };
-
-    /**
-     * Class for receiving framework timer reset notifications
-     */
-    private Handler mTimerResetHandler = new Handler () {
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case SCM_TIMER_RESET:
-                    if(!((Boolean)((AsyncResult) msg.obj).result).booleanValue()) {
-                        SmsCallbackModeExitDialog.this.setResult(RESULT_CANCELED);
-                        finish();
-                    }
-                    break;
-            }
-        }
-    };
 }
