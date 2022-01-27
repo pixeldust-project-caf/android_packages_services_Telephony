@@ -1291,6 +1291,7 @@ public class ImsConference extends TelephonyConferenceBase implements Holdable {
                 parent.getOriginalConnection(), participant,
                 !isConferenceHost() /* isRemotelyHosted */,
                 isParticipantHost(mConferenceHostAddress, participant.getHandle()));
+
         if (participant.getConnectTime() == 0) {
             connection.setConnectTimeMillis(parent.getConnectTimeMillis());
             connection.setConnectionStartElapsedRealtimeMillis(

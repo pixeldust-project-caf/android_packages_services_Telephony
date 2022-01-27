@@ -66,6 +66,8 @@ import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.util.ArrayUtils;
 import com.android.internal.util.IndentingPrintWriter;
 
+import com.qti.extphone.ExtTelephonyManager;
+
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
@@ -117,6 +119,8 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
     private boolean[] mFromSystemUnlocked;
     // SubscriptionInfoUpdater
     private final SubscriptionInfoUpdater mSubscriptionInfoUpdater;
+    // Whether the essential records have been loaded for each phone id.
+    private boolean[] mIsEssentialSimRecordsLoaded;
 
     // Broadcast receiver for Boot intents, register intent filter in construtor.
     private final BroadcastReceiver mBootReceiver = new ConfigLoaderBroadcastReceiver();
@@ -714,6 +718,7 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
         mFromSystemUnlocked = new boolean[numPhones];
         mServiceConnectionForNoSimConfig = new CarrierServiceConnection[numPhones];
         mServiceBoundForNoSimConfig = new boolean[numPhones];
+        mIsEssentialSimRecordsLoaded = new boolean[numPhones];
         logd("CarrierConfigLoader has started");
         mSubscriptionInfoUpdater = subscriptionInfoUpdater;
         mHandler.sendEmptyMessage(EVENT_CHECK_SYSTEM_UPDATE);
@@ -793,7 +798,15 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
     }
 
     private void broadcastConfigChangedIntent(int phoneId) {
-        broadcastConfigChangedIntent(phoneId, true);
+        if (SubscriptionManager.getSimStateForSlotIndex(phoneId)
+                    != TelephonyManager.SIM_STATE_LOADED
+                    && mIsEssentialSimRecordsLoaded[phoneId]) {
+            // We are in a state where only the essential records have loaded.
+            // Let the Phone know about this.
+            notifyConfigChangedToPhone(phoneId);
+        } else {
+            broadcastConfigChangedIntent(phoneId, true);
+        }
     }
 
     private void broadcastConfigChangedIntent(int phoneId, boolean addSubIdExtra) {
@@ -819,6 +832,14 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
         }
         mHasSentConfigChange[phoneId] = true;
         mFromSystemUnlocked[phoneId] = false;
+    }
+
+    private void notifyConfigChangedToPhone(int phoneId) {
+        logd("notifyConfigChangedToPhone for phone " + phoneId);
+        Phone phone = PhoneFactory.getPhone(phoneId);
+        if (phone != null) {
+            phone.onCarrierConfigLoadedForEssentialRecords();
+        }
     }
 
     /** Binds to the default or carrier config app. */
@@ -971,8 +992,9 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
             fileName = getFilenameForNoSimConfig(packageName);
         } else {
             if (SubscriptionManager.getSimStateForSlotIndex(phoneId)
-                    != TelephonyManager.SIM_STATE_LOADED) {
-                loge("Skip save config because SIM records are not loaded.");
+                    != TelephonyManager.SIM_STATE_LOADED
+                    && !mIsEssentialSimRecordsLoaded[phoneId]) {
+                loge("Skip save config because SIM records are not loaded for phone " + phoneId);
                 return;
             }
 
@@ -1058,8 +1080,9 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
             fileName = getFilenameForNoSimConfig(packageName);
         } else {
             if (SubscriptionManager.getSimStateForSlotIndex(phoneId)
-                    != TelephonyManager.SIM_STATE_LOADED) {
-                loge("Skip restore config because SIM records are not loaded.");
+                    != TelephonyManager.SIM_STATE_LOADED
+                    && !mIsEssentialSimRecordsLoaded[phoneId]) {
+                loge("Skip restore config because SIM records are not loaded for phone " + phoneId);
                 return null;
             }
 
@@ -1317,10 +1340,16 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
             case IccCardConstants.INTENT_VALUE_ICC_CARD_RESTRICTED:
             case IccCardConstants.INTENT_VALUE_ICC_UNKNOWN:
             case IccCardConstants.INTENT_VALUE_ICC_NOT_READY:
+                mIsEssentialSimRecordsLoaded[phoneId] = false;
                 mHandler.sendMessage(mHandler.obtainMessage(EVENT_CLEAR_CONFIG, phoneId, -1));
                 break;
             case IccCardConstants.INTENT_VALUE_ICC_LOADED:
             case IccCardConstants.INTENT_VALUE_ICC_LOCKED:
+                mIsEssentialSimRecordsLoaded[phoneId] = false;
+                updateConfigForPhoneId(phoneId);
+                break;
+            case ExtTelephonyManager.SIM_STATE_ESSENTIAL_RECORDS_LOADED:
+                mIsEssentialSimRecordsLoaded[phoneId] = true;
                 updateConfigForPhoneId(phoneId);
                 break;
         }

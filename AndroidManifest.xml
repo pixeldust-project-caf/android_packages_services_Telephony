@@ -122,6 +122,10 @@
 
     <protected-broadcast android:name= "android.intent.action.SUBSCRIPTION_INFO_RECORD_ADDED" />
     <protected-broadcast android:name= "android.telephony.ims.action.RCS_SINGLE_REGISTRATION_CAPABILITY_UPDATE" />
+    <!-- Intent sent to notify clients that the voice capability has changed and the property
+         has been modified -->
+    <protected-broadcast android:name=
+            "org.codeaurora.intent.action.MSIM_VOICE_CAPABILITY_CHANGED" />
 
     <!-- Allows granting runtime permissions to telephony related components. -->
     <uses-permission android:name="android.permission.GRANT_RUNTIME_PERMISSIONS_TO_TELEPHONY_DEFAULTS" />
@@ -256,6 +260,13 @@
     <!-- Allows us to know if concurrent calls on both subs are possible by handling broadcast
          intent "org.codeaurora.intent.action.MSIM_VOICE_CAPABILITY".-->
     <uses-permission android:name="com.qti.permission.RECEIVE_MSIM_VOICE_CAPABILITY" />
+    <!-- Permission needed to handle receiving
+         intent "org.codeaurora.intent.action.MSIM_VOICE_CAPABILITY_CHANGED".-->
+    <uses-permission android:name="com.qti.permission.RECEIVE_MSIM_VOICE_CAPABILITY_CHANGED" />
+
+    <permission android:name="com.qti.permission.RECEIVE_MSIM_VOICE_CAPABILITY_CHANGED"
+        android:label="Broadcast multi_sim_voice_capability property has changed"
+        android:protectionLevel="signature|system"/>
 
     <application android:name="PhoneApp"
             android:persistent="true"
