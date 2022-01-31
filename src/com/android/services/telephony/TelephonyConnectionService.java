@@ -1415,7 +1415,7 @@ public class TelephonyConnectionService extends ConnectionService {
 
         Phone phone;
         if (isEmergency) {
-            phone = PhoneGlobals.getInstance().getPhoneInEcm();
+            phone = PhoneGlobals.getInstance().getPhoneInEmergencyMode();
         } else {
             phone = getPhoneForAccount(accountHandle, isEmergency,
                     /* Note: when not an emergency, handle can be null for unknown callers */
