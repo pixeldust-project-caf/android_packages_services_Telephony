@@ -140,7 +140,7 @@ public class CallForwardType extends PreferenceActivity {
             mPhone.getContext(), mPhone.getPhoneId(), LOG_TAG,
             new FeatureConnector.Listener<ImsManager>() {
                 @Override
-                public void connectionReady(ImsManager manager) throws ImsException {
+                public void connectionReady(ImsManager manager, int subId) throws ImsException {
                     Log.d(LOG_TAG, "ImsManager: connection ready.");
                     setListeners();
                 }
