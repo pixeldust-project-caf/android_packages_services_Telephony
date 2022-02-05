@@ -170,7 +170,7 @@ public class TelecomAccountRegistry {
                 mPhone.getContext(), mPhone.getPhoneId(), "TelecomAccountRegistry",
                 new FeatureConnector.Listener<ImsManager>() {
                     @Override
-                    public void connectionReady(ImsManager manager){
+                    public void connectionReady(ImsManager manager, int subId){
                         registerImsRegistrationCallback();
                     }
                     @Override
