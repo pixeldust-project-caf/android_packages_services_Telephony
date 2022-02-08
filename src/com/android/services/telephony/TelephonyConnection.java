@@ -1966,15 +1966,29 @@ abstract class TelephonyConnection extends Connection implements Holdable,
         boolean isCurrentVideoCall = false;
         boolean wasVideoCall = false;
         boolean isVowifiEnabled = false;
+        boolean isCurrentBgVideoCall = false;
+        boolean wasBgVideoCall = false;
         if (phone instanceof ImsPhone) {
             ImsPhone imsPhone = (ImsPhone) phone;
             ImsCall call = null;
             if (imsPhone.getForegroundCall() != null
                     && imsPhone.getForegroundCall().getImsCall() != null) {
                 call = imsPhone.getForegroundCall().getImsCall();
-            } else if (imsPhone.getBackgroundCall() != null
-                    && imsPhone.getBackgroundCall().getImsCall() != null) {
-                call = imsPhone.getBackgroundCall().getImsCall();
+            } else if (imsPhone.getBackgroundCall() != null) {
+                if (TelephonyManager.isConcurrentCallsPossible()) {
+                    ArrayList<com.android.internal.telephony.Connection> connections =
+                                imsPhone.getBackgroundCall().getConnections();
+                    for (com.android.internal.telephony.Connection conn : connections) {
+                        if (conn instanceof ImsPhoneConnection) {
+                            ImsCall bgCall = ((ImsPhoneConnection)conn).getImsCall();
+                            isCurrentBgVideoCall |= bgCall.isVideoCall();
+                            wasBgVideoCall |= bgCall.wasVideoCall();
+                        }
+                    }
+
+                } else if (imsPhone.getBackgroundCall().getImsCall() != null) {
+                    call = imsPhone.getBackgroundCall().getImsCall();
+                }
             } else if (imsPhone.getRingingCall() != null
                     && imsPhone.getRingingCall().getImsCall() != null) {
                 call = imsPhone.getRingingCall().getImsCall();
@@ -1987,9 +2001,9 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             isVowifiEnabled = isWfcEnabled(phone);
         }
 
-        if (isCurrentVideoCall) {
+        if (isCurrentVideoCall || isCurrentBgVideoCall) {
             return true;
-        } else if (wasVideoCall && isWifi() && !isVowifiEnabled) {
+        } else if ((wasVideoCall || wasBgVideoCall) && isWifi() && !isVowifiEnabled) {
             return true;
         }
         return false;
