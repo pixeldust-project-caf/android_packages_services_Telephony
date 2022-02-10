@@ -874,21 +874,39 @@ public class TelecomAccountRegistry {
         }
 
         public void updateRttCapability() {
-            boolean isRttEnabled = isRttCurrentlySupported();
-            if (isRttEnabled != mIsRttCapable) {
-                Log.i(this, "updateRttCapability - changed, new value: " + isRttEnabled);
-                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
+            synchronized (mAccountsLock) {
+                if (!mAccounts.contains(this)) {
+                    // Account has already been torn down, don't try to register it again.
+                    // This handles the case where teardown has already happened, and we got an rtt
+                    // update that lost the race for the mAccountsLock.  In such a scenario by the
+                    // time we get here, the original phone account could have been torn down.
+                    return;
+                }
+                boolean isRttEnabled = isRttCurrentlySupported();
+                if (isRttEnabled != mIsRttCapable) {
+                    Log.i(this, "updateRttCapability - changed, new value: " + isRttEnabled);
+                    mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
+                }
             }
         }
 
         public void updateCallComposerCapability(MmTelFeature.MmTelCapabilities capabilities) {
-            boolean isCallComposerCapable = capabilities.isCapable(
-                    MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_CALL_COMPOSER);
-            if (isCallComposerCapable != mIsCallComposerCapable) {
-                mIsCallComposerCapable = isCallComposerCapable;
-                Log.i(this, "updateCallComposerCapability - changed, new value: "
-                        + isCallComposerCapable);
-                mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
+            synchronized (mAccountsLock) {
+                if (!mAccounts.contains(this)) {
+                // Account has already been torn down, don't try to register it again.
+                // This handles the case where teardown has already happened, and we got a call
+                // composer update that lost the race for the mAccountsLock.  In such a scenario
+                // by the time we get here, the original phone account could have been torn down.
+                    return;
+                }
+                boolean isCallComposerCapable = capabilities.isCapable(
+                        MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_CALL_COMPOSER);
+                if (isCallComposerCapable != mIsCallComposerCapable) {
+                    mIsCallComposerCapable = isCallComposerCapable;
+                    Log.i(this, "updateCallComposerCapability - changed, new value: "
+                            + isCallComposerCapable);
+                    mAccount = registerPstnPhoneAccount(mIsEmergency, mIsTestAccount);
+                }
             }
         }
 
