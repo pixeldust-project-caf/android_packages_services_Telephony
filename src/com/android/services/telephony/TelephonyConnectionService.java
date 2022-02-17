@@ -58,10 +58,10 @@ import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneFactory;
-import com.android.internal.telephony.PhoneSwitcher;
 import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.SubscriptionController;
 import com.android.internal.telephony.d2d.Communicator;
+import com.android.internal.telephony.data.PhoneSwitcher;
 import com.android.internal.telephony.imsphone.ImsExternalCallTracker;
 import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.imsphone.ImsPhoneConnection;
@@ -1417,7 +1417,7 @@ public class TelephonyConnectionService extends ConnectionService {
 
         Phone phone;
         if (isEmergency) {
-            phone = PhoneGlobals.getInstance().getPhoneInEcm();
+            phone = PhoneGlobals.getInstance().getPhoneInEmergencyMode();
         } else {
             phone = getPhoneForAccount(accountHandle, isEmergency,
                     /* Note: when not an emergency, handle can be null for unknown callers */
@@ -2590,8 +2590,7 @@ public class TelephonyConnectionService extends ConnectionService {
             if (phone.getEmergencyNumberTracker() != null) {
                 if (phone.getEmergencyNumberTracker().isEmergencyNumber(
                         emergencyNumberAddress, true)) {
-                    if (phone.getHalVersion().greaterOrEqual(RIL.RADIO_HAL_VERSION_1_4)
-                            || isAvailableForEmergencyCalls(phone)) {
+                    if (isAvailableForEmergencyCalls(phone)) {
                         // a)
                         if (phone.getPhoneId() == defaultVoicePhoneId) {
                             Log.i(this, "getPhoneForEmergencyCall, Phone Id that supports"
@@ -2714,12 +2713,6 @@ public class TelephonyConnectionService extends ConnectionService {
                 // Only sort if there are enough elements to do so.
                 if (phoneSlotStatus.size() > 1) {
                     Collections.sort(phoneSlotStatus, (o1, o2) -> {
-                        if (!o1.hasDialedEmergencyNumber && o2.hasDialedEmergencyNumber) {
-                            return -1;
-                        }
-                        if (o1.hasDialedEmergencyNumber && !o2.hasDialedEmergencyNumber) {
-                            return 1;
-                        }
                         // Sort by non-absent SIM.
                         if (o1.simState == TelephonyManager.SIM_STATE_ABSENT
                                 && o2.simState != TelephonyManager.SIM_STATE_ABSENT) {
@@ -2736,6 +2729,13 @@ public class TelephonyConnectionService extends ConnectionService {
                             return -1;
                         }
                         if (o2.isLocked && !o1.isLocked) {
+                            return 1;
+                        }
+                        // Prefer slots where the number is considered emergency.
+                        if (!o1.hasDialedEmergencyNumber && o2.hasDialedEmergencyNumber) {
+                            return -1;
+                        }
+                        if (o1.hasDialedEmergencyNumber && !o2.hasDialedEmergencyNumber) {
                             return 1;
                         }
                         // sort by number of RadioAccessFamily Capabilities.

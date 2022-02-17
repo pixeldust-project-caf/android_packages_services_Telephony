@@ -66,6 +66,7 @@ import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.SubscriptionController;
+import com.android.internal.telephony.util.QtiImsUtils;
 import com.android.phone.PhoneGlobals;
 import com.android.phone.PhoneUtils;
 import com.android.phone.R;
@@ -169,7 +170,7 @@ public class TelecomAccountRegistry {
                 mPhone.getContext(), mPhone.getPhoneId(), "TelecomAccountRegistry",
                 new FeatureConnector.Listener<ImsManager>() {
                     @Override
-                    public void connectionReady(ImsManager manager){
+                    public void connectionReady(ImsManager manager, int subId){
                         registerImsRegistrationCallback();
                     }
                     @Override
@@ -924,8 +925,9 @@ public class TelecomAccountRegistry {
 
                 String[] supportedCountries = mContext.getResources().getStringArray(
                         R.array.config_simless_emergency_rtt_supported_countries);
-                if (supportedCountries == null || Arrays.stream(supportedCountries).noneMatch(
-                        Predicate.isEqual(country))) {
+                if ((supportedCountries == null || Arrays.stream(supportedCountries).noneMatch(
+                        Predicate.isEqual(country))) && !QtiImsUtils.isSimLessRttSupported(
+                        mPhone.getPhoneId(), mPhone.getContext())) {
                     Log.i(this, "isRttCurrentlySupported -- emergency acct and"
                             + " not supported in this country: " + country);
                     return false;
@@ -1413,18 +1415,46 @@ public class TelecomAccountRegistry {
         return null;
     }
 
+    /**
+     * Updates the adhoc conference capability for all phone accounts
+     */
     public void refreshAdhocConference(boolean isEnableAdhocConf) {
         synchronized (mAccountsLock) {
             Log.v(this, "refreshAdhocConference isEnable = " + isEnableAdhocConf);
             for (AccountEntry entry : mAccounts) {
-                boolean hasAdhocConfCapability = entry.mAccount.hasCapabilities(
-                        PhoneAccount.CAPABILITY_ADHOC_CONFERENCE_CALLING);
-                if (!isEnableAdhocConf && hasAdhocConfCapability) {
-                    entry.updateAdhocConfCapability(isEnableAdhocConf);
-                } else if (isEnableAdhocConf && !hasAdhocConfCapability) {
-                    entry.updateAdhocConfCapability(entry.mPhone.isImsRegistered());
+                refreshAdhocConferenceForAccountEntry(isEnableAdhocConf, entry);
+            }
+        }
+    }
+
+    /**
+     * Updates the adhoc conference capability per phone account.
+     */
+    public void refreshAdhocConferenceForAccount(boolean isEnableAdhocConf,
+            PhoneAccountHandle handle) {
+        synchronized (mAccountsLock) {
+            Log.v(this, "refreshAdhocConference isEnable = " + isEnableAdhocConf +
+                    " PhoneAccountHandle = " + handle);
+            for (AccountEntry entry : mAccounts) {
+                if (entry.getPhoneAccountHandle().equals(handle)) {
+                    refreshAdhocConferenceForAccountEntry(isEnableAdhocConf, entry);
+                    break;
                 }
             }
+        }
+    }
+
+    /**
+     * Updates the adhoc conference capability per Account entry.
+     */
+    private void refreshAdhocConferenceForAccountEntry(boolean isEnableAdhocConf,
+            AccountEntry entry) {
+        boolean hasAdhocConfCapability = entry.mAccount.hasCapabilities(
+                PhoneAccount.CAPABILITY_ADHOC_CONFERENCE_CALLING);
+        if (!isEnableAdhocConf && hasAdhocConfCapability) {
+            entry.updateAdhocConfCapability(isEnableAdhocConf);
+        } else if (isEnableAdhocConf && !hasAdhocConfCapability) {
+            entry.updateAdhocConfCapability(entry.mPhone.isImsRegistered());
         }
     }
 
@@ -1609,13 +1639,14 @@ public class TelecomAccountRegistry {
                                 || phone.getFullIccSerialNumber() == null) {
                             Log.d(this, "setupAccounts: skipping invalid subid %d", subscriptionId);
                             // If device configured in dsds mode, a SIM removed and if corresponding
-                            // phone is in ECM then add emergency account to that sub so that
-                            // incoming emergency call can be processed.
-                            Phone phoneInEcm = PhoneGlobals.getInstance().getPhoneInEcm();
+                            // phone is in ECM or SCBM then add emergency account to that sub so
+                            // that incoming emergency call can be processed.
+                            Phone emergencyPhone =
+                                    PhoneGlobals.getInstance().getPhoneInEmergencyMode();
                             if ((mTelephonyManager.getPhoneCount() > 1)
-                                    && (phoneInEcm != null)
-                                    && phoneInEcm.getPhoneId() == phone.getPhoneId()) {
-                                mAccounts.add(new AccountEntry(phoneInEcm, true /* emergency */,
+                                    && (emergencyPhone != null)
+                                    && emergencyPhone.getPhoneId() == phone.getPhoneId()) {
+                                mAccounts.add(new AccountEntry(emergencyPhone, true /* emergency */,
                                         false /* isTest */));
                                 isAccountAdded = true;
                             }

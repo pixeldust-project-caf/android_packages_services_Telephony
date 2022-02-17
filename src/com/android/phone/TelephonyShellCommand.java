@@ -30,6 +30,7 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceSpecificException;
 import android.provider.BlockedNumberContract;
+import android.provider.DeviceConfig;
 import android.telephony.BarringInfo;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
@@ -151,6 +152,10 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
     private static final String UCE_SET_CAPABILITY_REQUEST_TIMEOUT =
             "set-capabilities-request-timeout";
 
+    private static final String RADIO_SUBCOMMAND = "radio";
+    private static final String RADIO_SET_MODEM_SERVICE = "set-modem-service";
+    private static final String RADIO_GET_MODEM_SERVICE = "get-modem-service";
+
     // Check if a package has carrier privileges on any SIM, regardless of subId/phoneId.
     private static final String HAS_CARRIER_PRIVILEGES_COMMAND = "has-carrier-privileges";
 
@@ -165,6 +170,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             "get-allowed-network-types-for-users";
     private static final String SET_ALLOWED_NETWORK_TYPES_FOR_USER =
             "set-allowed-network-types-for-users";
+    // Check if telephony new data stack is enabled.
+    private static final String GET_DATA_MODE = "get-data-mode";
     // Take advantage of existing methods that already contain permissions checks when possible.
     private final ITelephony mInterface;
 
@@ -246,13 +253,13 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 FeatureTags.FEATURE_TAG_CHATBOT_VERSION_SUPPORTED)));
         map.put("chatbot_v2", new ArraySet<>(Arrays.asList(
                 FeatureTags.FEATURE_TAG_CHATBOT_COMMUNICATION_USING_SESSION,
-                FeatureTags.FEATURE_TAG_CHATBOT_VERSION_SUPPORTED)));
+                FeatureTags.FEATURE_TAG_CHATBOT_VERSION_V2_SUPPORTED)));
         map.put("chatbot_sa", new ArraySet<>(Arrays.asList(
                 FeatureTags.FEATURE_TAG_CHATBOT_COMMUNICATION_USING_STANDALONE_MSG,
                 FeatureTags.FEATURE_TAG_CHATBOT_VERSION_SUPPORTED)));
         map.put("chatbot_sa_v2", new ArraySet<>(Arrays.asList(
                 FeatureTags.FEATURE_TAG_CHATBOT_COMMUNICATION_USING_STANDALONE_MSG,
-                FeatureTags.FEATURE_TAG_CHATBOT_VERSION_SUPPORTED)));
+                FeatureTags.FEATURE_TAG_CHATBOT_VERSION_V2_SUPPORTED)));
         map.put("chatbot_role", Collections.singleton(FeatureTags.FEATURE_TAG_CHATBOT_ROLE));
         TEST_FEATURE_TAG_MAP = Collections.unmodifiableMap(map);
     }
@@ -319,6 +326,10 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             case GET_ALLOWED_NETWORK_TYPES_FOR_USER:
             case SET_ALLOWED_NETWORK_TYPES_FOR_USER:
                 return handleAllowedNetworkTypesCommand(cmd);
+            case GET_DATA_MODE:
+                return handleGetDataMode();
+            case RADIO_SUBCOMMAND:
+                return handleRadioCommand();
             default: {
                 return handleDefaultCommands(cmd);
             }
@@ -357,6 +368,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("    Get the Allowed Network Types.");
         pw.println("  set-allowed-network-types-for-users");
         pw.println("    Set the Allowed Network Types.");
+        pw.println("  radio");
+        pw.println("    Radio Commands.");
         onHelpIms();
         onHelpUce();
         onHelpEmergencyNumber();
@@ -368,6 +381,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         onHelpD2D();
         onHelpDisableOrEnablePhysicalSubscription();
         onHelpAllowedNetworkTypes();
+        onHelpRadio();
     }
 
     private void onHelpD2D() {
@@ -654,6 +668,21 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("        NR|LTE|CDMA|EVDO|GSM|WCDMA : 11001111101111111111");
         pw.println("        LTE|CDMA|EVDO|GSM|WCDMA    : 01001111101111111111");
         pw.println("        LTE only                   : 01000001000000000000");
+    }
+
+    private void onHelpRadio() {
+        PrintWriter pw = getOutPrintWriter();
+        pw.println("Radio Commands:");
+        pw.println("  radio set-modem-service [-s SERVICE_NAME]");
+        pw.println("    Sets the class name of modem service defined in SERVICE_NAME");
+        pw.println("    to be the bound. Options are:");
+        pw.println("      -s: the service name that the modem service should be bound for.");
+        pw.println("          If no option is specified, it will bind to the default.");
+        pw.println("  radio get-modem-service");
+        pw.println("    Gets the service name of the currently defined modem service.");
+        pw.println("    If it is binding to default, 'default' returns.");
+        pw.println("    If it doesn't bind to any modem service for some reasons,");
+        pw.println("    the result would be 'unknown'.");
     }
 
     private int handleImsCommand() {
@@ -2724,5 +2753,101 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             Log.e(LOG_TAG, "AllowedNetworkTypes: " + e);
             return -1;
         }
+    }
+
+    private int handleGetDataMode() {
+        if (!checkShellUid()) {
+            return -1;
+        }
+
+        boolean newDataStackEnabled = false;
+        try {
+            newDataStackEnabled = mInterface.isUsingNewDataStack();
+        } catch (RemoteException e) {
+            getOutPrintWriter().println("Something went wrong. " + e);
+            return -1;
+        }
+
+        getOutPrintWriter().println("Telephony new data stack is "
+                + (newDataStackEnabled ? "enabled." : "disabled."));
+
+        boolean configEnabled = Boolean.parseBoolean(DeviceConfig.getProperty(
+                DeviceConfig.NAMESPACE_TELEPHONY, "enable_new_data_stack"));
+        if (configEnabled != newDataStackEnabled) {
+            getOutPrintWriter().println("The config has been "
+                    + (configEnabled ? "enabled" : "disabled") + ". Need to reboot the device.");
+        } else {
+            getOutPrintWriter().println("Run the following command to "
+                    + (configEnabled ? "disable" : "enable") + " the new telephony data stack.");
+            getOutPrintWriter().println("adb root && adb shell device_config put telephony "
+                    + "enable_new_data_stack " + (configEnabled ? "false" : "true")
+                    + " && adb reboot");
+        }
+        return 0;
+    }
+
+    private int handleRadioSetModemServiceCommand() {
+        PrintWriter errPw = getErrPrintWriter();
+        String serviceName = null;
+
+        String opt;
+        while ((opt = getNextOption()) != null) {
+            switch (opt) {
+                case "-s": {
+                    serviceName = getNextArgRequired();
+                    break;
+                }
+            }
+        }
+
+        try {
+            boolean result = mInterface.setModemService(serviceName);
+            if (VDBG) {
+                Log.v(LOG_TAG,
+                        "RadioSetModemService " + serviceName + ", result = " + result);
+            }
+            getOutPrintWriter().println(result);
+        } catch (RemoteException e) {
+            Log.w(LOG_TAG,
+                    "RadioSetModemService: " + serviceName + ", error = " + e.getMessage());
+            errPw.println("Exception: " + e.getMessage());
+            return -1;
+        }
+        return 0;
+    }
+
+    private int handleRadioGetModemServiceCommand() {
+        PrintWriter errPw = getErrPrintWriter();
+        String result;
+
+        try {
+            result = mInterface.getModemService();
+            getOutPrintWriter().println(result);
+        } catch (RemoteException e) {
+            errPw.println("Exception: " + e.getMessage());
+            return -1;
+        }
+        if (VDBG) {
+            Log.v(LOG_TAG, "RadioGetModemService, result = " + result);
+        }
+        return 0;
+    }
+
+    private int handleRadioCommand() {
+        String arg = getNextArg();
+        if (arg == null) {
+            onHelpRadio();
+            return 0;
+        }
+
+        switch (arg) {
+            case RADIO_SET_MODEM_SERVICE:
+                return handleRadioSetModemServiceCommand();
+
+            case RADIO_GET_MODEM_SERVICE:
+                return handleRadioGetModemServiceCommand();
+        }
+
+        return -1;
     }
 }
