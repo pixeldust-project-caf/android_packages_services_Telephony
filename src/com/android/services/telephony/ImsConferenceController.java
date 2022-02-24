@@ -448,6 +448,8 @@ public class ImsConferenceController {
         conferenceHostConnection.setVideoPauseSupported(connection.getVideoPauseSupported());
         conferenceHostConnection.setManageImsConferenceCallSupported(
                 connection.isManageImsConferenceCallSupported());
+        conferenceHostConnection.setTelephonyConnectionService(
+                connection.getTelephonyConnectionService());
         // WARNING: do not try to copy the video provider from connection to
         // conferenceHostConnection here.  In connection.cloneConnection, part of the clone
         // process is to set the original connection so it's already set:
