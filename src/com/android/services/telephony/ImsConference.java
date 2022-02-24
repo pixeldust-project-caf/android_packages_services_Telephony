@@ -488,8 +488,17 @@ public class ImsConference extends TelephonyConferenceBase implements Holdable {
 
         // Specify the connection time of the conference to be the connection time of the original
         // connection.
-        long connectTime = conferenceHost.getOriginalConnection().getConnectTime();
-        long connectElapsedTime = conferenceHost.getOriginalConnection().getConnectTimeReal();
+        com.android.internal.telephony.Connection originalConnection =
+                conferenceHost.getOriginalConnection();
+        //In MT IMS conference call, it will cleanup TelephonyConnection which backed the original
+        //connection and remove from telecom, originalConnection will become null, so initialize
+        //'connectTime' and 'connectElapsedTime' when new ImsConference.
+        long connectTime = 0;
+        long connectElapsedTime = 0;
+        if (originalConnection != null ) {
+            connectTime = originalConnection.getConnectTime();
+            connectElapsedTime = originalConnection.getConnectTimeReal();
+        }
         setConnectionTime(connectTime);
         setConnectionStartElapsedRealtimeMillis(connectElapsedTime);
         // Set the connectTime in the connection as well.
@@ -1537,13 +1546,19 @@ public class ImsConference extends TelephonyConferenceBase implements Holdable {
                 if (mConferenceHost == null) {
                     disconnectCause = new DisconnectCause(DisconnectCause.CANCELED);
                 } else {
+                    com.android.internal.telephony.Connection originalConnection =
+                                mConferenceHost.getOriginalConnection();
                     if (mConferenceHost.getPhone() != null) {
-                        disconnectCause = DisconnectCauseUtil.toTelecomDisconnectCause(
-                                mConferenceHost.getOriginalConnection().getDisconnectCause(),
-                                null, mConferenceHost.getPhone().getPhoneId());
+                        disconnectCause = originalConnection != null ?
+                                DisconnectCauseUtil.toTelecomDisconnectCause(
+                                originalConnection.getDisconnectCause(),
+                                null, mConferenceHost.getPhone().getPhoneId())
+                                : new DisconnectCause(DisconnectCause.UNKNOWN);
                     } else {
-                        disconnectCause = DisconnectCauseUtil.toTelecomDisconnectCause(
-                                mConferenceHost.getOriginalConnection().getDisconnectCause());
+                        disconnectCause = originalConnection != null ?
+                                DisconnectCauseUtil.toTelecomDisconnectCause(
+                                originalConnection.getDisconnectCause())
+                                : new DisconnectCause(DisconnectCause.UNKNOWN);
                     }
                 }
                 setDisconnected(disconnectCause);
