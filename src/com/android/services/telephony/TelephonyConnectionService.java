@@ -601,7 +601,7 @@ public class TelephonyConnectionService extends ConnectionService {
         IntentFilter intentFilter = new IntentFilter(
                 TelecomManager.ACTION_TTY_PREFERRED_MODE_CHANGED);
         registerReceiver(mTtyBroadcastReceiver, intentFilter,
-                android.Manifest.permission.MODIFY_PHONE_STATE, null);
+                android.Manifest.permission.MODIFY_PHONE_STATE, null, Context.RECEIVER_EXPORTED);
     }
 
     @Override
@@ -674,7 +674,6 @@ public class TelephonyConnectionService extends ConnectionService {
         }
 
         TelephonyConnection connection = (TelephonyConnection)conn;
-
         ImsConference conference = new ImsConference(TelecomAccountRegistry.getInstance(this),
                 mTelephonyConnectionServiceProxy, connection,
                 phoneAccountHandle, () -> true,
@@ -2829,6 +2828,9 @@ public class TelephonyConnectionService extends ConnectionService {
         // when we go between CDMA and GSM we should replace the TelephonyConnection.
         if (connection.isImsConnection()) {
             Log.d(this, "Adding IMS connection to conference controller: " + connection);
+            if (connection.getTelephonyConnectionService() == null) {
+                connection.setTelephonyConnectionService(this);
+            }
             mImsConferenceController.add(connection);
             mTelephonyConferenceController.remove(connection);
             if (connection instanceof CdmaConnection) {
