@@ -172,6 +172,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             "set-allowed-network-types-for-users";
     // Check if telephony new data stack is enabled.
     private static final String GET_DATA_MODE = "get-data-mode";
+    private static final String GET_IMEI = "get-imei";
     // Take advantage of existing methods that already contain permissions checks when possible.
     private final ITelephony mInterface;
 
@@ -328,6 +329,8 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
                 return handleAllowedNetworkTypesCommand(cmd);
             case GET_DATA_MODE:
                 return handleGetDataMode();
+            case GET_IMEI:
+                return handleGetImei();
             case RADIO_SUBCOMMAND:
                 return handleRadioCommand();
             default: {
@@ -382,6 +385,7 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         onHelpDisableOrEnablePhysicalSubscription();
         onHelpAllowedNetworkTypes();
         onHelpRadio();
+        onHelpImei();
     }
 
     private void onHelpD2D() {
@@ -683,6 +687,15 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         pw.println("    If it is binding to default, 'default' returns.");
         pw.println("    If it doesn't bind to any modem service for some reasons,");
         pw.println("    the result would be 'unknown'.");
+    }
+
+    private void onHelpImei() {
+        PrintWriter pw = getOutPrintWriter();
+        pw.println("IMEI Commands:");
+        pw.println("  get-imei [-s SLOT_ID]");
+        pw.println("    Gets the device IMEI. Options are:");
+        pw.println("      -s: the slot ID to get the IMEI. If no option");
+        pw.println("          is specified, it will choose the default voice SIM slot.");
     }
 
     private int handleImsCommand() {
@@ -1919,6 +1932,37 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
         return result ? 0 : -1;
     }
 
+    private int handleGetImei() {
+        // Verify that the user is allowed to run the command. Only allowed in rooted device in a
+        // non user build.
+        if (Binder.getCallingUid() != Process.ROOT_UID || TelephonyUtils.IS_USER) {
+            getErrPrintWriter().println("Device IMEI: Permission denied.");
+            return -1;
+        }
+
+        final long identity = Binder.clearCallingIdentity();
+
+        String imei = null;
+        String arg = getNextArg();
+        if (arg != null) {
+            try {
+                int specifiedSlotIndex = Integer.parseInt(arg);
+                imei = TelephonyManager.from(mContext).getImei(specifiedSlotIndex);
+            } catch (NumberFormatException exception) {
+                PrintWriter errPw = getErrPrintWriter();
+                errPw.println("-s requires an integer as slot index.");
+                return -1;
+            }
+
+        } else {
+            imei = TelephonyManager.from(mContext).getImei();
+        }
+        getOutPrintWriter().println("Device IMEI: " + imei);
+
+        Binder.restoreCallingIdentity(identity);
+        return 0;
+    }
+
     private int handleUnattendedReboot() {
         // Verify that the user is allowed to run the command. Only allowed in rooted device in a
         // non user build.
@@ -2768,20 +2812,15 @@ public class TelephonyShellCommand extends BasicShellCommandHandler {
             return -1;
         }
 
-        getOutPrintWriter().println("Telephony new data stack is "
-                + (newDataStackEnabled ? "enabled." : "disabled."));
+        getOutPrintWriter().println("Telephony is running with the "
+                + (newDataStackEnabled ? "new" : "old") + " data stack.");
 
         boolean configEnabled = Boolean.parseBoolean(DeviceConfig.getProperty(
                 DeviceConfig.NAMESPACE_TELEPHONY, "enable_new_data_stack"));
         if (configEnabled != newDataStackEnabled) {
-            getOutPrintWriter().println("The config has been "
-                    + (configEnabled ? "enabled" : "disabled") + ". Need to reboot the device.");
-        } else {
-            getOutPrintWriter().println("Run the following command to "
-                    + (configEnabled ? "disable" : "enable") + " the new telephony data stack.");
-            getOutPrintWriter().println("adb root && adb shell device_config put telephony "
-                    + "enable_new_data_stack " + (configEnabled ? "false" : "true")
-                    + " && adb reboot");
+            getOutPrintWriter().println("The new data config has been "
+                    + (configEnabled ? "enabled" : "disabled")
+                    + ". It will be effective after reboot.");
         }
         return 0;
     }
