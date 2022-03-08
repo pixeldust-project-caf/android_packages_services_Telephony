@@ -1857,7 +1857,7 @@ abstract class TelephonyConnection extends Connection implements Holdable,
             newExtras.putBoolean(Connection.EXTRA_DISABLE_ADD_CALL, true);
             putTelephonyExtras(newExtras);
         } else {
-            removeExtras(Connection.EXTRA_DISABLE_ADD_CALL);
+            removeTelephonyExtras(Arrays.asList(Connection.EXTRA_DISABLE_ADD_CALL));
         }
     }
 
