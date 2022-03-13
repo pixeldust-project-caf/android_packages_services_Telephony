@@ -42,7 +42,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ComponentInfo;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.AsyncResult;
@@ -73,6 +72,8 @@ import android.sysprop.TelephonyProperties;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
+import android.telephony.AccessNetworkConstants;
+import android.telephony.ActivityStatsTechSpecificInfo;
 import android.telephony.Annotation.ApnType;
 import android.telephony.Annotation.ThermalMitigationResult;
 import android.telephony.CallForwardingInfo;
@@ -228,6 +229,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -786,15 +788,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     uiccPort = getUiccPortFromRequest(request);
                     if (uiccPort == null) {
                         loge("iccCloseLogicalChannel: No UICC");
-                        // before this feature is enabled, this API should only return false if
-                        // the operation fails instead of throwing runtime exception for
-                        // backward-compatibility.
-                        if (Compatibility.isChangeEnabled(ICC_CLOSE_CHANNEL_EXCEPTION_ON_FAILURE)) {
-                            request.result = new IllegalArgumentException(
+                        request.result = new IllegalArgumentException(
                                     "iccCloseLogicalChannel: No UICC");
-                        } else {
-                            request.result = false;
-                        }
                         notifyRequester(request);
                     } else {
                         onCompleted = obtainMessage(EVENT_CLOSE_CHANNEL_DONE, request);
@@ -825,13 +820,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         } else {
                             loge("iccCloseLogicalChannel: Unknown exception");
                         }
-                        // before this feature is enabled, this API should only return false if
-                        // the operation fails instead of throwing runtime exception for
-                        // backward-compatibility.
-                        if (Compatibility.isChangeEnabled(ICC_CLOSE_CHANNEL_EXCEPTION_ON_FAILURE))
-                            request.result = (exception != null) ? exception :
-                                    new IllegalStateException(
-                                            "exception from modem to close iccLogical Channel");
+                        request.result = (exception != null) ? exception :
+                                new IllegalStateException(
+                                        "exception from modem to close iccLogical Channel");
                     }
                     notifyRequester(request);
                     break;
@@ -1417,43 +1408,39 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                     ar = (AsyncResult) msg.obj;
                     request = (MainThreadRequest) ar.userObj;
                     ResultReceiver result = (ResultReceiver) request.argument;
-
-                    ModemActivityInfo ret = null;
                     int error = 0;
+                    if (mLastModemActivityInfo == null) {
+                        mLastModemActivitySpecificInfo = new ActivityStatsTechSpecificInfo[1];
+                        mLastModemActivitySpecificInfo[0] =
+                                new ActivityStatsTechSpecificInfo(
+                                        0,
+                                        0,
+                                        new int[ModemActivityInfo.getNumTxPowerLevels()],
+                                        0);
+                        mLastModemActivityInfo =
+                                new ModemActivityInfo(0, 0, 0, mLastModemActivitySpecificInfo);
+                    }
+
                     if (ar.exception == null && ar.result != null) {
                         // Update the last modem activity info and the result of the request.
                         ModemActivityInfo info = (ModemActivityInfo) ar.result;
                         if (isModemActivityInfoValid(info)) {
-                            int[] mergedTxTimeMs = new int[ModemActivityInfo.getNumTxPowerLevels()];
-                            int[] txTimeMs = info.getTransmitTimeMillis();
-                            int[] lastModemTxTimeMs = mLastModemActivityInfo
-                                    .getTransmitTimeMillis();
-                            for (int i = 0; i < mergedTxTimeMs.length; i++) {
-                                mergedTxTimeMs[i] = txTimeMs[i] + lastModemTxTimeMs[i];
-                            }
-                            mLastModemActivityInfo.setTimestamp(info.getTimestampMillis());
-                            mLastModemActivityInfo.setSleepTimeMillis(info.getSleepTimeMillis()
-                                    + mLastModemActivityInfo.getSleepTimeMillis());
-                            mLastModemActivityInfo.setIdleTimeMillis(info.getIdleTimeMillis()
-                                    + mLastModemActivityInfo.getIdleTimeMillis());
-                            mLastModemActivityInfo.setTransmitTimeMillis(mergedTxTimeMs);
-                            mLastModemActivityInfo.setReceiveTimeMillis(
-                                    info.getReceiveTimeMillis()
-                                            + mLastModemActivityInfo.getReceiveTimeMillis());
+                            mergeModemActivityInfo(info);
                         }
-                        ret = new ModemActivityInfo(mLastModemActivityInfo.getTimestampMillis(),
-                                mLastModemActivityInfo.getSleepTimeMillis(),
-                                mLastModemActivityInfo.getIdleTimeMillis(),
-                                mLastModemActivityInfo.getTransmitTimeMillis(),
-                                mLastModemActivityInfo.getReceiveTimeMillis());
+                        mLastModemActivityInfo =
+                                new ModemActivityInfo(
+                                        mLastModemActivityInfo.getTimestampMillis(),
+                                        mLastModemActivityInfo.getSleepTimeMillis(),
+                                        mLastModemActivityInfo.getIdleTimeMillis(),
+                                        mLastModemActivitySpecificInfo);
+
                     } else {
                         if (ar.result == null) {
                             loge("queryModemActivityInfo: Empty response");
                             error = TelephonyManager.ModemActivityInfoException
                                     .ERROR_INVALID_INFO_RECEIVED;
                         } else if (ar.exception instanceof CommandException) {
-                            loge("queryModemActivityInfo: CommandException: " +
-                                    ar.exception);
+                            loge("queryModemActivityInfo: CommandException: " + ar.exception);
                             error = TelephonyManager.ModemActivityInfoException
                                     .ERROR_MODEM_RESPONSE_ERROR;
                         } else {
@@ -1463,8 +1450,10 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                         }
                     }
                     Bundle bundle = new Bundle();
-                    if (ret != null) {
-                        bundle.putParcelable(TelephonyManager.MODEM_ACTIVITY_RESULT_KEY, ret);
+                    if (mLastModemActivityInfo != null) {
+                        bundle.putParcelable(
+                                TelephonyManager.MODEM_ACTIVITY_RESULT_KEY,
+                                mLastModemActivityInfo);
                     } else {
                         bundle.putInt(TelephonyManager.EXCEPTION_RESULT_KEY, error);
                     }
@@ -5298,6 +5287,11 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
     private boolean iccCloseLogicalChannelWithPermission(Phone phone,
             IccLogicalChannelRequest request) {
+        // before this feature is enabled, this API should only return false if
+        // the operation fails instead of throwing runtime exception for
+        // backward-compatibility.
+        final boolean shouldThrowExceptionOnFailure = CompatChanges.isChangeEnabled(
+                ICC_CLOSE_CHANNEL_EXCEPTION_ON_FAILURE, Binder.getCallingUid());
         final long identity = Binder.clearCallingIdentity();
         try {
             if (request.channel < 0) {
@@ -5308,7 +5302,11 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             Boolean success = false;
             if (result instanceof RuntimeException) {
                 // if there is an exception returned, throw from the binder thread here.
-                throw (RuntimeException) result;
+                if (shouldThrowExceptionOnFailure) {
+                    throw (RuntimeException) result;
+                } else {
+                    return false;
+                }
             } else if (result instanceof Boolean) {
                 success = (Boolean) result;
             } else {
@@ -6832,39 +6830,28 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
     @Override
     public int getCarrierPrivilegeStatus(int subId) {
-        final Phone phone = getPhone(subId);
-        if (phone == null) {
-            loge("getCarrierPrivilegeStatus: Invalid subId");
-            return TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS;
-        }
-        UiccPort port = UiccController.getInstance().getUiccPort(phone.getPhoneId());
-        if (port == null) {
-            loge("getCarrierPrivilegeStatus: No UICC");
-            return TelephonyManager.CARRIER_PRIVILEGE_STATUS_RULES_NOT_LOADED;
-        }
-
-        return getCarrierPrivilegeStatusFromCarrierConfigRules(
-            port.getCarrierPrivilegeStatusForCurrentTransaction(
-                phone.getContext().getPackageManager()), Binder.getCallingUid(), phone);
+        // No permission needed; this only lets the caller inspect their own status.
+        return getCarrierPrivilegeStatusForUidWithPermission(subId, Binder.getCallingUid());
     }
 
     @Override
     public int getCarrierPrivilegeStatusForUid(int subId, int uid) {
         enforceReadPrivilegedPermission("getCarrierPrivilegeStatusForUid");
-        final Phone phone = getPhone(subId);
+        return getCarrierPrivilegeStatusForUidWithPermission(subId, uid);
+    }
+
+    private int getCarrierPrivilegeStatusForUidWithPermission(int subId, int uid) {
+        Phone phone = getPhone(subId);
         if (phone == null) {
             loge("getCarrierPrivilegeStatusForUid: Invalid subId");
             return TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS;
         }
-        UiccProfile profile =
-                UiccController.getInstance().getUiccProfileForPhone(phone.getPhoneId());
-        if (profile == null) {
-            loge("getCarrierPrivilegeStatusForUid: No UICC");
+        CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+        if (cpt == null) {
+            loge("getCarrierPrivilegeStatusForUid: No CarrierPrivilegesTracker");
             return TelephonyManager.CARRIER_PRIVILEGE_STATUS_RULES_NOT_LOADED;
         }
-        return getCarrierPrivilegeStatusFromCarrierConfigRules(
-                profile.getCarrierPrivilegeStatusForUid(
-                        phone.getContext().getPackageManager(), uid), uid, phone);
+        return cpt.getCarrierPrivilegeStatusForUid(uid);
     }
 
     @Override
@@ -6873,97 +6860,76 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         if (TextUtils.isEmpty(pkgName)) {
             return TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS;
         }
-
-        int phoneId = SubscriptionManager.getPhoneId(subId);
-        UiccPort port = UiccController.getInstance().getUiccPort(phoneId);
-        if (port == null) {
-            loge("checkCarrierPrivilegesForPackage: No UICC on subId " + subId);
+        Phone phone = getPhone(subId);
+        if (phone == null) {
+            loge("checkCarrierPrivilegesForPackage: Invalid subId");
+            return TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS;
+        }
+        CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+        if (cpt == null) {
+            loge("checkCarrierPrivilegesForPackage: No CarrierPrivilegesTracker");
             return TelephonyManager.CARRIER_PRIVILEGE_STATUS_RULES_NOT_LOADED;
         }
-        return getCarrierPrivilegeStatusFromCarrierConfigRules(
-            port.getCarrierPrivilegeStatus(mApp.getPackageManager(), pkgName),
-            getPhone(phoneId), pkgName);
+        return cpt.getCarrierPrivilegeStatusForPackage(pkgName);
     }
 
     @Override
     public int checkCarrierPrivilegesForPackageAnyPhone(String pkgName) {
-        // TODO(b/186774706): Remove @RequiresPermission from TelephonyManager API
-        if (TextUtils.isEmpty(pkgName))
+        enforceReadPrivilegedPermission("checkCarrierPrivilegesForPackageAnyPhone");
+        if (TextUtils.isEmpty(pkgName)) {
             return TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS;
+        }
         int result = TelephonyManager.CARRIER_PRIVILEGE_STATUS_RULES_NOT_LOADED;
-        for (int i = 0; i < TelephonyManager.getDefault().getPhoneCount(); i++) {
-            UiccPort port = UiccController.getInstance().getUiccPort(i);
-            if (port == null) {
-              // No UICC in that slot.
-              continue;
+        for (int phoneId = 0; phoneId < TelephonyManager.getDefault().getPhoneCount(); phoneId++) {
+            Phone phone = PhoneFactory.getPhone(phoneId);
+            if (phone == null) {
+                continue;
             }
-
-            result = getCarrierPrivilegeStatusFromCarrierConfigRules(
-                port.getCarrierPrivilegeStatus(mApp.getPackageManager(), pkgName),
-                getPhone(i), pkgName);
+            CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+            if (cpt == null) {
+                continue;
+            }
+            result = cpt.getCarrierPrivilegeStatusForPackage(pkgName);
             if (result == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS) {
                 break;
             }
         }
-
         return result;
     }
 
     @Override
     public List<String> getCarrierPackageNamesForIntentAndPhone(Intent intent, int phoneId) {
         enforceReadPrivilegedPermission("getCarrierPackageNamesForIntentAndPhone");
-        if (!SubscriptionManager.isValidPhoneId(phoneId)) {
-            loge("phoneId " + phoneId + " is not valid.");
-            return null;
+        Phone phone = PhoneFactory.getPhone(phoneId);
+        if (phone == null) {
+            return Collections.emptyList();
         }
-        UiccPort port = UiccController.getInstance().getUiccPort(phoneId);
-        if (port == null) {
-            loge("getCarrierPackageNamesForIntentAndPhone: No UICC");
-            return null ;
+        CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+        if (cpt == null) {
+            return Collections.emptyList();
         }
-        return port.getCarrierPackageNamesForIntent(mApp.getPackageManager(), intent);
+        return cpt.getCarrierPackageNamesForIntent(intent);
     }
 
     @Override
     public List<String> getPackagesWithCarrierPrivileges(int phoneId) {
         enforceReadPrivilegedPermission("getPackagesWithCarrierPrivileges");
-        PackageManager pm = mApp.getPackageManager();
-        List<String> privilegedPackages = new ArrayList<>();
-        List<PackageInfo> packages = null;
-        UiccPort port = UiccController.getInstance().getUiccPort(phoneId);
-        // has UICC in that slot.
-        if (port != null) {
-            if (port.hasCarrierPrivilegeRules()) {
-                if (packages == null) {
-                    // Only check packages in user 0 for now
-                    packages = pm.getInstalledPackagesAsUser(
-                        PackageManager.MATCH_DISABLED_COMPONENTS
-                            | PackageManager.MATCH_DISABLED_UNTIL_USED_COMPONENTS
-                            | PackageManager.GET_SIGNING_CERTIFICATES,
-                            UserHandle.SYSTEM.getIdentifier());
-                }
-                for (int p = packages.size() - 1; p >= 0; p--) {
-                    PackageInfo pkgInfo = packages.get(p);
-                    if (pkgInfo != null && pkgInfo.packageName != null
-                            && getCarrierPrivilegeStatusFromCarrierConfigRules(
-                                    port.getCarrierPrivilegeStatus(pkgInfo),
-                                    getPhone(phoneId), pkgInfo.packageName)
-                            == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS) {
-                        privilegedPackages.add(pkgInfo.packageName);
-                    }
-                }
-            }
+        Phone phone = PhoneFactory.getPhone(phoneId);
+        if (phone == null) {
+            return Collections.emptyList();
         }
-        return privilegedPackages;
+        CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+        if (cpt == null) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(cpt.getPackagesWithCarrierPrivileges());
     }
 
     @Override
     public List<String> getPackagesWithCarrierPrivilegesForAllPhones() {
         enforceReadPrivilegedPermission("getPackagesWithCarrierPrivilegesForAllPhones");
-
+        Set<String> privilegedPackages = new ArraySet<>();
         final long identity = Binder.clearCallingIdentity();
-
-        List<String> privilegedPackages = new ArrayList<>();
         try {
             for (int i = 0; i < TelephonyManager.getDefault().getPhoneCount(); i++) {
                 privilegedPackages.addAll(getPackagesWithCarrierPrivileges(i));
@@ -6971,7 +6937,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
-        return privilegedPackages;
+        return new ArrayList<>(privilegedPackages);
     }
 
     private String getIccId(int subId) {
@@ -7869,8 +7835,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 mApp.getAttributionTag());
     }
 
-    private final ModemActivityInfo mLastModemActivityInfo =
-            new ModemActivityInfo(0, 0, 0, new int[ModemActivityInfo.getNumTxPowerLevels()], 0);
+    private ActivityStatsTechSpecificInfo[] mLastModemActivitySpecificInfo = null;
+    private ModemActivityInfo mLastModemActivityInfo = null;
 
     /**
      * Responds to the ResultReceiver with the {@link android.telephony.ModemActivityInfo} object
@@ -7908,6 +7874,91 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             && (info.getIdleTimeMillis() <= activityDurationMs)
             && (info.getReceiveTimeMillis() <= activityDurationMs)
             && (totalTxTimeMs <= activityDurationMs));
+    }
+
+    private void updateLastModemActivityInfo(ModemActivityInfo info, int rat, int freq) {
+        int[] mergedTxTimeMs = new int [ModemActivityInfo.getNumTxPowerLevels()];
+        int[] txTimeMs = info.getTransmitTimeMillis(rat, freq);
+        int[] lastModemTxTimeMs = mLastModemActivityInfo.getTransmitTimeMillis(rat, freq);
+
+        for (int lvl = 0; lvl < mergedTxTimeMs.length; lvl++) {
+            mergedTxTimeMs[lvl] = txTimeMs[lvl] + lastModemTxTimeMs[lvl];
+        }
+
+        mLastModemActivityInfo.setTransmitTimeMillis(rat, freq, mergedTxTimeMs);
+        mLastModemActivityInfo.setReceiveTimeMillis(
+                rat,
+                freq,
+                info.getReceiveTimeMillis(rat, freq)
+                        + mLastModemActivityInfo.getReceiveTimeMillis(rat, freq));
+    }
+
+    private void updateLastModemActivityInfo(ModemActivityInfo info, int rat) {
+        int[] mergedTxTimeMs = new int [ModemActivityInfo.getNumTxPowerLevels()];
+        int[] txTimeMs = info.getTransmitTimeMillis(rat);
+        int[] lastModemTxTimeMs = mLastModemActivityInfo.getTransmitTimeMillis(rat);
+
+        for (int lvl = 0; lvl < mergedTxTimeMs.length; lvl++) {
+            mergedTxTimeMs[lvl] = txTimeMs[lvl] + lastModemTxTimeMs[lvl];
+        }
+        mLastModemActivityInfo.setTransmitTimeMillis(rat, mergedTxTimeMs);
+        mLastModemActivityInfo.setReceiveTimeMillis(
+                rat,
+                info.getReceiveTimeMillis(rat) + mLastModemActivityInfo.getReceiveTimeMillis(rat));
+    }
+
+   /**
+    * Merge this ModemActivityInfo with mLastModemActivitySpecificInfo
+    * @param info recent ModemActivityInfo
+    */
+    private void mergeModemActivityInfo(ModemActivityInfo info) {
+        List<ActivityStatsTechSpecificInfo> merged = new ArrayList<>();
+        ActivityStatsTechSpecificInfo mDeltaSpecificInfo;
+        boolean matched;
+        for (int i = 0; i < info.getSpecificInfoLength(); i++) {
+            matched = false;
+            int rat = info.getSpecificInfoRat(i);
+            int freq = info.getSpecificInfoFrequencyRange(i);
+            //Check each ActivityStatsTechSpecificInfo in this ModemActivityInfo for new rat returns
+            //Add a new ActivityStatsTechSpecificInfo if is a new rat, and merge with the original
+            //if it already exists
+            for (int j = 0; j < mLastModemActivitySpecificInfo.length; j++) {
+                if (rat == mLastModemActivityInfo.getSpecificInfoRat(j) && !matched) {
+                    //Merged based on frequency range (MMWAVE vs SUB6) for 5G
+                    if (rat == AccessNetworkConstants.AccessNetworkType.NGRAN) {
+                        if (freq == mLastModemActivityInfo.getSpecificInfoFrequencyRange(j)) {
+                            updateLastModemActivityInfo(info, rat, freq);
+                            matched = true;
+                        }
+                    } else {
+                        updateLastModemActivityInfo(info, rat);
+                        matched = true;
+                    }
+                }
+            }
+
+            if (!matched) {
+                mDeltaSpecificInfo =
+                        new ActivityStatsTechSpecificInfo(
+                                rat,
+                                freq,
+                                info.getTransmitTimeMillis(rat, freq),
+                                (int) info.getReceiveTimeMillis(rat, freq));
+                merged.addAll(Arrays.asList(mDeltaSpecificInfo));
+            }
+        }
+        merged.addAll(Arrays.asList(mLastModemActivitySpecificInfo));
+        mLastModemActivitySpecificInfo =
+                new ActivityStatsTechSpecificInfo[merged.size()];
+        merged.toArray(mLastModemActivitySpecificInfo);
+
+        mLastModemActivityInfo.setTimestamp(info.getTimestampMillis());
+        mLastModemActivityInfo.setSleepTimeMillis(
+                info.getSleepTimeMillis()
+                + mLastModemActivityInfo.getSleepTimeMillis());
+        mLastModemActivityInfo.setIdleTimeMillis(
+                info.getIdleTimeMillis()
+                + mLastModemActivityInfo.getIdleTimeMillis());
     }
 
     /**
@@ -8768,12 +8819,16 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
 
     private boolean haveCarrierPrivilegeAccess(UiccPort port, String callingPackage) {
         UiccProfile profile = port.getUiccProfile();
-        if (profile == null ||
-                profile.getCarrierPrivilegeStatus(mApp.getPackageManager(), callingPackage)
-                != TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS) {
+        if (profile == null) {
             return false;
         }
-        return true;
+        Phone phone = PhoneFactory.getPhone(profile.getPhoneId());
+        if (phone == null) {
+            return false;
+        }
+        CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+        return cpt != null && cpt.getCarrierPrivilegeStatusForPackage(callingPackage)
+                == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
     }
 
     @Override
