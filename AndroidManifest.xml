@@ -115,6 +115,7 @@
 
     <protected-broadcast android:name= "com.android.phone.settings.CARRIER_PROVISIONING" />
     <protected-broadcast android:name= "com.android.phone.settings.TRIGGER_CARRIER_PROVISIONING" />
+    <protected-broadcast android:name= "com.android.internal.telephony.ACTION_VOWIFI_ENABLED" />
     <protected-broadcast android:name= "org.codeaurora.telephony.VOWIFI_ENABLED" />
 
     <!-- For Vendor Debugging in Telephony -->
@@ -617,6 +618,17 @@
             </intent-filter>
         </activity>
 
+        <activity android:name="LimitedServiceActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter android:priority="1000">
+                <action android:name = "com.android.internal.telephony.ACTION_VOWIFI_ENABLED" />
+            </intent-filter>
+        </activity>
+
         <activity android:name="SmsCallbackModeExitDialog"
             android:excludeFromRecents="true"
             android:label="@string/scm_exit_dialog"
@@ -629,18 +641,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-
-        <activity android:name="LimitedServiceActivity"
-            android:exported="true"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTask"
-            android:taskAffinity=""
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
-            <intent-filter android:priority="1000">
-                <action android:name = "org.codeaurora.telephony.VOWIFI_ENABLED" />
-            </intent-filter>
-        </activity>
-
         <activity android:name="MMIDialogActivity"
                 android:configChanges="orientation|screenSize|keyboardHidden"
                 android:excludeFromRecents="true"

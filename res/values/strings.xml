@@ -2268,14 +2268,20 @@
      notificatios -->
     <string name="notification_channel_sip_account">Deprecated SIP accounts</string>
 
+    <!-- Instruction text to notify user that emergency calls may not be possible when voice is
+    enabled over wifi. [CHAR LIMIT=NONE] -->
+    <string name="limited_service_alert_dialog_description"><xliff:g id="spn" example="Operator">%s</xliff:g> doesn\'t support emergency calls over Wi-Fi.
+\n\nEmergency calls will be placed through a mobile network. If there\'s limited mobile coverage,
+ your emergency call may not go through.
+</string>
+    <!-- Option to hide the popup dialog if it is not necessary for the user. [CHAR LIMIT=40] -->
+    <string name="do_not_show_again">Don\'t show again</string>
+    <!-- Option to turn off wifi calling -->
+    <string name="turn_off_wfc">Turn off Wi-Fi calling</string>
+    <string name="unavailable_emergency_calls_notification_name">Emergency calls may be unavailable</string>
+
     <string name="labelCommonMore">Call settings</string>
     <string name="labelCommonMore_with_label">Call settings (<xliff:g id="subscriptionlabel" example="T-Mobile">%s</xliff:g>)</string>
     <string name="sum_common_call_settings">Additional call settings</string>
     <string name="ut_unavailable_to_set_video_cf_toast">UT is unavailable to set call forwarding for video, please close this page and exit.</string>
-    <!-- Instruction text to notify user that emergency calls may not be possible when voice is enabled over wifi. [CHAR LIMIT=NONE] -->
-    <string name="limited_service_alert_dialog_description"><b>Emergency calls via WiFi Calling</b>\nEmergency calls are not possible via WiFi Calling.
-\n\nThe device switches automatically to a cellular network (2G/3G) to place an emergency call.
-\n\nEmergency calls are only possible in areas with cellular coverage.</string>
-    <!-- Option to hide the popup dialog if it is not necessary for the user. [CHAR LIMIT=40] -->
-    <string name="do_not_show_again">Do not show again</string>
 </resources>
