@@ -1,30 +1,17 @@
 /*
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2022 The Android Open Source Project
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of The Linux Foundation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.android.phone;
@@ -33,8 +20,8 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.NotificationManager;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -46,13 +33,13 @@ import android.telephony.SubscriptionManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.CheckBox;
+import android.widget.TextView;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.FragmentActivity;
 import com.android.internal.telephony.CarrierServiceStateTracker;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneFactory;
-import com.android.internal.telephony.ServiceStateTracker;
 
 public class LimitedServiceActivity extends FragmentActivity {
 
@@ -92,42 +79,39 @@ public class LimitedServiceActivity extends FragmentActivity {
             mPhone = PhoneFactory.getPhone(mPhoneId);
             mTelephonyManager = getContext().getSystemService(TelephonyManager.class).
                     createForSubscriptionId(mPhone.getSubId());
-            mHandler = new Handler() {
-                @Override
-                public void handleMessage(Message msg) {
-                    switch (msg.what) {
-                        case EVENT_IMS_CAPABILITIES_CHANGED:
-                            if (!mTelephonyManager.isWifiCallingAvailable()) {
-                                cleanUp();
-                            }
-                            break;
-                    }
-                }
-            };
+            mHandler = new MsgHandler();
             mPhone.getServiceStateTracker().registerForImsCapabilityChanged(mHandler,
                     EVENT_IMS_CAPABILITIES_CHANGED, null);
             if (!SubscriptionManager.isValidPhoneId(mPhoneId)) return null;
             super.onCreateDialog(bundle);
             View dialogView = View.inflate(getActivity(),
                     R.layout.frag_limited_service_alert_dialog, null);
+            TextView textView = (TextView) dialogView.findViewById(R.id.message);
+            Resources res = getResources();
+            String description = String.format(res.getString(
+                            R.string.limited_service_alert_dialog_description),
+                    mPhone.getServiceStateTracker().getServiceProviderNameOrPlmn().trim());
+            textView.setText(description);
             CheckBox alertCheckBox = dialogView.findViewById(R.id.do_not_show);
             SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(
-                    PhoneFactory.getPhone(mPhoneId).getContext());
+                    mPhone.getContext());
             Log.i(TAG, "onCreateDialog " + Phone.KEY_DO_NOT_SHOW_LIMITED_SERVICE_ALERT +
-                    PhoneFactory.getPhone(mPhoneId).getSubId()  + ":" + pref.getBoolean
-                    (Phone.KEY_DO_NOT_SHOW_LIMITED_SERVICE_ALERT + PhoneFactory.getPhone
-                    (mPhoneId).getSubId(), false));
+                    mPhone.getSubId() + ":" + pref.getBoolean
+                    (Phone.KEY_DO_NOT_SHOW_LIMITED_SERVICE_ALERT + mPhone.getSubId(), false));
 
             AlertDialog alertDialog =
-                new AlertDialog.Builder(getActivity())
-                    .setView(dialogView)
-                    .setNegativeButton(
-                        android.R.string.cancel,
-                        (dialog, which) -> onNegativeButtonClicked())
-                    .setPositiveButton(
-                        android.R.string.ok,
-                        (dialog, which) -> onPositiveButtonClicked(pref, alertCheckBox.isChecked()))
-                    .create();
+                    new AlertDialog.Builder(getActivity(),
+                            android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                            .setTitle(R.string.unavailable_emergency_calls_notification_name)
+                            .setView(dialogView)
+                            .setNegativeButton(
+                                    R.string.turn_off_wfc,
+                                    (dialog, which) -> onNegativeButtonClicked())
+                            .setPositiveButton(
+                                    android.R.string.ok,
+                                    (dialog, which) -> onPositiveButtonClicked(pref,
+                                            alertCheckBox.isChecked()))
+                            .create();
             this.setCancelable(false);
             return alertDialog;
         }
@@ -152,16 +136,15 @@ public class LimitedServiceActivity extends FragmentActivity {
             SharedPreferences.Editor editor = preferences.edit();
             editor.putBoolean(Phone.KEY_DO_NOT_SHOW_LIMITED_SERVICE_ALERT + PhoneFactory.
                     getPhone(mPhoneId).getSubId(), isChecked);
-            editor.commit();
+            editor.apply();
             Log.i(TAG, "onPositiveButtonClicked isChecked:" + isChecked + " phoneId:" + mPhoneId
                     + " do not show preference:" + preferences.getBoolean
-                    (Phone.KEY_DO_NOT_SHOW_LIMITED_SERVICE_ALERT +
-                    PhoneFactory.getPhone(mPhoneId).getSubId(), false));
+                    (Phone.KEY_DO_NOT_SHOW_LIMITED_SERVICE_ALERT + mPhone.getSubId(), false));
             if (isChecked) {
                 NotificationManager sNotificationManager = (NotificationManager) getContext().
                         getSystemService(NOTIFICATION_SERVICE);
                 sNotificationManager.cancel(CarrierServiceStateTracker.EMERGENCY_NOTIFICATION_TAG,
-                        PhoneFactory.getPhone(mPhoneId).getSubId());
+                        mPhone.getSubId());
             }
             cleanUp();
         }
@@ -171,5 +154,18 @@ public class LimitedServiceActivity extends FragmentActivity {
             dismiss();
             getActivity().finish();
         }
-  }
+
+        private class MsgHandler extends Handler {
+            @Override
+            public void handleMessage(Message msg) {
+                switch (msg.what) {
+                    case EVENT_IMS_CAPABILITIES_CHANGED:
+                        if (!mTelephonyManager.isWifiCallingAvailable()) {
+                            cleanUp();
+                        }
+                        break;
+                }
+            }
+        }
+    }
 }
