@@ -1751,7 +1751,8 @@ public class TelecomAccountRegistry {
             if ((defaultPhoneAccount == null)
                         && (mTelephonyManager.getActiveModemCount() > Count.ONE.ordinal())
                         && (activeCount == Count.ONE.ordinal())
-                        && (areAllSimAccountsFound()) && (isRadioInValidState(phones))) {
+                        && (areAllSimAccountsFound()) && (isRadioInValidState(phones))
+                        && !isSubIdCreationPending()) {
                 PhoneAccountHandle phoneAccountHandle =
                         subscriptionIdToPhoneAccountHandle(activeSubscriptionId);
                 if (phoneAccountHandle != null) {
@@ -1760,6 +1761,17 @@ public class TelecomAccountRegistry {
                 }
             }
         }
+    }
+
+    private boolean isSubIdCreationPending() {
+        Log.i(this, "isSubIdCreationPending");
+        SubscriptionController subController = SubscriptionController.getInstance();
+
+        if (subController == null) {
+            Log.i(this, "isSubIdCreationPending: SubscriptionController instance is null");
+            return false;
+        }
+        return subController.isSubIdCreationPending();
     }
 
     private boolean areAllSimAccountsFound() {
