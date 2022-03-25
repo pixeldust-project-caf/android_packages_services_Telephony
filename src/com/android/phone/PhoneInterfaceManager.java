@@ -5695,22 +5695,6 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         return false;
     }
 
-    public String[] getPcscfAddress(String apnType, String callingPackage,
-            String callingFeatureId) {
-        final Phone defaultPhone = getDefaultPhone();
-        if (!TelephonyPermissions.checkCallingOrSelfReadPhoneState(mApp, defaultPhone.getSubId(),
-                callingPackage, callingFeatureId, "getPcscfAddress")) {
-            return new String[0];
-        }
-
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            return defaultPhone.getPcscfAddress(apnType);
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
-    }
-
     /**
      * Toggle IMS disable and enable for the framework to reset it. See {@link #enableIms(int)} and
      * {@link #disableIms(int)}.
@@ -6685,8 +6669,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             if (phone != null) {
                 boolean retVal;
                 if (phone.isUsingNewDataStack()) {
-                    retVal = phone.getDataNetworkController().getDataSettingsManager()
-                            .isDataEnabled();
+                    retVal = phone.getDataSettingsManager().isDataEnabled();
                 } else {
                     retVal = phone.getDataEnabledSettings().isDataEnabled();
                 }
@@ -6759,69 +6742,6 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 }
                 return false;
             }
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
-    }
-
-    private int getCarrierPrivilegeStatusFromCarrierConfigRules(int privilegeFromSim, int uid,
-            Phone phone) {
-        if (uid == Process.PHONE_UID) {
-            // Skip the check if it's the phone UID (system UID removed in b/184713596)
-            // TODO (b/184954344): Check for system/phone UID at call site instead of here
-            return TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
-        }
-
-        //load access rules from carrier configs, and check those as well: b/139133814
-        SubscriptionController subController = SubscriptionController.getInstance();
-        if (privilegeFromSim == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS
-                || subController == null) return privilegeFromSim;
-
-        PackageManager pkgMgr = phone.getContext().getPackageManager();
-        String[] packages = pkgMgr.getPackagesForUid(uid);
-
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            int subId = phone.getSubId();
-            if (mCarrierPrivilegeTestOverrideSubIds.contains(subId)) {
-                // A test override is in place for the privileges for this subId, so don't try to
-                // read the subscription privileges.
-                return privilegeFromSim;
-            }
-            SubscriptionInfo subInfo = subController.getSubscriptionInfo(subId);
-            SubscriptionManager subManager = (SubscriptionManager)
-                    phone.getContext().getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-            for (String pkg : packages) {
-                if (subManager.canManageSubscription(subInfo, pkg)) {
-                    return TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
-                }
-            }
-            return privilegeFromSim;
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
-    }
-
-    private int getCarrierPrivilegeStatusFromCarrierConfigRules(int privilegeFromSim, Phone phone,
-            String pkgName) {
-        //load access rules from carrier configs, and check those as well: b/139133814
-        SubscriptionController subController = SubscriptionController.getInstance();
-        if (privilegeFromSim == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS
-                || subController == null) return privilegeFromSim;
-
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            int subId = phone.getSubId();
-            if (mCarrierPrivilegeTestOverrideSubIds.contains(subId)) {
-                // A test override is in place for the privileges for this subId, so don't try to
-                // read the subscription privileges.
-                return privilegeFromSim;
-            }
-            SubscriptionInfo subInfo = subController.getSubscriptionInfo(subId);
-            SubscriptionManager subManager = (SubscriptionManager)
-                    phone.getContext().getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-            return subManager.canManageSubscription(subInfo, pkgName)
-                ? TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS : privilegeFromSim;
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -6941,6 +6861,21 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             Binder.restoreCallingIdentity(identity);
         }
         return new ArrayList<>(privilegedPackages);
+    }
+
+    @Override
+    public @Nullable String getCarrierServicePackageNameForLogicalSlot(int logicalSlotIndex) {
+        enforceReadPrivilegedPermission("getCarrierServicePackageNameForLogicalSlot");
+
+        final Phone phone = PhoneFactory.getPhone(logicalSlotIndex);
+        if (phone == null) {
+            return null;
+        }
+        final CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+        if (cpt == null) {
+            return null;
+        }
+        return cpt.getCarrierServicePackageName();
     }
 
     private String getIccId(int subId) {
@@ -11209,7 +11144,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     @Override
     public void getSlicingConfig(ResultReceiver callback) {
-        enforceReadPrivilegedPermission("getSlicingConfig");
+        TelephonyPermissions
+                .enforceCallingOrSelfReadPrivilegedPhoneStatePermissionOrCarrierPrivilege(
+                        mApp, SubscriptionManager.INVALID_SUBSCRIPTION_ID, "getSlicingConfig");
 
         final long identity = Binder.clearCallingIdentity();
         try {
