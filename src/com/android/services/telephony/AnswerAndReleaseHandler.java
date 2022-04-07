@@ -37,11 +37,17 @@ import android.telecom.VideoProfile;
 
 import com.android.ims.internal.ConferenceParticipant;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+  * This class is used to support Pseudo DSDA in telephony that will handle BT / headset
+  * scenarios and DSDA mode for handling Dialing + incoming scenarios.
+  *
+  */
 public class AnswerAndReleaseHandler extends TelephonyConnection.TelephonyConnectionListener {
 
     private List<Connection> mConnectionList = new CopyOnWriteArrayList<>();
@@ -49,10 +55,26 @@ public class AnswerAndReleaseHandler extends TelephonyConnection.TelephonyConnec
     private int mVideoState;
     private Connection mIncomingConnection = null;
     private List<Listener> mListeners = new CopyOnWriteArrayList<>();
+    private List<Integer> mPermittedConnectionStates  = new CopyOnWriteArrayList<>();
+    private List<Integer> mPermittedConfConnectionStates  = new CopyOnWriteArrayList<>();
 
-    public AnswerAndReleaseHandler(Connection incomingConnection, int answerWithVideoState) {
+    public AnswerAndReleaseHandler(Connection incomingConnection, int answerWithVideoState,
+            boolean dsdaMode) {
         mVideoState = answerWithVideoState;
         mIncomingConnection = incomingConnection;
+        // Initialize an array of connection states that wants to exempt from disconnecting
+        // and use/check it in checkAndAnswer().
+        mPermittedConnectionStates.add(Connection.STATE_RINGING);
+        mPermittedConnectionStates.add(Connection.STATE_DISCONNECTED);
+        mPermittedConfConnectionStates.add(Connection.STATE_DISCONNECTED);
+        if (dsdaMode) {
+            mPermittedConnectionStates.add(Connection.STATE_ACTIVE);
+            mPermittedConnectionStates.add(Connection.STATE_HOLDING);
+            mPermittedConnectionStates.add(Connection.STATE_PULLING_CALL);
+            mPermittedConfConnectionStates.add(Connection.STATE_HOLDING);
+            mPermittedConfConnectionStates.add(Connection.STATE_ACTIVE);
+            mPermittedConfConnectionStates.add(Connection.STATE_PULLING_CALL);
+        }
     }
 
     public interface Listener {
@@ -101,10 +123,10 @@ public class AnswerAndReleaseHandler extends TelephonyConnection.TelephonyConnec
             if (!(current instanceof TelephonyConnection)) {
                 continue;
             }
-            int state = current.getState();
-            if (state == Connection.STATE_RINGING ||
-                    state == Connection.STATE_DISCONNECTED) {
-                continue;
+            synchronized(mPermittedConnectionStates) {
+                if (mPermittedConnectionStates.contains(current.getState())) {
+                    continue;
+                }
             }
             boolean containsConnection = false;
             synchronized(mConnectionList) {
@@ -121,8 +143,10 @@ public class AnswerAndReleaseHandler extends TelephonyConnection.TelephonyConnec
             if (!(current instanceof TelephonyConferenceBase)) {
                 continue;
             }
-            if (current.getState() == Connection.STATE_DISCONNECTED) {
-                continue;
+            synchronized(mPermittedConfConnectionStates) {
+                if (mPermittedConfConnectionStates.contains(current.getState())) {
+                    continue;
+                }
             }
             boolean containsConference = false;
             synchronized(mConferenceList) {
