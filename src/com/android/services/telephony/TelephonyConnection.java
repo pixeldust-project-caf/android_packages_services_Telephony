@@ -2526,6 +2526,15 @@ abstract class TelephonyConnection extends Connection implements Holdable,
                                 ImsCallProfile.EXTRA_CONFERENCE_AVAIL)) {
                         updateConnectionCapabilities();
                     }
+                    // If extras contain Cross Sim information,
+                    // then ensure capabilities are updated and propagated to Telecom.
+                    // Also, update the status hints in the case the call has
+                    // has moved from cross sim call back to wifi
+                    if (mOriginalConnectionExtras.containsKey(
+                                ImsCallProfile.EXTRA_IS_CROSS_SIM_CALL)) {
+                        updateStatusHints();
+                        updateConnectionProperties();
+                    }
                 } else {
                     Log.d(this, "Extras update not required");
                 }
