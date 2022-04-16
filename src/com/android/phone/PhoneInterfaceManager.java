@@ -31,6 +31,7 @@ import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.app.AppOpsManager;
 import android.app.PendingIntent;
+import android.app.PropertyInvalidatedCache;
 import android.app.compat.CompatChanges;
 import android.app.role.RoleManager;
 import android.compat.annotation.ChangeId;
@@ -114,7 +115,6 @@ import android.telephony.UiccSlotInfo;
 import android.telephony.UiccSlotMapping;
 import android.telephony.UssdResponse;
 import android.telephony.VisualVoicemailSmsFilterSettings;
-import android.telephony.data.ApnSetting;
 import android.telephony.data.NetworkSlicingConfig;
 import android.telephony.emergency.EmergencyNumber;
 import android.telephony.gba.GbaAuthRequest;
@@ -185,6 +185,7 @@ import com.android.internal.telephony.SmsPermissions;
 import com.android.internal.telephony.SubscriptionController;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
+import com.android.internal.telephony.data.DataUtils;
 import com.android.internal.telephony.dataconnection.ApnSettingUtils;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
 import com.android.internal.telephony.euicc.EuiccConnector;
@@ -195,7 +196,6 @@ import com.android.internal.telephony.metrics.RcsStats;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppType;
 import com.android.internal.telephony.uicc.IccIoResult;
-import com.android.internal.telephony.uicc.IccRecords;
 import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.uicc.SIMRecords;
 import com.android.internal.telephony.uicc.UiccCard;
@@ -2340,7 +2340,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         mPhoneConfigurationManager = PhoneConfigurationManager.getInstance();
         mRadioInterfaceCapabilities = RadioInterfaceCapabilityController.getInstance();
         mNotifyUserActivity = new AtomicBoolean(false);
-
+        PropertyInvalidatedCache.invalidateCache(TelephonyManager.CACHE_KEY_PHONE_ACCOUNT_TO_SUBID);
         publish();
     }
 
@@ -2902,7 +2902,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         try {
             final Phone phone = getPhone(subId);
             if (phone != null) {
-                return phone.isDataAllowed(ApnSetting.TYPE_DEFAULT);
+                return phone.isDataAllowed();
             } else {
                 return false;
             }
@@ -5695,22 +5695,6 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         return false;
     }
 
-    public String[] getPcscfAddress(String apnType, String callingPackage,
-            String callingFeatureId) {
-        final Phone defaultPhone = getDefaultPhone();
-        if (!TelephonyPermissions.checkCallingOrSelfReadPhoneState(mApp, defaultPhone.getSubId(),
-                callingPackage, callingFeatureId, "getPcscfAddress")) {
-            return new String[0];
-        }
-
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            return defaultPhone.getPcscfAddress(apnType);
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
-    }
-
     /**
      * Toggle IMS disable and enable for the framework to reset it. See {@link #enableIms(int)} and
      * {@link #disableIms(int)}.
@@ -6685,8 +6669,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             if (phone != null) {
                 boolean retVal;
                 if (phone.isUsingNewDataStack()) {
-                    retVal = phone.getDataNetworkController().getDataSettingsManager()
-                            .isDataEnabled();
+                    retVal = phone.getDataSettingsManager().isDataEnabled();
                 } else {
                     retVal = phone.getDataEnabledSettings().isDataEnabled();
                 }
@@ -6759,69 +6742,6 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 }
                 return false;
             }
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
-    }
-
-    private int getCarrierPrivilegeStatusFromCarrierConfigRules(int privilegeFromSim, int uid,
-            Phone phone) {
-        if (uid == Process.PHONE_UID) {
-            // Skip the check if it's the phone UID (system UID removed in b/184713596)
-            // TODO (b/184954344): Check for system/phone UID at call site instead of here
-            return TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
-        }
-
-        //load access rules from carrier configs, and check those as well: b/139133814
-        SubscriptionController subController = SubscriptionController.getInstance();
-        if (privilegeFromSim == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS
-                || subController == null) return privilegeFromSim;
-
-        PackageManager pkgMgr = phone.getContext().getPackageManager();
-        String[] packages = pkgMgr.getPackagesForUid(uid);
-
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            int subId = phone.getSubId();
-            if (mCarrierPrivilegeTestOverrideSubIds.contains(subId)) {
-                // A test override is in place for the privileges for this subId, so don't try to
-                // read the subscription privileges.
-                return privilegeFromSim;
-            }
-            SubscriptionInfo subInfo = subController.getSubscriptionInfo(subId);
-            SubscriptionManager subManager = (SubscriptionManager)
-                    phone.getContext().getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-            for (String pkg : packages) {
-                if (subManager.canManageSubscription(subInfo, pkg)) {
-                    return TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
-                }
-            }
-            return privilegeFromSim;
-        } finally {
-            Binder.restoreCallingIdentity(identity);
-        }
-    }
-
-    private int getCarrierPrivilegeStatusFromCarrierConfigRules(int privilegeFromSim, Phone phone,
-            String pkgName) {
-        //load access rules from carrier configs, and check those as well: b/139133814
-        SubscriptionController subController = SubscriptionController.getInstance();
-        if (privilegeFromSim == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS
-                || subController == null) return privilegeFromSim;
-
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            int subId = phone.getSubId();
-            if (mCarrierPrivilegeTestOverrideSubIds.contains(subId)) {
-                // A test override is in place for the privileges for this subId, so don't try to
-                // read the subscription privileges.
-                return privilegeFromSim;
-            }
-            SubscriptionInfo subInfo = subController.getSubscriptionInfo(subId);
-            SubscriptionManager subManager = (SubscriptionManager)
-                    phone.getContext().getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-            return subManager.canManageSubscription(subInfo, pkgName)
-                ? TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS : privilegeFromSim;
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -6941,6 +6861,21 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             Binder.restoreCallingIdentity(identity);
         }
         return new ArrayList<>(privilegedPackages);
+    }
+
+    @Override
+    public @Nullable String getCarrierServicePackageNameForLogicalSlot(int logicalSlotIndex) {
+        enforceReadPrivilegedPermission("getCarrierServicePackageNameForLogicalSlot");
+
+        final Phone phone = PhoneFactory.getPhone(logicalSlotIndex);
+        if (phone == null) {
+            return null;
+        }
+        final CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+        if (cpt == null) {
+            return null;
+        }
+        return cpt.getCarrierServicePackageName();
     }
 
     private String getIccId(int subId) {
@@ -8957,20 +8892,11 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         mApp.getSystemService(AppOpsManager.class)
                 .checkPackage(Binder.getCallingUid(), callingPackage);
 
-        boolean hasReadPermission = false;
         boolean isLogicalSlotAccessRestricted = false;
 
-        try {
-            enforceReadPrivilegedPermission("getUiccSlotsInfo");
-            hasReadPermission = true;
-        } catch (SecurityException e) {
-            // even without READ_PRIVILEGED_PHONE_STATE, we allow the call to continue if the caller
-            // has carrier privileges on an active UICC
-            if (checkCarrierPrivilegesForPackageAnyPhoneWithPermission(callingPackage)
-                    == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS) {
-                hasReadPermission = true;
-            }
-        }
+        // This will make sure caller has the READ_PRIVILEGED_PHONE_STATE. Do not remove this as
+        // we are reading iccId which is PII data.
+        enforceReadPrivilegedPermission("getUiccSlotsInfo");
 
         // checking compatibility, if calling app's target SDK is T and beyond.
         if (CompatChanges.isChangeEnabled(GET_API_SIGNATURES_FROM_UICC_PORT_INFO,
@@ -8998,11 +8924,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 } else {
                     cardId = slot.getEid();
                     if (TextUtils.isEmpty(cardId)) {
-                        // If cardId is null, use iccId of default port as cardId. Check if has
-                        // read permission otherwise set to null.(card is null which means no
-                        // carrier permission)
-                       cardId = hasReadPermission ? slot.getIccId(
-                               TelephonyManager.DEFAULT_PORT_INDEX) : null;
+                        // If cardId is null, use iccId of default port as cardId.
+                        cardId = slot.getIccId(TelephonyManager.DEFAULT_PORT_INDEX);
                     }
                 }
 
@@ -9034,7 +8957,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 int[] portIndexes = slot.getPortList();
                 for (int portIdx : portIndexes) {
                     String iccId = IccUtils.stripTrailingFs(getIccId(slot, portIdx,
-                            callingPackage, hasReadPermission));
+                            callingPackage, /* hasReadPermission= */ true));
                     portInfos.add(new UiccPortInfo(iccId, portIdx,
                             slot.getPhoneIdFromPortIndex(portIdx), slot.isPortActive(portIdx)));
                 }
@@ -9763,11 +9686,15 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
             Phone phone = getPhone(subId);
             if (phone == null) return false;
 
-            boolean isMetered = ApnSettingUtils.isMeteredApnType(apnType, phone);
+            boolean isMetered;
             boolean isDataEnabled;
             if (phone.isUsingNewDataStack()) {
+                isMetered = phone.getDataNetworkController().getDataConfigManager()
+                        .isMeteredCapability(DataUtils.apnTypeToNetworkCapability(apnType),
+                                phone.getServiceState().getDataRoaming());
                 isDataEnabled = phone.getDataSettingsManager().isDataEnabled(apnType);
             } else {
+                isMetered = ApnSettingUtils.isMeteredApnType(apnType, phone);
                 isDataEnabled = phone.getDataEnabledSettings().isDataEnabled(apnType);
             }
             return !isMetered || isDataEnabled;
@@ -9785,6 +9712,11 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         try {
             Phone phone = getPhone(subId);
             if (phone == null) return true; // By default return true.
+            if (phone.isUsingNewDataStack()) {
+                return phone.getDataNetworkController().getDataConfigManager().isMeteredCapability(
+                        DataUtils.apnTypeToNetworkCapability(apnType),
+                        phone.getServiceState().getDataRoaming());
+            }
 
             return ApnSettingUtils.isMeteredApnType(apnType, phone);
         } finally {
@@ -9846,15 +9778,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
     }
 
     @Override
-    public boolean isMvnoMatched(int subId, int mvnoType, @NonNull String mvnoMatchData) {
+    public boolean isMvnoMatched(int slotIndex, int mvnoType, @NonNull String mvnoMatchData) {
         enforceReadPrivilegedPermission("isMvnoMatched");
-        IccRecords iccRecords = UiccController.getInstance().getIccRecords(
-                SubscriptionManager.getPhoneId(subId), UiccController.APP_FAM_3GPP);
-        if (iccRecords == null) {
-            Log.d(LOG_TAG, "isMvnoMatched# IccRecords is null");
-            return false;
-        }
-        return ApnSettingUtils.mvnoMatches(iccRecords, mvnoType, mvnoMatchData);
+        return UiccController.getInstance().mvnoMatches(slotIndex, mvnoType, mvnoMatchData);
     }
 
     @Override
@@ -11209,7 +11135,9 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
      */
     @Override
     public void getSlicingConfig(ResultReceiver callback) {
-        enforceReadPrivilegedPermission("getSlicingConfig");
+        TelephonyPermissions
+                .enforceCallingOrSelfReadPrivilegedPhoneStatePermissionOrCarrierPrivilege(
+                        mApp, SubscriptionManager.INVALID_SUBSCRIPTION_ID, "getSlicingConfig");
 
         final long identity = Binder.clearCallingIdentity();
         try {

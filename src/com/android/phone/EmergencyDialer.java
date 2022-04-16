@@ -174,10 +174,9 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
     // determines if we want to playback local DTMF tones.
     private boolean mDTMFToneEnabled;
 
-    private EmergencyActionGroup mEmergencyActionGroup;
+    private EmergencyInfoGroup mEmergencyInfoInDialpad;
     private StatusBarManager mStatusBarManager;
-
-    private EmergencyInfoGroup mEmergencyInfoGroup;
+    private EmergencyInfoGroup mEmergencyInfoInShortcut;
 
     // close activity when screen turns off
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -360,9 +359,13 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
         intentFilter.addAction(Intent.ACTION_SCREEN_OFF);
         registerReceiver(mBroadcastReceiver, intentFilter);
 
-        mEmergencyActionGroup = (EmergencyActionGroup) findViewById(R.id.emergency_action_group);
+        mEmergencyInfoInDialpad = findViewById(R.id.emergency_dialer)
+                .findViewById(R.id.emergency_info_button);
 
-        mEmergencyInfoGroup = (EmergencyInfoGroup) findViewById(R.id.emergency_info_button);
+        mEmergencyInfoInShortcut = findViewById(R.id.emergency_dialer_shortcuts)
+                .findViewById(R.id.emergency_info_button);
+
+        setupEmergencyDialpadViews();
 
         if (mShortcutViewConfig.isEnabled()) {
             setupEmergencyShortcutsView();
@@ -978,6 +981,10 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
         }
     }
 
+    private void setupEmergencyDialpadViews() {
+        mEmergencyInfoInDialpad.setOnConfirmClickListener(this);
+    }
+
     private void setupEmergencyShortcutsView() {
         mEmergencyShortcutView = findViewById(R.id.emergency_dialer_shortcuts);
         mDialpadView = findViewById(R.id.emergency_dialer);
@@ -988,7 +995,7 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
         final View dialpadButton = findViewById(R.id.floating_action_button_dialpad);
         dialpadButton.setOnClickListener(this);
 
-        mEmergencyInfoGroup.setOnConfirmClickListener(this);
+        mEmergencyInfoInShortcut.setOnConfirmClickListener(this);
 
         mEmergencyShortcutButtonList = new ArrayList<>();
         setupEmergencyCallShortcutButton();
@@ -1086,8 +1093,8 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
      * Called by the activity before a touch event is dispatched to the view hierarchy.
      */
     private void onPreTouchEvent(MotionEvent event) {
-        mEmergencyActionGroup.onPreTouchEvent(event);
-        mEmergencyInfoGroup.onPreTouchEvent(event);
+        mEmergencyInfoInDialpad.onPreTouchEvent(event);
+        mEmergencyInfoInShortcut.onPreTouchEvent(event);
 
         if (mEmergencyShortcutButtonList != null) {
             for (EmergencyShortcutButton button : mEmergencyShortcutButtonList) {
@@ -1100,8 +1107,8 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
      * Called by the activity after a touch event is dispatched to the view hierarchy.
      */
     private void onPostTouchEvent(MotionEvent event) {
-        mEmergencyActionGroup.onPostTouchEvent(event);
-        mEmergencyInfoGroup.onPostTouchEvent(event);
+        mEmergencyInfoInDialpad.onPostTouchEvent(event);
+        mEmergencyInfoInShortcut.onPostTouchEvent(event);
 
         if (mEmergencyShortcutButtonList != null) {
             for (EmergencyShortcutButton button : mEmergencyShortcutButtonList) {

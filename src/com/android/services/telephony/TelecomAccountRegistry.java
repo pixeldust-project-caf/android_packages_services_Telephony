@@ -16,6 +16,7 @@
 
 package com.android.services.telephony;
 
+import android.app.PropertyInvalidatedCache;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -1751,7 +1752,8 @@ public class TelecomAccountRegistry {
             if ((defaultPhoneAccount == null)
                         && (mTelephonyManager.getActiveModemCount() > Count.ONE.ordinal())
                         && (activeCount == Count.ONE.ordinal())
-                        && (areAllSimAccountsFound()) && (isRadioInValidState(phones))) {
+                        && (areAllSimAccountsFound()) && (isRadioInValidState(phones))
+                        && !isSubIdCreationPending()) {
                 PhoneAccountHandle phoneAccountHandle =
                         subscriptionIdToPhoneAccountHandle(activeSubscriptionId);
                 if (phoneAccountHandle != null) {
@@ -1760,6 +1762,17 @@ public class TelecomAccountRegistry {
                 }
             }
         }
+    }
+
+    private boolean isSubIdCreationPending() {
+        Log.i(this, "isSubIdCreationPending");
+        SubscriptionController subController = SubscriptionController.getInstance();
+
+        if (subController == null) {
+            Log.i(this, "isSubIdCreationPending: SubscriptionController instance is null");
+            return false;
+        }
+        return subController.isSubIdCreationPending();
     }
 
     private boolean areAllSimAccountsFound() {
@@ -1845,6 +1858,9 @@ public class TelecomAccountRegistry {
             }
             mAccounts.clear();
         }
+        // Invalidate the TelephonyManager cache which maps phone account handles to sub ids since
+        // all the phone account handles are being recreated at this point.
+        PropertyInvalidatedCache.invalidateCache(TelephonyManager.CACHE_KEY_PHONE_ACCOUNT_TO_SUBID);
     }
 
     private boolean isAccountMatched(SubscriptionInfo info) {
