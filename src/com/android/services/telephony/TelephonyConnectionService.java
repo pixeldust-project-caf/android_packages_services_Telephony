@@ -766,7 +766,7 @@ public class TelephonyConnectionService extends ConnectionService {
             return;
         }
         // Pseudo DSDA use case
-        setupAnswerAndReleaseHandler(answerAndReleaseConnection, videoState);
+        setupAnswerAndReleaseHandler(answerAndReleaseConnection, videoState, false);
     }
 
     private Connection shallDisconnectOtherCalls() {
@@ -3143,6 +3143,21 @@ public class TelephonyConnectionService extends ConnectionService {
     }
 
     /**
+     * Checks to see if there is dialing call present on a sub other than the one passed in.
+     * @param incomingHandle The new incoming connection {@link PhoneAccountHandle}
+     */
+    private boolean isDialingCallPresentOnOtherSub(@NonNull PhoneAccountHandle incomingHandle) {
+        return getAllConnections().stream()
+                .filter(c ->
+                        // Exclude multiendpoint calls as they're not on this device.
+                        (c.getConnectionProperties() & Connection.PROPERTY_IS_EXTERNAL_CALL) == 0
+                        && c.getState() == Connection.STATE_DIALING
+                        // Include any calls not on same sub as current connection.
+                        && !Objects.equals(c.getPhoneAccountHandle(), incomingHandle))
+                .count() > 0;
+    }
+
+    /**
      * Checks to see if there are calls present on a sub other than the one passed in.
      * @param incomingHandle The new incoming connection {@link PhoneAccountHandle}
      */
@@ -3245,7 +3260,12 @@ public class TelephonyConnectionService extends ConnectionService {
                 connToAnswer.getExtras().getBoolean(
                     Connection.EXTRA_ANSWERING_DROPS_FG_CALL, false)) {
                 // Pseudo DSDA use case
-                setupAnswerAndReleaseHandler(connToAnswer, videoState);
+                setupAnswerAndReleaseHandler(connToAnswer, videoState, false);
+                return;
+            }
+            //DSDA mode, dialing call + incoming call, accept incoming call and release dialing call
+            if (isDialingCallPresentOnOtherSub(connToAnswer.getPhoneAccountHandle())) {
+                setupAnswerAndReleaseHandler(connToAnswer, videoState, true);
                 return;
             }
             // Get connection to hold if any
@@ -3271,9 +3291,10 @@ public class TelephonyConnectionService extends ConnectionService {
         }
     }
 
-    private void setupAnswerAndReleaseHandler(Connection conn, int videoState) {
+    private void setupAnswerAndReleaseHandler(Connection conn, int videoState,
+            boolean dsdaMode) {
         mAnswerAndReleaseHandler =
-            new AnswerAndReleaseHandler(conn, videoState);
+            new AnswerAndReleaseHandler(conn, videoState, dsdaMode);
         mAnswerAndReleaseHandler.addListener(mAnswerAndReleaseListener);
         mAnswerAndReleaseHandler.checkAndAnswer(getAllConnections(),
                 getAllConferences());
