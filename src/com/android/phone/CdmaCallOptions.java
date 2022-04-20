@@ -333,7 +333,8 @@ public class CdmaCallOptions extends TimeConsumingPreferenceActivity
         }
 
         mCallForwardingPref = getPreferenceScreen().findPreference(CALL_FORWARDING_KEY);
-        if (carrierConfig != null && carrierConfig.getBoolean(
+        if (mPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA
+                && carrierConfig != null && carrierConfig.getBoolean(
                 CarrierConfigManager.KEY_CALL_FORWARDING_VISIBILITY_BOOL)) {
             mCallForwardingPref.setIntent(
                     subInfoHelper.getIntent(CdmaCallForwardOptions.class));
@@ -344,7 +345,8 @@ public class CdmaCallOptions extends TimeConsumingPreferenceActivity
 
         mCallWaitingPref = (CdmaCallWaitingPreference) getPreferenceScreen()
                 .findPreference(CALL_WAITING_KEY);
-        if (carrierConfig == null || !carrierConfig.getBoolean(
+        if (mPhone.getPhoneType() != PhoneConstants.PHONE_TYPE_CDMA
+                || carrierConfig == null || !carrierConfig.getBoolean(
                 CarrierConfigManager.KEY_ADDITIONAL_SETTINGS_CALL_WAITING_VISIBILITY_BOOL)) {
             getPreferenceScreen().removePreference(mCallWaitingPref);
             mCallWaitingPref = null;
