@@ -978,7 +978,7 @@ public class RadioInfo extends AppCompatActivity {
                 getCellInfoDisplayString(cidNr.getNci()),
                 getCellInfoDisplayString(cidNr.getPci()),
                 getCellInfoDisplayString(cidNr.getNrarfcn()),
-                getCellInfoDisplayString(ssNr.getDbm()),
+                getCellInfoDisplayString(ssNr.getSsRsrp()),
                 getCellInfoDisplayString(ssNr.getSsRsrq()));
     }
 
@@ -1025,7 +1025,7 @@ public class RadioInfo extends AppCompatActivity {
                         "NR\n%-3.3s %-3.3s %-3.3s %-5.5s %-5.5s %-3.3s"
                                 + " %-6.6s %-4.4s %-4.4s\n",
                         "SRV", "MCC", "MNC", "TAC", "NCI", "PCI",
-                        "NRARFCN", "RSRP", "RSRQ");
+                        "NRARFCN", "SS-RSRP", "SS-RSRQ");
                 value += nrCells.toString();
             }
 
