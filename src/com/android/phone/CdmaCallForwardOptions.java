@@ -150,7 +150,7 @@ public class CdmaCallForwardOptions extends TimeConsumingPreferenceActivity {
         super.onResume();
 
         // TODO(b/168714925) this variable is a placeholder
-        int tempServiceClass = 0;
+        int tempServiceClass = CommandsInterface.SERVICE_CLASS_VOICE;
 
         if (mFirstResume) {
             if (mIcicle == null) {
@@ -197,7 +197,7 @@ public class CdmaCallForwardOptions extends TimeConsumingPreferenceActivity {
     @Override
     public void onFinished(Preference preference, boolean reading) {
         // TODO(b/168714925) this variable is a placeholder
-        int tempServiceClass = 0;
+        int tempServiceClass = CommandsInterface.SERVICE_CLASS_VOICE;
 
         if (mInitIndex < mPreferences.size()-1 && !isFinishing()) {
             mInitIndex++;
