@@ -671,5 +671,15 @@
 
         <uses-library android:name="ims-ext-common"/>
         <uses-library android:name="com.qti.extphone.extphonelib"/>
+
+        <receiver
+            android:name=".CiWlanNotificationReceiver"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.qti.phone.action.ACTION_DISABLE_C_IWLAN_NOTIFICATION" />
+                <action android:name="org.codeaurora.intent.action.RADIO_POWER_STATE" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
