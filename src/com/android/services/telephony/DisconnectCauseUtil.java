@@ -197,6 +197,7 @@ public class DisconnectCauseUtil {
             case android.telephony.DisconnectCause.ALREADY_DIALING:
             case android.telephony.DisconnectCause.CANT_CALL_WHILE_RINGING:
             case android.telephony.DisconnectCause.CALLING_DISABLED:
+            case android.telephony.DisconnectCause.SECURE_MODE:
             case android.telephony.DisconnectCause.TOO_MANY_ONGOING_CALLS:
             case android.telephony.DisconnectCause.OTASP_PROVISIONING_IN_PROCESS:
             case android.telephony.DisconnectCause.UNOBTAINABLE_NUMBER:
@@ -418,6 +419,9 @@ public class DisconnectCauseUtil {
                 break;
             case android.telephony.DisconnectCause.CALLING_DISABLED:
                 resourceId = R.string.callFailed_calling_disabled;
+                break;
+            case android.telephony.DisconnectCause.SECURE_MODE:
+                resourceId = R.string.callFailed_secure_mode;
                 break;
             case android.telephony.DisconnectCause.TOO_MANY_ONGOING_CALLS:
                 resourceId = R.string.callFailed_too_many_calls;
@@ -1039,6 +1043,9 @@ public class DisconnectCauseUtil {
                 break;
             case android.telephony.DisconnectCause.CALLING_DISABLED:
                 resourceId = R.string.callFailed_calling_disabled;
+                break;
+            case android.telephony.DisconnectCause.SECURE_MODE:
+                resourceId = R.string.callFailed_secure_mode;
                 break;
             case android.telephony.DisconnectCause.TOO_MANY_ONGOING_CALLS:
                 resourceId = R.string.callFailed_too_many_calls;
