@@ -136,7 +136,7 @@ public class TelephonyConnectionService extends ConnectionService {
         }
     };
 
-    private final BroadcastReceiver mTtyBroadcastReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -148,6 +148,14 @@ public class TelephonyConnectionService extends ConnectionService {
                 boolean isTtyNowEnabled = newPreferredTtyMode != TelecomManager.TTY_MODE_OFF;
                 if (isTtyNowEnabled != mIsTtyEnabled) {
                     handleTtyModeChange(isTtyNowEnabled);
+                }
+            } else if (ACTION_MSIM_VOICE_CAPABILITY_CHANGED.equals(action)) {
+                // Add extra to call if answering this incoming call would cause an in progress
+                // call on another subscription to be disconnected.
+                Connection ringingConnection = getRingingConnection();
+                if (ringingConnection != null) {
+                    maybeIndicateAnsweringWillDisconnect((TelephonyConnection)ringingConnection,
+                            ringingConnection.getPhoneAccountHandle());
                 }
             }
         }
@@ -179,6 +187,8 @@ public class TelephonyConnectionService extends ConnectionService {
     @VisibleForTesting
     public Pair<WeakReference<TelephonyConnection>, Queue<Phone>> mEmergencyRetryCache;
     private DeviceState mDeviceState = new DeviceState();
+    private final String ACTION_MSIM_VOICE_CAPABILITY_CHANGED =
+        "org.codeaurora.intent.action.MSIM_VOICE_CAPABILITY_CHANGED";
 
     /**
      * Keeps track of the status of a SIM slot.
@@ -605,13 +615,14 @@ public class TelephonyConnectionService extends ConnectionService {
 
         IntentFilter intentFilter = new IntentFilter(
                 TelecomManager.ACTION_TTY_PREFERRED_MODE_CHANGED);
-        registerReceiver(mTtyBroadcastReceiver, intentFilter,
+        intentFilter.addAction(ACTION_MSIM_VOICE_CAPABILITY_CHANGED);
+        registerReceiver(mBroadcastReceiver, intentFilter,
                 android.Manifest.permission.MODIFY_PHONE_STATE, null);
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
-        unregisterReceiver(mTtyBroadcastReceiver);
+        unregisterReceiver(mBroadcastReceiver);
         return super.onUnbind(intent);
     }
 
