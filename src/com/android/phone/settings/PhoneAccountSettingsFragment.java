@@ -382,6 +382,7 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
             } else {
                 mAccountList.removePreference(mAllCallingAccounts);
                 mMakeAndReceiveCallsCategory.removePreference(mDefaultOutgoingAccount);
+                mMakeAndReceiveCallsCategoryPresent = false;
             }
 
             if (isXdivertAvailable) {
@@ -490,15 +491,17 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
                     getPreferenceScreen().findPreference(SMART_FORWARDING_CONFIGURATION_PREF_KEY));
         }
 
-        SwitchPreference vibratingButton = (SwitchPreference)
-                mMakeAndReceiveCallsCategory.findPreference(BUTTON_VIBRATING_KEY);
-        if (vibratingButton != null) {
-            mMakeAndReceiveCallsCategoryPresent = true;
-            final int vibrating = Settings.Global.getInt(
-                    getActivity().getContentResolver(),
-                    Settings.Global.VIBRATING_FOR_OUTGOING_CALL_ACCEPTED, 1);
-            vibratingButton.setChecked(vibrating != 0);
-            vibratingButton.setOnPreferenceChangeListener(this);
+        if (mButtonVibratingForMoCallAccepted != null) {
+            if (mTelephonyManager.isMultiSimEnabled()) {
+                mMakeAndReceiveCallsCategoryPresent = true;
+                final int vibrating = Settings.Global.getInt(
+                        getActivity().getContentResolver(),
+                        Settings.Global.VIBRATING_FOR_OUTGOING_CALL_ACCEPTED, 1);
+                mButtonVibratingForMoCallAccepted.setChecked(vibrating != 0);
+                mButtonVibratingForMoCallAccepted.setOnPreferenceChangeListener(this);
+            } else {
+                mMakeAndReceiveCallsCategory.removePreference(mButtonVibratingForMoCallAccepted);
+            }
         }
 
         if (!mMakeAndReceiveCallsCategoryPresent) {
