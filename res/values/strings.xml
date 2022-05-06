@@ -2198,6 +2198,8 @@
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
     <string name="radio_info_data_network_type_label">Data Network Type:</string>
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
+    <string name="radio_info_override_network_type_label">Override Network Type:</string>
+    <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
     <string name="phone_index_label">Select phone index</string>
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
     <string name="radio_info_set_perferred_label">Set Preferred Network Type:</string>
@@ -2220,17 +2222,17 @@
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
     <string name="oem_radio_info_label">OEM-specific Info/Settings</string>
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
-    <string name="radio_info_endc_available">EN-DC Available:</string>
+    <string name="radio_info_endc_available">EN-DC Available (NSA):</string>
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
-    <string name="radio_info_dcnr_restricted">DCNR Restricted:</string>
+    <string name="radio_info_dcnr_restricted">DCNR Restricted (NSA):</string>
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
-    <string name="radio_info_nr_available">NR Available:</string>
+    <string name="radio_info_nr_available">NR Available (NSA):</string>
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
-    <string name="radio_info_nr_state">NR State:</string>
+    <string name="radio_info_nr_state">NR State (NSA):</string>
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
     <string name="radio_info_nr_frequency">NR Frequency:</string>
     <!-- Radio Info screen. Label for a status item.  Used for diagnostic info screens, precise translation isn't needed -->
-    <string name="radio_info_network_slicing_config" translatable="false">Network slicing config:</string>
+    <string name="radio_info_network_slicing_config" translatable="false">Network Slicing Config:</string>
 
     <!-- Band Mode Selection -->
     <!-- Band mode screen.  Title of activity. -->
@@ -2264,19 +2266,6 @@
     <!-- Telephony notification channel name for a channel containing SIP accounts removed
      notificatios -->
     <string name="notification_channel_sip_account">Deprecated SIP accounts</string>
-
-    <!-- Instruction text to notify user that emergency calls may not be possible when voice is
-    enabled over wifi. [CHAR LIMIT=NONE] -->
-    <string name="limited_service_alert_dialog_description"><xliff:g id="spn" example="Operator">%s</xliff:g> doesn\'t support emergency calls over Wi-Fi.
-\n\nEmergency calls will be placed through a mobile network. If there\'s limited mobile coverage,
- your emergency call may not go through.
-</string>
-    <!-- Option to hide the popup dialog if it is not necessary for the user. [CHAR LIMIT=40] -->
-    <string name="do_not_show_again">Don\'t show again</string>
-    <!-- Option to turn off wifi calling -->
-    <string name="turn_off_wfc">Turn off Wi-Fi calling</string>
-    <string name="unavailable_emergency_calls_notification_name">Emergency calls may be unavailable</string>
-
     <string name="labelCommonMore">Call settings</string>
     <string name="labelCommonMore_with_label">Call settings (<xliff:g id="subscriptionlabel" example="T-Mobile">%s</xliff:g>)</string>
     <string name="sum_common_call_settings">Additional call settings</string>
