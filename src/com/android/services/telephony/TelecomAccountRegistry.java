@@ -36,6 +36,7 @@ import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -63,6 +64,7 @@ import com.android.ims.FeatureConnector;
 import com.android.ims.ImsManager;
 import com.android.internal.telephony.ExponentialBackoff;
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.PhoneConfigurationManager;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RIL;
@@ -1262,7 +1264,27 @@ public class TelecomAccountRegistry {
             }
         }
     };
+
+    private int mSimCount;
     private PstnIncomingCallNotifier[] mPstnIncomingCallNotifiers;
+    private static final int EVENT_MSIM_CONFIGURATION_CHANGED = 1000;
+
+    private final class EventHandler extends Handler {
+        EventHandler(Looper looper) {
+            super(looper);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch(msg.what) {
+                case EVENT_MSIM_CONFIGURATION_CHANGED:
+                    handleMultiSimConfigChanged();
+                    break;
+                 default:
+                    break;
+            }
+        }
+    }
 
     TelecomAccountRegistry(Context context) {
         mContext = context;
@@ -1271,15 +1293,13 @@ public class TelecomAccountRegistry {
         mTelephonyManager = TelephonyManager.from(context);
         mSubscriptionManager = SubscriptionManager.from(context);
         mHandlerThread.start();
-        mHandler = new Handler(Looper.getMainLooper());
+        mHandler = new EventHandler(Looper.getMainLooper());
         mRegisterSubscriptionListenerBackoff = new ExponentialBackoff(
                 REGISTER_START_DELAY_MS,
                 REGISTER_MAXIMUM_DELAY_MS,
                 2, /* multiplier */
                 mHandlerThread.getLooper(),
                 mRegisterOnSubscriptionsChangedListenerRunnable);
-        mPstnIncomingCallNotifiers =
-                new PstnIncomingCallNotifier[mTelephonyManager.getActiveModemCount()];
     }
 
     /**
@@ -1547,10 +1567,39 @@ public class TelecomAccountRegistry {
         mContext.registerReceiver(mLocaleChangeReceiver, localeChangeFilter);
 
         registerContentObservers();
+
+        mSimCount = mTelephonyManager.getActiveModemCount();
+        mPstnIncomingCallNotifiers =
+                new PstnIncomingCallNotifier[mSimCount];
         // register for Pstn incoming call notifiers
-        for (int i = 0; i < mTelephonyManager.getActiveModemCount(); i++) {
+        for (int i = 0; i < mSimCount; i++) {
             mPstnIncomingCallNotifiers[i] = new PstnIncomingCallNotifier(PhoneFactory.getPhone(i));
         }
+        PhoneConfigurationManager.registerForMultiSimConfigChange(mHandler,
+                EVENT_MSIM_CONFIGURATION_CHANGED, null);
+
+    }
+
+    private void handleMultiSimConfigChanged() {
+        int newSimCount = mTelephonyManager.getActiveModemCount();
+        Log.i(this, "handleMultiSimConfigChanged: newSimCount: " + newSimCount
+                + " mSimCount: " + mSimCount);
+        if (newSimCount > mSimCount) {
+            mPstnIncomingCallNotifiers = Arrays.copyOf(mPstnIncomingCallNotifiers, newSimCount);
+            for (int i = mSimCount; i < newSimCount; i++) {
+                mPstnIncomingCallNotifiers[i] = new PstnIncomingCallNotifier(
+                        PhoneFactory.getPhone(i));
+            }
+        } else if (newSimCount < mSimCount) {
+            // for DSDS->SS transition, keep the array size same and just teardown
+            // the notifier objects.
+            for (int i = newSimCount; i < mSimCount; i++) {
+                if (mPstnIncomingCallNotifiers[i] == null) continue;
+                mPstnIncomingCallNotifiers[i].teardown();
+                mPstnIncomingCallNotifiers[i] = null;
+            }
+        }
+        mSimCount = newSimCount;
     }
 
     private void registerContentObservers() {
