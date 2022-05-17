@@ -596,7 +596,9 @@ public class PhoneUtils {
             // R.array.config_defaultNotificationVibePattern is not defined.
             long[] pattern = getLongArray(context.getResources(),
                     R.array.config_defaultNotificationVibePattern, DEFAULT_VIBRATE_PATTERN);
-            vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1));
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1),
+                    new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                            .build());
         }
     }
 
