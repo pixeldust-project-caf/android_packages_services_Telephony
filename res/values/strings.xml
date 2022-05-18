@@ -2270,4 +2270,11 @@
     <string name="labelCommonMore_with_label">Call settings (<xliff:g id="subscriptionlabel" example="T-Mobile">%s</xliff:g>)</string>
     <string name="sum_common_call_settings">Additional call settings</string>
     <string name="ut_unavailable_to_set_video_cf_toast">UT is unavailable to set call forwarding for video, please close this page and exit.</string>
+
+    <!-- Backup Calling exit notification -->
+    <string name="c_iwlan_exit_notification_title">Voice Over Cellular Internet unavailable</string>
+    <string name="c_iwlan_exit_notification_description">Disabling it might help acquire service.</string>
+    <string name="c_iwlan_exit_notification_positive_button">OPEN SETTINGS</string>
+    <string name="c_iwlan_exit_notification_negative_button">DISMISS</string>
+    <string name="c_iwlan_channel_name">C_IWLAN</string>
 </resources>

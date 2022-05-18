@@ -875,7 +875,7 @@
     <string name="radio_info_cellinfo_label" msgid="8199062974670377659">"Sare mugikorraren neurketa guztien informazioa:"</string>
     <string name="radio_info_gprs_service_label" msgid="6819204246355412952">"Datu-zerbitzua:"</string>
     <string name="radio_info_roaming_label" msgid="6636932886446857120">"Ibiltaritza:"</string>
-    <string name="radio_info_imei_label" msgid="8947899706930120368">"IMEI:"</string>
+    <string name="radio_info_imei_label" msgid="8947899706930120368">"IMEIa:"</string>
     <string name="radio_info_call_redirect_label" msgid="4526480903023362276">"Dei-desbideratzea:"</string>
     <string name="radio_info_ppp_resets_label" msgid="9131901102339077661">"PPP berrezarpen kopurua abiarazi ezkero:"</string>
     <string name="radio_info_current_network_label" msgid="3052098695239642450">"Oraingo sarea:"</string>
@@ -915,6 +915,9 @@
     <string name="phone_info_label" product="default" msgid="1784175881556791433">"Telefonoaren informazioa"</string>
     <string name="carrier_provisioning" msgid="2668065041869578376">"Operadorearen hornikuntza-informazioa"</string>
     <string name="trigger_carrier_provisioning" msgid="1301829588620638234">"Abiarazi operadorearen hornikuntza"</string>
+    <string name="provisioning_info_wfc_entitlement_id" msgid="8845188780811890910">"WFC Entitlement-eko IDa:"</string>
+    <string name="update_provisioning_info_wfc_entitlement_id" msgid="7044171908781134221">"Eguneratu"</string>
+    <string name="refresh_provisioning_info_wfc_entitlement_id" msgid="738894335351353407">"Freskatu"</string>
     <string name="call_quality_notification_bluetooth_details" msgid="8348950331707346711">"Bluetooth seinalea ahula da. Erabili telefonoko bozgorailua."</string>
     <string name="call_quality_notification_name" msgid="3476828289553948830">"Deien kalitateari buruzko jakinarazpena"</string>
     <string name="notification_channel_sip_account" msgid="1261816025156179637">"SIP-eko kontu zaharkituak"</string>
