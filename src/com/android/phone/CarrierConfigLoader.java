@@ -1153,7 +1153,11 @@ public class CarrierConfigLoader extends ICarrierConfigLoader.Stub {
     @Nullable
     private PersistableBundle restoreConfigFromXml(@Nullable String packageName,
             @NonNull String extraString, int phoneId) {
-        return restoreConfigFromXml(packageName, extraString, phoneId, false);
+        if (SubscriptionManager.isValidPhoneId(phoneId)) {
+            return restoreConfigFromXml(packageName, extraString, phoneId, false);
+        } else {
+            return null;
+        }
     }
 
     @Nullable
