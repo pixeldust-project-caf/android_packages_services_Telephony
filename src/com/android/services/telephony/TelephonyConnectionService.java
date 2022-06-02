@@ -2351,6 +2351,8 @@ public class TelephonyConnectionService extends ConnectionService {
                  break;
             case CallStateException.ERROR_OTASP_PROVISIONING_IN_PROCESS:
                  cause = android.telephony.DisconnectCause.OTASP_PROVISIONING_IN_PROCESS;
+            case CallStateException.ERROR_DEVICE_IN_SECURE_MODE:
+                 cause = android.telephony.DisconnectCause.SECURE_MODE;
                  break;
         }
         connection.setTelephonyConnectionDisconnected(
