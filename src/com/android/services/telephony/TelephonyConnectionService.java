@@ -158,6 +158,15 @@ public class TelephonyConnectionService extends ConnectionService {
                     maybeIndicateAnsweringWillDisconnect((TelephonyConnection)ringingConnection,
                             ringingConnection.getPhoneAccountHandle());
                 }
+
+                // Update context based switch based on the DSDA/DSDS scenario
+                final boolean shallDisableContextBasedSwap = isConcurrentCallsPossible();
+                for (Connection current : getAllConnections()) {
+                    if (current instanceof TelephonyConnection) {
+                        ((TelephonyConnection) current).disableContextBasedSwap(
+                                shallDisableContextBasedSwap);
+                    }
+                }
             }
         }
     };
