@@ -136,7 +136,7 @@ public class TelephonyConnectionService extends ConnectionService {
         }
     };
 
-    private final BroadcastReceiver mTtyBroadcastReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -148,6 +148,14 @@ public class TelephonyConnectionService extends ConnectionService {
                 boolean isTtyNowEnabled = newPreferredTtyMode != TelecomManager.TTY_MODE_OFF;
                 if (isTtyNowEnabled != mIsTtyEnabled) {
                     handleTtyModeChange(isTtyNowEnabled);
+                }
+            } else if (ACTION_MSIM_VOICE_CAPABILITY_CHANGED.equals(action)) {
+                // Add extra to call if answering this incoming call would cause an in progress
+                // call on another subscription to be disconnected.
+                Connection ringingConnection = getRingingConnection();
+                if (ringingConnection != null) {
+                    maybeIndicateAnsweringWillDisconnect((TelephonyConnection)ringingConnection,
+                            ringingConnection.getPhoneAccountHandle());
                 }
             }
         }
@@ -179,6 +187,8 @@ public class TelephonyConnectionService extends ConnectionService {
     @VisibleForTesting
     public Pair<WeakReference<TelephonyConnection>, Queue<Phone>> mEmergencyRetryCache;
     private DeviceState mDeviceState = new DeviceState();
+    private final String ACTION_MSIM_VOICE_CAPABILITY_CHANGED =
+        "org.codeaurora.intent.action.MSIM_VOICE_CAPABILITY_CHANGED";
 
     /**
      * Keeps track of the status of a SIM slot.
@@ -605,13 +615,14 @@ public class TelephonyConnectionService extends ConnectionService {
 
         IntentFilter intentFilter = new IntentFilter(
                 TelecomManager.ACTION_TTY_PREFERRED_MODE_CHANGED);
-        registerReceiver(mTtyBroadcastReceiver, intentFilter,
+        intentFilter.addAction(ACTION_MSIM_VOICE_CAPABILITY_CHANGED);
+        registerReceiver(mBroadcastReceiver, intentFilter,
                 android.Manifest.permission.MODIFY_PHONE_STATE, null);
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
-        unregisterReceiver(mTtyBroadcastReceiver);
+        unregisterReceiver(mBroadcastReceiver);
         return super.onUnbind(intent);
     }
 
@@ -766,7 +777,7 @@ public class TelephonyConnectionService extends ConnectionService {
             return;
         }
         // Pseudo DSDA use case
-        setupAnswerAndReleaseHandler(answerAndReleaseConnection, videoState);
+        setupAnswerAndReleaseHandler(answerAndReleaseConnection, videoState, false);
     }
 
     private Connection shallDisconnectOtherCalls() {
@@ -3143,6 +3154,21 @@ public class TelephonyConnectionService extends ConnectionService {
     }
 
     /**
+     * Checks to see if there is dialing call present on a sub other than the one passed in.
+     * @param incomingHandle The new incoming connection {@link PhoneAccountHandle}
+     */
+    private boolean isDialingCallPresentOnOtherSub(@NonNull PhoneAccountHandle incomingHandle) {
+        return getAllConnections().stream()
+                .filter(c ->
+                        // Exclude multiendpoint calls as they're not on this device.
+                        (c.getConnectionProperties() & Connection.PROPERTY_IS_EXTERNAL_CALL) == 0
+                        && c.getState() == Connection.STATE_DIALING
+                        // Include any calls not on same sub as current connection.
+                        && !Objects.equals(c.getPhoneAccountHandle(), incomingHandle))
+                .count() > 0;
+    }
+
+    /**
      * Checks to see if there are calls present on a sub other than the one passed in.
      * @param incomingHandle The new incoming connection {@link PhoneAccountHandle}
      */
@@ -3245,7 +3271,12 @@ public class TelephonyConnectionService extends ConnectionService {
                 connToAnswer.getExtras().getBoolean(
                     Connection.EXTRA_ANSWERING_DROPS_FG_CALL, false)) {
                 // Pseudo DSDA use case
-                setupAnswerAndReleaseHandler(connToAnswer, videoState);
+                setupAnswerAndReleaseHandler(connToAnswer, videoState, false);
+                return;
+            }
+            //DSDA mode, dialing call + incoming call, accept incoming call and release dialing call
+            if (isDialingCallPresentOnOtherSub(connToAnswer.getPhoneAccountHandle())) {
+                setupAnswerAndReleaseHandler(connToAnswer, videoState, true);
                 return;
             }
             // Get connection to hold if any
@@ -3271,9 +3302,10 @@ public class TelephonyConnectionService extends ConnectionService {
         }
     }
 
-    private void setupAnswerAndReleaseHandler(Connection conn, int videoState) {
+    private void setupAnswerAndReleaseHandler(Connection conn, int videoState,
+            boolean dsdaMode) {
         mAnswerAndReleaseHandler =
-            new AnswerAndReleaseHandler(conn, videoState);
+            new AnswerAndReleaseHandler(conn, videoState, dsdaMode);
         mAnswerAndReleaseHandler.addListener(mAnswerAndReleaseListener);
         mAnswerAndReleaseHandler.checkAndAnswer(getAllConnections(),
                 getAllConferences());
