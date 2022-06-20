@@ -199,8 +199,8 @@
     <item msgid="4531933377509551889">"GSM/WCDMAకు ప్రాధాన్యత"</item>
     <item msgid="5120532750027435355">"GSM మాత్రమే"</item>
     <item msgid="8973311380798000102">"WCDMA మాత్రమే"</item>
-    <item msgid="4139961027147085705">"GSM/WCDMA స్వయంచాలకం"</item>
-    <item msgid="4024581977690585814">"CDMA/EvDo స్వయంచాలకం"</item>
+    <item msgid="4139961027147085705">"GSM/WCDMA ఆటోమేటిక్‌"</item>
+    <item msgid="4024581977690585814">"CDMA/EvDo ఆటోమేటిక్‌"</item>
     <item msgid="7199560024080522581">"EvDo లేని CDMA"</item>
     <item msgid="3160291725308400608">"EvDo మాత్రమే"</item>
     <item msgid="2319217472852426965">"CDMA/EvDo/GSM/WCDMA"</item>
@@ -618,7 +618,7 @@
     <string name="ota_hfa_activation_dialog_message" msgid="7921718445773342996">"ఫోన్ మీ మొబైల్ డేటా సేవను సక్రియం చేస్తోంది.\n\nదీనికి గరిష్టంగా 5 నిమిషాలు పట్టవచ్చు."</string>
     <string name="ota_skip_activation_dialog_title" msgid="7666611236789203797">"సక్రియం చేయడాన్ని దాటవేయాలా?"</string>
     <string name="ota_skip_activation_dialog_message" msgid="6691722887019708713">"మీరు సక్రియం చేయడాన్ని దాటవేస్తే, కాల్స్‌ చేయలేరు లేదా మొబైల్ డేటా నెట్‌వర్క్‌లకు కనెక్ట్ చేయలేరు (మీరు Wi-Fi నెట్‌వర్క్‌లకు కనెక్ట్ చేయగలిగినప్పటికీ). మీరు మీ ఫోన్‌ను సక్రియం చేసేవరకు, దాన్ని ప్రారంభించే ప్రతిసారీ సక్రియం చేయమని మిమ్మల్ని అడుగుతుంది."</string>
-    <string name="ota_skip_activation_dialog_skip_label" msgid="5908029466817825633">"దాటవేయి"</string>
+    <string name="ota_skip_activation_dialog_skip_label" msgid="5908029466817825633">"స్కిప్ చేయండి"</string>
     <string name="ota_activate" msgid="7939695753665438357">"యాక్టివేట్ చేయండి"</string>
     <string name="ota_title_activate_success" msgid="1272135024761004889">"ఫోన్ సక్రియం చేయబడింది."</string>
     <string name="ota_title_problem_with_activation" msgid="7019745985413368726">"సక్రియం చేయడంలో సమస్య"</string>
@@ -835,6 +835,7 @@
     <string name="dsds_dialog_message" msgid="4047480385678538850">"మీరు ఈ సెట్టింగ్‌ను మార్చడానికి మీ పరికరాన్ని మళ్లీ ప్రారంభించాలి."</string>
     <string name="dsds_dialog_confirm" msgid="9032004888134129885">"పునఃప్రారంభించు"</string>
     <string name="dsds_dialog_cancel" msgid="3245958947099586655">"రద్దు చేయండి"</string>
+    <string name="removable_esim_string" msgid="7931369811671787649">"తీసివేయగలిగే eSIMని ఆటోమేటిక్ సెట్టింగ్‌గా సెట్ చేయండి"</string>
     <string name="radio_info_radio_power" msgid="8805595022160471587">"మొబైల్ రేడియో పవర్"</string>
     <string name="radioInfo_menu_viewADN" msgid="4533179730908559846">"SIM అడ్రస్‌ పుస్తకాన్ని చూడండి"</string>
     <string name="radioInfo_menu_viewFDN" msgid="1847236480527032061">"ఫిక్స్‌డ్ డయలింగ్ నంబర్‌లను చూడండి"</string>
