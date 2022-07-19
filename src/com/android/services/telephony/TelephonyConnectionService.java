@@ -150,12 +150,14 @@ public class TelephonyConnectionService extends ConnectionService {
                     handleTtyModeChange(isTtyNowEnabled);
                 }
             } else if (ACTION_MSIM_VOICE_CAPABILITY_CHANGED.equals(action)) {
-                // Add extra to call if answering this incoming call would cause an in progress
+                // Add extra to calls if answering one of incoming call would cause an in progress
                 // call on another subscription to be disconnected.
-                Connection ringingConnection = getRingingConnection();
-                if (ringingConnection != null) {
-                    maybeIndicateAnsweringWillDisconnect((TelephonyConnection)ringingConnection,
-                            ringingConnection.getPhoneAccountHandle());
+                for (Connection current : getAllConnections()) {
+                    if (isTelephonyConnection(current) &&
+                            current.getState() == Connection.STATE_RINGING) {
+                        maybeIndicateAnsweringWillDisconnect((TelephonyConnection)current,
+                                current.getPhoneAccountHandle());
+                    }
                 }
 
                 // Update context based switch based on the DSDA/DSDS scenario
