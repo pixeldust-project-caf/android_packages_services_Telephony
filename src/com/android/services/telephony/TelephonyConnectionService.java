@@ -92,6 +92,8 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
+import org.codeaurora.ims.QtiCallConstants;
+
 /**
  * Service for making GSM and CDMA connections.
  */
@@ -188,6 +190,8 @@ public class TelephonyConnectionService extends ConnectionService {
     private AnswerAndReleaseHandler mAnswerAndReleaseHandler = null;
     /** Handler for hold across sub use case */
     private HoldHandlerBase mHoldHandler = null;
+    /** UNKNOWN original call type for video CRS. */
+    public static final int CALL_TYPE_UNKNOWN = -1;
 
     // Contains one TelephonyConnection that has placed a call and a memory of which Phones it has
     // already tried to connect with. There should be only one TelephonyConnection trying to place a
@@ -1572,13 +1576,14 @@ public class TelephonyConnectionService extends ConnectionService {
         }
 
         /*
-         * Check if the incoming call is a Voice call and there is no Video call on the other
-         * SUB in which case we do not have to do any special handling and let the incoming
-         * call pass as is.
+         * Check if the incoming call is a Voice call w/ or w/o Video CRS and there is
+         * no Video call on the other SUB in which case we do not have to do any special
+         * handling and let the incoming call pass as is.
          */
         boolean hasConnectedVideoCallOnOtherSub =
                 hasConnectedVideoCallOnOtherSub(incomingHandle);
-        if (!VideoProfile.isVideo(incomingConnection.getVideoState()) &&
+        if ((!VideoProfile.isVideo(incomingConnection.getVideoState()) ||
+                isVideoCrsForVoLteCall(incomingConnection)) &&
                 !hasConnectedVideoCallOnOtherSub) {
             return;
         }
@@ -1611,6 +1616,32 @@ public class TelephonyConnectionService extends ConnectionService {
             disableSwap(incomingConnection, true);
         }
     }
+
+    public boolean isVideoCrsForVoLteCall(TelephonyConnection connection) {
+        return getOriginalCallType(connection) == VideoProfile.STATE_AUDIO_ONLY &&
+                isVideoCrsCall(connection);
+    }
+
+    public boolean isVideoCrsCall(TelephonyConnection connection) {
+        Bundle connExtras = connection.getExtras();
+        if (connExtras == null) {
+            return false;
+        }
+        int crsType = connExtras.getInt(QtiCallConstants.EXTRA_CRS_TYPE,
+                QtiCallConstants.CRS_TYPE_INVALID);
+        return (crsType == (QtiCallConstants.CRS_TYPE_VIDEO
+                    | QtiCallConstants.CRS_TYPE_AUDIO));
+    }
+
+    public int getOriginalCallType(TelephonyConnection connection) {
+        Bundle connExtras = connection.getExtras();
+        if (connExtras == null) {
+            return CALL_TYPE_UNKNOWN;
+        }
+        return connExtras.getInt(QtiCallConstants.EXTRA_ORIGINAL_CALL_TYPE,
+                CALL_TYPE_UNKNOWN);
+    }
+
 
     /**
      * Checks to see if there are video calls present on a sub other than the one passed in.
