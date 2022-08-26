@@ -103,8 +103,12 @@ public class HoldAndSwapHandler extends HoldHandlerBase {
                 if (mConnToResume.getState() == Connection.STATE_HOLDING) {
                     mConnToResume.addTelephonyConnectionListener(this);
                     mConnToResume.onUnhold();
-                }// Here we could possibly check for mConnToResume == DISCONNECTED and unhold
-                // mConnToHold but that is not in sync with ImsPhoneCallTracker handling
+                } else if (mConnToResume.getState() == Connection.STATE_DISCONNECTED) {
+                    // Here we could possibly unhold mConnToHold but that is not in sync with
+                    // ImsPhoneCallTracker handling
+                    Log.d(this,"onStateChanged call to be resumed has been disconnected");
+                    onSuccess();
+                }
             }
         } else if (c.equals(mConnToResume)) {
             Log.d(this,"onStateChanged callToResume state = " + state);
