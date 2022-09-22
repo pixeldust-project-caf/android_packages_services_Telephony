@@ -553,6 +553,27 @@ public class TelephonyConnectionService extends ConnectionService {
             if (ringingConnection != null) {
                 handleIncomingDsdaCall((TelephonyConnection) ringingConnection);
             }
+
+            /*
+             * As per carrier requirement we need to disable swap when Active call is
+             * VT call and enable swap if that Video call is downgraded to Voice
+             * call.
+             */
+            if (!isConcurrentCallAllowedDuringVideoCall(conn.getPhone())) {
+                return;
+            }
+            /*
+             * Either there is no call present on the other SUB or there is
+             * a connected Video call on other SUB then no need to check
+             * further since here we only handle Voice/Video + Voice use-cases.
+             */
+            PhoneAccountHandle accountHandle = c.getPhoneAccountHandle();
+            if (!isCallPresentOnOtherSub(accountHandle) ||
+                    hasConnectedVideoCallOnOtherSub(accountHandle)) {
+                return;
+            }
+            // Update EXTRA_DISABLE_SWAP_CALL when call state becomes to active
+            disableSwap(conn, VideoProfile.isVideo(conn.getVideoState()));
         }
 
         @Override
