@@ -75,7 +75,7 @@ public class CiWlanNotificationReceiver extends BroadcastReceiver {
     private static final String TAG = "CiWlanNotificationReceiver";
 
     private final String C_IWLAN_NOTIFICATION_STATUS = "C_IWLAN_NOTIFICATION_STATUS";
-    private final String C_IWLAN_NOTIFICATION_SUB_ID = "C_IWLAN_NOTIFICATION_SUB_ID";
+    private final String C_IWLAN_NOTIFICATION_PHONE_ID = "C_IWLAN_NOTIFICATION_PHONE_ID";
     private final String C_IWLAN_NOTIFICATION_CHANNEL_ID = "C_IWLAN_NOTIFICATION_CHANNEL_ID";
 
     private final String ACTION_DISABLE_C_IWLAN_NOTIFICATION =
@@ -93,10 +93,10 @@ public class CiWlanNotificationReceiver extends BroadcastReceiver {
         switch (intent.getAction()) {
             case ACTION_DISABLE_C_IWLAN_NOTIFICATION:
                 boolean show = intent.getBooleanExtra(C_IWLAN_NOTIFICATION_STATUS, false);
-                int subId = intent.getIntExtra(C_IWLAN_NOTIFICATION_SUB_ID,
-                        SubscriptionManager.INVALID_SUBSCRIPTION_ID);
-                Log.d(TAG, "ACTION_DISABLE_C_IWLAN_NOTIFICATION: " + show + " subId: " + subId);
-                toggleNotification(show, subId, context.getApplicationContext());
+                int phoneId = intent.getIntExtra(C_IWLAN_NOTIFICATION_PHONE_ID,
+                        SubscriptionManager.INVALID_PHONE_INDEX);
+                Log.d(TAG, "ACTION_DISABLE_C_IWLAN_NOTIFICATION: " + show + " phoneId: " + phoneId);
+                toggleNotification(show, phoneId, context.getApplicationContext());
                 break;
             case ACTION_RADIO_POWER_STATE_CHANGED:
                 Log.d(TAG, "ACTION_RADIO_POWER_STATE_CHANGED");
@@ -117,16 +117,20 @@ public class CiWlanNotificationReceiver extends BroadcastReceiver {
         }
     }
 
-    private void toggleNotification(boolean show, int subId, Context context) {
+    private void toggleNotification(boolean show, int phoneId, Context context) {
+        if (phoneId == SubscriptionManager.INVALID_PHONE_INDEX) {
+            Log.e(TAG, "Invalid phoneId");
+            return;
+        }
         if (show) {
-            showNotification(context, subId);
+            showNotification(context, phoneId);
         } else {
-            hideNotification(context, subId);
+            dismissNotification(context, phoneId);
         }
     }
 
-    private void showNotification(Context context, int subId) {
-        Log.d(TAG, "showNotification subId: " + subId);
+    private void showNotification(Context context, int phoneId) {
+        Log.d(TAG, "showNotification phoneId: " + phoneId);
 
         Resources resources = context.getResources();
 
@@ -143,13 +147,13 @@ public class CiWlanNotificationReceiver extends BroadcastReceiver {
         // Build the negative button that dismisses the notification
         Intent dismissIntent = new Intent(ACTION_DISABLE_C_IWLAN_NOTIFICATION);
         dismissIntent.putExtra(C_IWLAN_NOTIFICATION_STATUS, false);
-        dismissIntent.putExtra(C_IWLAN_NOTIFICATION_SUB_ID, subId);
+        dismissIntent.putExtra(C_IWLAN_NOTIFICATION_PHONE_ID, phoneId);
         dismissIntent.setComponent(new ComponentName(context.getPackageName(),
                 CiWlanNotificationReceiver.class.getName()));
-        // For the 2nd parameter, the requestCode, we are passing in the subId to differentiate
+        // For the 2nd parameter, the requestCode, we are passing in the phoneId to differentiate
         // between the pending intents for the different subs. If we pass the same number for this
         // parameter, the extras for the latest pending intent will override the previous one.
-        pendingIntent = PendingIntent.getBroadcast(context, subId, dismissIntent,
+        pendingIntent = PendingIntent.getBroadcast(context, phoneId, dismissIntent,
                 PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Action dismissAction = new NotificationCompat.Action.Builder(0,
                 resources.getString(R.string.c_iwlan_exit_notification_negative_button),
@@ -165,15 +169,15 @@ public class CiWlanNotificationReceiver extends BroadcastReceiver {
                 .addAction(ciwlanSettingAction)
                 .addAction(dismissAction);
 
-        // The 1st argument to notify, the notification tag, will be used to differentiate the
-        // notification for different subs in the multi-sim case
-        mNotificationManager.notify(Integer.toString(subId),
+        // The 1st argument to notify, the notification tag, will be used to differentiate between
+        // the notifications for different subs in the multi-sim case
+        mNotificationManager.notify(Integer.toString(phoneId),
                 NotificationMgr.BACKUP_CALLING_NOTIFICATION, builder.build());
     }
 
-    private void hideNotification(Context context, int subId) {
-        Log.d(TAG, "hideNotification subId: " + subId);
-        mNotificationManager.cancel(Integer.toString(subId),
+    private void dismissNotification(Context context, int phoneId) {
+        Log.d(TAG, "dismissNotification phoneId: " + phoneId);
+        mNotificationManager.cancel(Integer.toString(phoneId),
                 NotificationMgr.BACKUP_CALLING_NOTIFICATION);
     }
 
