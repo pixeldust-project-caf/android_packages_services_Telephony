@@ -578,6 +578,10 @@ public class TelephonyConnectionService extends ConnectionService {
              if (!isConcurrentCallAllowedDuringVideoCall(conn.getPhone())) {
                  return;
              }
+
+            // Update EXTRA_ANSWERING_DROPS_FG_CALL in DSDA mode
+            updateAnsweringDropsFgCallExtra();
+
             /*
              * Either there is no call present on the other SUB or there is
              * a connected Video call on other SUB then no need to check
@@ -1614,6 +1618,54 @@ public class TelephonyConnectionService extends ConnectionService {
         } else {
             // If concurrent call is allowed then grey out the swap option on the UI.
             disableSwap(incomingConnection, true);
+        }
+    }
+
+    private void updateAnsweringDropsFgCallExtra() {
+        // Check for DSDA mode
+        if (!isConcurrentCallsPossible()) {
+            return;
+        }
+
+        TelephonyConnection ringingConnection = (TelephonyConnection) getRingingConnection();
+        if (ringingConnection == null) {
+            return;
+        }
+
+        Phone ringingPhone = ringingConnection.getPhone();
+        if (ringingPhone == null) {
+            return;
+        }
+
+        PhoneAccountHandle ringingHandle = mPhoneUtilsProxy
+                .makePstnPhoneAccountHandle(ringingPhone);
+        com.android.internal.telephony.Connection ringingOriginalConnection = ringingConnection
+                .getOriginalConnection();
+        // If holding Video call is allowed or ringing connection is null or is not IMS then return
+        if (isVideoCallHoldAllowedOnOtherSub(ringingPhone)
+                || ringingOriginalConnection == null
+                || ringingOriginalConnection.getPhoneType() != PhoneConstants.PHONE_TYPE_IMS) {
+            return;
+        }
+
+        /*
+         * In DSDA mode, if holding Video call is not allowed on the other SUB then active
+         * video call is downgraded or active voice call is upgraded:
+         * 1) If a video call is downgraded to voice call then answering the incoming
+         *    call will not end the call(s) on the other SUB.
+         * 2) If a voice call is upgraded to video call then answering the incoming
+         *    call will end the call(s) on the other SUB.
+         */
+        ImsPhoneConnection imsOriginalConnection = (ImsPhoneConnection) ringingOriginalConnection;
+        boolean hasConnectedVideoCallOnOtherSub = hasConnectedVideoCallOnOtherSub(ringingHandle);
+        if (!hasConnectedVideoCallOnOtherSub &&
+                ringingOriginalConnection.isActiveCallDisconnectedOnAnswer()) {
+            Log.v(this, "updateAnsweringDropsFgCallExtra remove extra in ringing connection");
+            ringingConnection.removeExtras(Connection.EXTRA_ANSWERING_DROPS_FG_CALL);
+        } else if (hasConnectedVideoCallOnOtherSub &&
+                !ringingOriginalConnection.isActiveCallDisconnectedOnAnswer()) {
+            Log.v(this, "updateAnsweringDropsFgCallExtra enable extra in ringing connection");
+            enableAnsweringWillDisconnect(imsOriginalConnection, ringingConnection);
         }
     }
 
