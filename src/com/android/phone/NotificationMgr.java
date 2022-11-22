@@ -764,11 +764,11 @@ public class NotificationMgr {
     }
 
     /**
-     * Dismiss the "Backup Calling" notification for the given subId
+     * Dismiss the "Backup Calling" notification for the given phoneId
      */
-    public void dismissBackupCallingNotification(int subId) {
-        log("dismissBackupCallingNotification subId = " + subId);
-        cancelAsUser(Integer.toString(subId), BACKUP_CALLING_NOTIFICATION, UserHandle.ALL);
+    public void dismissBackupCallingNotification(int phoneId) {
+        log("dismissBackupCallingNotification phoneId = " + phoneId);
+        cancelAsUser(Integer.toString(phoneId), BACKUP_CALLING_NOTIFICATION, UserHandle.ALL);
     }
 
     /**
