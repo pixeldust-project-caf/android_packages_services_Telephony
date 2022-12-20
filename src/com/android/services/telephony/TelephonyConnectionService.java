@@ -64,6 +64,7 @@ import com.android.internal.telephony.d2d.Communicator;
 import com.android.internal.telephony.data.PhoneSwitcher;
 import com.android.internal.telephony.imsphone.ImsExternalCallTracker;
 import com.android.internal.telephony.imsphone.ImsPhone;
+import com.android.internal.telephony.imsphone.ImsPhoneCallTracker;
 import com.android.internal.telephony.imsphone.ImsPhoneConnection;
 import com.android.phone.FrameworksUtils;
 import com.android.phone.MMIDialogActivity;
@@ -678,7 +679,7 @@ public class TelephonyConnectionService extends ConnectionService {
         updatePhoneAccount(conferenceHostConnection, phone);
         com.android.internal.telephony.Connection originalConnection = null;
         try {
-            if (isAcrossSubHoldInProgress()) {
+            if (isHoldOrSwapInProgress()) {
                 throw new CallStateException("Cannot dial as holding in progress");
             }
             // Get connection to hold if any
@@ -749,7 +750,7 @@ public class TelephonyConnectionService extends ConnectionService {
 
     @Override
     protected void unhold(String callId) {
-        if (isAcrossSubHoldInProgress()) {
+        if (isHoldOrSwapInProgress()) {
             Log.e(this, null, "Cannot unhold call as holding in progress");
             return;
         }
@@ -763,7 +764,7 @@ public class TelephonyConnectionService extends ConnectionService {
 
     @Override
     protected void hold(String callId) {
-        if (isAcrossSubHoldInProgress()) {
+        if (isHoldOrSwapInProgress()) {
             Log.e(this, null, "Cannot unhold call as holding in progress");
             return;
         }
@@ -794,7 +795,7 @@ public class TelephonyConnectionService extends ConnectionService {
 
     @Override
     protected void answerVideo(String callId, int videoState) {
-        if (isAcrossSubHoldInProgress()) {
+        if (isHoldOrSwapInProgress()) {
             Log.e(this, null, "Cannot answer as holding in progress");
             return;
         }
@@ -2301,7 +2302,7 @@ public class TelephonyConnectionService extends ConnectionService {
 
         final com.android.internal.telephony.Connection originalConnection;
         try {
-            if (isAcrossSubHoldInProgress()) {
+            if (isHoldOrSwapInProgress()) {
                 throw new CallStateException("Cannot dial as holding in progress");
             }
             if (phone != null) {
@@ -3498,6 +3499,34 @@ public class TelephonyConnectionService extends ConnectionService {
             }
         }
         return null;
+    }
+
+    // When one of the subs call is resumed/swaped, the mHoldHandler is
+    // not initialized as it is not a cross sub swap use case. then
+    // need to check ImsPhoneCallTracker's hold/swap status to prevent
+    // placing outgong calls/conf, or answering video, or holding, or
+    // resuming when there is hold / unhold request on one sub or cross
+    // sub hold in progress.
+    // Return the ture if hold/resume/swap is in progress, else false.
+    private boolean isHoldOrSwapInProgress() {
+        for (Phone ph : mPhoneFactoryProxy.getPhones()) {
+            if (!(ph.getImsPhone() instanceof ImsPhone)) {
+                continue;
+            }
+            ImsPhone imsPhone = (ImsPhone) ph.getImsPhone();
+
+            if (!(imsPhone.getCallTracker() instanceof ImsPhoneCallTracker)) {
+                continue;
+            }
+            ImsPhoneCallTracker imsPhoneCallTracker =
+                (ImsPhoneCallTracker) imsPhone.getCallTracker();
+
+            if(imsPhoneCallTracker.isHoldOrSwapInProgress()) {
+                Log.d(this, "Hold Or Swap In Progress.");
+                return true;
+            }
+        }
+        return isAcrossSubHoldInProgress();
     }
 
     private boolean isAcrossSubHoldInProgress() {
