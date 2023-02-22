@@ -723,10 +723,11 @@ public class PhoneGlobals extends ContextWrapper {
                 if (!imsMmTelMgr.isCrossSimCallingEnabled()) {
                     Log.d(LOG_TAG, "Backup calling disabled on sub " + subId);
                     mHandler.obtainMessage(EVENT_BACKUP_CALLING_SETTING_CHANGED,
-                            subId, -1 /* Not used */).sendToTarget();
+                            SubscriptionManager.getSlotIndex(subId),
+                            -1 /* Not used */).sendToTarget();
                 }
             } catch (ImsException ex) {
-                Log.e(LOG_TAG, "Failed to get Backup calling's configuration", ex);
+                Log.e(LOG_TAG, "Failed to get backup calling status", ex);
             }
         }
     }

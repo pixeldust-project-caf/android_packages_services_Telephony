@@ -143,6 +143,12 @@ final class CdmaConnection extends TelephonyConnection {
         super.onAnswer();
     }
 
+    @Override
+    public void onAnswer(int videoState) {
+        mHandler.removeMessages(MSG_CALL_WAITING_MISSED);
+        super.onAnswer(videoState);
+    }
+
     /**
      * Clones the current {@link CdmaConnection}.
      * <p>
