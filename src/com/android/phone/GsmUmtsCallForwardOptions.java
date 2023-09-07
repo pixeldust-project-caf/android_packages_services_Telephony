@@ -4,6 +4,7 @@ import android.app.ActionBar;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
+import android.content.ContentProvider;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -14,7 +15,9 @@ import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
+import android.os.Process;
 import android.os.SystemProperties;
+import android.os.UserHandle;
 import android.preference.Preference;
 import android.preference.PreferenceScreen;
 import android.provider.Settings;
@@ -519,6 +522,15 @@ public class GsmUmtsCallForwardOptions extends TimeConsumingPreferenceActivity
         }
         Cursor cursor = null;
         try {
+            // check if the URI returned by the user belongs to the user
+            final int currentUser = UserHandle.getUserId(Process.myUid());
+            if (currentUser
+                    != ContentProvider.getUserIdFromUri(data.getData(), currentUser)) {
+
+                Log.w(LOG_TAG, "onActivityResult: Contact data of different user, "
+                        + "cannot access");
+                return;
+            }
             cursor = getContentResolver().query(data.getData(),
                 NUM_PROJECTION, null, null, null);
             if ((cursor == null) || (!cursor.moveToFirst())) {
